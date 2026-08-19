@@ -28,7 +28,7 @@ tests/          Automatisierte Tests
 - [Extraktions-Testfälle](documentation/TEST_CASES.md)
 - [Technologie-Stack und Kosten](documentation/TECH_STACK.md)
 - [Projektzeitplan](documentation/TIMELINE.md)
-- [Arbeitsdokumentation][Stunden.csv]
+- [Arbeitsdokumentation](Stunden.csv)
 
 ## Wichtige Regeln
 
