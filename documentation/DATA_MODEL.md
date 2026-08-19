@@ -2,7 +2,7 @@
 
 ## Ziel
 
-Das Datenmodell bildet Fahrzeugaufnahmen und saisonale Reifenwechsel ab. Es trennt KI-Rohdaten, geprüfte Fachwerte und Verwaltungsdaten, damit jede Korrektur nachvollziehbar bleibt.
+Das Datenmodell bildet die beiden Werkstattprotokolle Reifenwechsel und Reifeneinlagerung ab. Es trennt KI-Rohdaten, geprüfte Fachwerte und Verwaltungsdaten, damit jede Korrektur nachvollziehbar bleibt.
 
 Wichtige Prinzipien:
 
@@ -18,10 +18,15 @@ Wichtige Prinzipien:
 Customer
 └── Vehicle (customer_id optional)
     └── ServiceRecord
+        ├── CustomerSignature
+        ├── TireChangeDetails (nur bei tire_change)
+        │   └── BrakeDiscMeasurement
         ├── TireInspection
         │   └── TireCondition
+        ├── VisualInspection
         └── ServiceTireSet
             └── TireSet
+                └── Tire
 ```
 
 Ein `Vehicle` kann vor der Büroprüfung ohne `customer_id` angelegt werden. Ein `ServiceRecord` kann mehrere Reifensätze referenzieren; ihre Rolle ist immer explizit.
@@ -50,6 +55,9 @@ Ein `Vehicle` kann vor der Büroprüfung ohne `customer_id` angelegt werden. Ein
 | mileage_km | integer | nein | aktueller Kilometerstand |
 | make | string | nein | Hersteller |
 | model | string | nein | Fahrzeugmodell |
+| propulsion_type | enum | nein | Antriebsart: Elektro, Hybrid oder andere |
+| first_registration_month | year_month | nein | Erstzulassung (EZ), Monat und Jahr |
+| max_speed_kmh | integer | nein | Höchstgeschwindigkeit (Vmax) |
 | vin | string | nein | Fahrgestellnummer |
 | created_at | datetime | ja | Erstellungszeitpunkt |
 | updated_at | datetime | ja | letzter Änderungszeitpunkt |
@@ -60,8 +68,20 @@ Beispiel:
 ```json
 {
   "license_plate": "CW-AB 123",
-  "mileage_km": 73400
+  "mileage_km": 73400,
+  "propulsion_type": "electric",
+  "first_registration_month": "2024-03",
+  "max_speed_kmh": 180
 }
+```
+
+### propulsion_type
+
+```text
+electric
+hybrid
+other
+unknown
 ```
 
 ## ServiceRecord (Servicevorgang)
@@ -70,14 +90,15 @@ Beispiel:
 | --- | --- | :---: | --- |
 | id | UUID | ja | interne ID |
 | vehicle_id | UUID | ja | Fahrzeug |
-| service_type | enum | ja | Vorgangstyp |
+| service_type | enum | ja | Protokolltyp |
+| service_date | date | ja | Datum des Werkstattprotokolls |
 | status | enum | ja | Ablaufstatus |
 | notes | text | nein | allgemeine Servicehinweise |
 | raw_transcript | text | nein | originales Sprachtranskript |
 | extraction_payload | JSONB | nein | unveränderte KI-Extraktion |
 | field_status | JSONB | nein | Status einzelner extrahierter Felder |
 | review_required | boolean | ja | Prüfung wegen Unsicherheit oder Validierung nötig |
-| created_by | UUID | nein | Mechaniker |
+| created_by | UUID | ja | erfassender Mechaniker |
 | mechanic_confirmed_at | datetime | nein | Bestätigung durch Mechaniker |
 | office_reviewed_at | datetime | nein | Prüfung durch Büro |
 | created_at | datetime | ja | Erstellungszeitpunkt |
@@ -87,9 +108,11 @@ Beispiel:
 ### service_type
 
 ```text
-seasonal_tire_change
-new_customer_registration
+tire_change
+tire_storage
 ```
+
+`tire_change` steht für ein Reifenwechselprotokoll, `tire_storage` für ein Reifeneinlagerungsprotokoll. Die Kundenanlage oder -zuordnung erfolgt nicht über einen eigenen `service_type`, sondern im Büro.
 
 ### status
 
@@ -103,6 +126,81 @@ rejected
 
 `status` beschreibt ausschließlich den Lebenszyklus eines Vorgangs. `field_status` enthält beispielsweise `missing` oder `uncertain`; `review_required` markiert einen offenen Prüfbedarf.
 
+Bei `tire_storage` und `tire_change` müssen vor dem Abschluss ein Kunde über `Vehicle.customer_id`, ein Fahrzeug mit Kennzeichen, das Protokolldatum und der Mechaniker vorhanden sein. Die Kundenanlage oder -zuordnung bleibt Aufgabe des Büros.
+
+## CustomerSignature (Kundenunterschrift)
+
+Diese Erweiterung existiert höchstens einmal je `ServiceRecord` und steht für die Kundenunterschrift in beiden Protokollen zur Verfügung.
+
+| Feld | Typ | Pflicht | Beschreibung |
+| --- | --- | :---: | --- |
+| id | UUID | ja | interne ID |
+| service_record_id | UUID | ja | zugehöriges Werkstattprotokoll |
+| customer_signature | binary | ja | erfasste Unterschrift des Kunden |
+| customer_signed_at | datetime | ja | Zeitpunkt der Unterschrift |
+
+Die Unterschrift ist als geschützter Binärwert beziehungsweise als Verweis auf einen geschützten Dateispeicher abzulegen; sie wird nicht im Sprachtranskript gespeichert.
+
+## TireChangeDetails (Wechseldetails)
+
+Diese Erweiterung existiert genau einmal für einen `ServiceRecord` mit `service_type: tire_change`. Kunde, Datum, Fahrzeug, Kennzeichen und Kilometerstand werden über `Customer`, `Vehicle` und `ServiceRecord` geführt; die folgenden Angaben gehören ausschließlich zum Reifenwechselprotokoll.
+
+| Feld | Typ | Pflicht | Beschreibung |
+| --- | --- | :---: | --- |
+| id | UUID | ja | interne ID |
+| service_record_id | UUID | ja | zugehöriges Reifenwechselprotokoll |
+| wheel_change_performed | boolean | ja | RäWe durchgeführt: Ja oder Nein |
+| balancing_steel_count | integer | nein | Anzahl gewuchteter Stahlräder, z. B. 2 |
+| balancing_alloy_count | integer | nein | Anzahl gewuchteter Aluräder, z. B. 2 |
+| machine_wash_count | integer | nein | Anzahl maschinell gewaschener Räder, z. B. 4 |
+| manual_wash_count | integer | nein | Anzahl manuell gewaschener Räder, z. B. 4 |
+| whm_mode | string | nein | ausgewählter WHM-Modus ohne Umdeutung |
+| next_customer_service | string | nein | Angabe zum nächsten Kundendienst (KD) |
+| next_oil_service | string | nein | Angabe zum nächsten Ölservice |
+| air_pressure_front_bar | decimal | nein | Luftdruck-Mittelwert Vorderachse in bar |
+| air_pressure_rear_bar | decimal | nein | Luftdruck-Mittelwert Hinterachse in bar |
+| wheel_lock_present | boolean | nein | Felgenschloss vorhanden: Ja oder Nein |
+| wheel_bolt_configuration | enum | nein | gleiche oder verschiedene Radschrauben |
+| hu_due_month | year_month | nein | Fälligkeit der Hauptuntersuchung (HU), Monat und Jahr |
+| suspension_visual_result | enum | nein | Fahrwerksichtprüfung: i.O. oder n.i.O. |
+| brake_visual_result | enum | nein | Bremsensichtprüfung: i.O. oder n.i.O. |
+| hub_cleaned | boolean | nein | Radnabe gereinigt: Ja oder Nein |
+| rdks_type | enum | nein | RDKS aktiv oder passiv |
+| rdks_programmed | boolean | nein | RDKS angelernt: Ja oder Nein |
+| speed_limiter_set | boolean | nein | Limiter gesetzt: Ja oder Nein |
+| speed_limiter_sticker_applied | boolean | nein | Limiter-Aufkleber angebracht: Ja oder Nein |
+| wheel_bolt_torque_nm | decimal | nein | Drehmoment der Radschrauben in Nm |
+| whatsapp_contact_allowed | boolean | nein | WhatsApp-Kontakt erlaubt: Ja oder Nein |
+
+### wheel_bolt_configuration
+
+```text
+same
+different
+unknown
+```
+
+### Sichtprüfungs-Ergebnis
+
+```text
+ok
+not_ok
+unknown
+```
+
+`rdks_type` und `rdks_programmed` sind getrennte Felder: Ein RDKS kann aktiv oder passiv sein und zusätzlich angelernt werden. Gleiches gilt für `speed_limiter_set` und den Limiter-Aufkleber; beide Angaben werden getrennt dokumentiert.
+
+## BrakeDiscMeasurement (Bremsscheibendicke)
+
+Eine Bremsscheibendicke wird nur erfasst, wenn die Bremsensichtprüfung `not_ok` ist.
+
+| Feld | Typ | Pflicht | Beschreibung |
+| --- | --- | :---: | --- |
+| id | UUID | ja | interne ID |
+| tire_change_details_id | UUID | ja | zugehörige Wechseldetails |
+| position | enum | ja | Position der gemessenen Bremsscheibe |
+| thickness_mm | decimal | ja | Bremsscheibendicke in Millimetern |
+
 ## TireSet (Reifensatz)
 
 | Feld | Typ | Pflicht | Beschreibung |
@@ -111,11 +209,16 @@ rejected
 | tire_type | enum | nein | Sommer, Winter oder Ganzjahr |
 | width_mm | integer | nein | z. B. 205 |
 | aspect_ratio | integer | nein | z. B. 55 |
-| rim_diameter_inch | integer | nein | z. B. 16 |
+| rim_diameter_inch | integer | nein | Felgengröße in Zoll, z. B. 16 |
+| rim_category | enum | nein | Alu, Stahl oder Original |
+| rim_manufacturer | string | nein | Felgenhersteller |
+| rim_model | string | nein | Felgentyp oder -modell |
 | manufacturer | string | nein | Hersteller |
-| model | string | nein | Reifenmodell |
+| model | string | nein | Profilbezeichnung beziehungsweise Reifenmodell |
 | quantity | integer | nein | Anzahl Reifen |
 | dot | string | nein | DOT-Angabe |
+| load_index | string | nein | Tragfähigkeitsindex (LI), z. B. 91 |
+| speed_index | string | nein | Geschwindigkeitsindex (VI), z. B. H |
 | notes | text | nein | Hinweise |
 
 ### tire_type
@@ -139,6 +242,36 @@ Eine Reifengröße wird strukturiert gespeichert:
 
 Für die Oberfläche wird sie als `205/55 R16` formatiert.
 
+### rim_category
+
+```text
+alloy
+steel
+original
+unknown
+```
+
+`alloy`, `steel` und `original` entsprechen den Auswahlwerten Alu, Stahl und Original im Einlagerungsprotokoll. Für ein `tire_storage`-Protokoll werden Felgengröße, Felgenausführung, Felgenhersteller und Felgentyp am Reifensatz erfasst.
+
+## Tire (Einzelreifen)
+
+Ein `Tire` gehört zu genau einem `TireSet`. Für ein Einlagerungsprotokoll sind diese Werte je einzelnem Reifen zu erfassen; damit können unterschiedliche Profiltiefen, DOT-Nummern und Schäden innerhalb eines Satzes abgebildet werden.
+
+| Feld | Typ | Pflicht | Beschreibung |
+| --- | --- | :---: | --- |
+| id | UUID | ja | interne ID |
+| tire_set_id | UUID | ja | zugehöriger Reifensatz |
+| position | enum | ja | Position am Fahrzeug oder eindeutige Reihenfolge |
+| manufacturer | string | nein | Reifenhersteller des einzelnen Reifens |
+| profile | string | nein | Reifenprofil beziehungsweise Modellbezeichnung |
+| tread_depth_mm | decimal | nein | gemessene Profiltiefe in Millimetern |
+| dot | string | nein | DOT-Nummer |
+| wear_marks_present | boolean | ja | Gebrauchsspuren vorhanden: Ja oder Nein |
+| has_damage | boolean | ja | Beschädigung vorhanden: Ja oder Nein |
+| damage_notes | text | nein | Beschreibung der Beschädigung |
+
+`manufacturer`, `model` und `dot` auf `TireSet` bleiben für allgemeine Reifenwechsel- und Altdaten erhalten. Bei einer Einlagerung sind die Werte des jeweiligen `Tire` maßgeblich.
+
 ## ServiceTireSet (Reifensatz im Vorgang)
 
 Diese Zuordnung verbindet einen Reifensatz mit einem Servicevorgang und hält seine Rolle fest.
@@ -158,11 +291,18 @@ removed
 stored
 ```
 
-Bei „eingelagert“ wird `stored` verwendet; bei ausschließlich genannter Demontage `removed`. Ein montierter Satz erhält `installed`. Dieselbe physische Reifenmenge kann bei Bedarf sowohl als `removed` als auch als `stored` zugeordnet werden.
+| Protokolltyp | Erlaubte Rollen | Bedeutung |
+| --- | --- | --- |
+| `tire_change` | `installed`, `removed` | montierter beziehungsweise demontierter Satz |
+| `tire_storage` | `stored` | einzulagernder Satz |
+
+Bei einem Reifenwechsel wird ein montierter Satz als `installed` und ein demontierter Satz als `removed` gespeichert. Bei einer Einlagerung wird ausschließlich `stored` verwendet. Soll ein demontierter Satz eingelagert werden, wird dafür zusätzlich ein separates Reifeneinlagerungsprotokoll erstellt.
+
+Im Reifenwechselprotokoll werden Winter- und Sommerräder jeweils als eigener `ServiceTireSet` gespeichert. Reifengröße, LI, VI, Hersteller, Profilbezeichnung und DOT-Angabe gehören zum jeweiligen `TireSet`; Profiltiefen und Sichtprüfungen werden über dessen Zuordnung zum Vorgang erfasst.
 
 ## TireInspection (Reifenprüfung)
 
-Die Reifenprüfung beschreibt Profiltiefe und allgemeine Hinweise zum Zeitpunkt des Servicevorgangs.
+Die Reifenprüfung beschreibt Profiltiefe und allgemeine Hinweise zum Zeitpunkt eines Reifenwechselprotokolls. Für das Einlagerungsprotokoll wird die Profiltiefe je Reifen in `Tire.tread_depth_mm` gespeichert.
 
 | Feld | Typ | Pflicht | Beschreibung |
 | --- | --- | :---: | --- |
@@ -185,6 +325,22 @@ Wenn nur „vorne 6, hinten 5“ genannt wird, werden Achswerte gespeichert und 
   "tread_rear_mm": 5
 }
 ```
+
+## VisualInspection (Felgen- und Reifensichtprüfung)
+
+Eine Sichtprüfung dokumentiert Felge oder Reifen eines Reifensatzes im Reifenwechselprotokoll. Sie kann für alle Positionen oder für eine konkrete auffällige Position angelegt werden.
+
+| Feld | Typ | Pflicht | Beschreibung |
+| --- | --- | :---: | --- |
+| id | UUID | ja | interne ID |
+| service_record_id | UUID | ja | Reifenwechselprotokoll |
+| service_tire_set_id | UUID | ja | geprüfter Winter- oder Sommersatz |
+| component | enum | ja | `rim` oder `tire` |
+| result | enum | ja | `ok` oder `not_ok` |
+| position | enum | ja | geprüfte oder auffällige Radposition |
+| notes | text | nein | Beschreibung, zum Beispiel Kratzer |
+
+Für eine i.O.-Prüfung aller Räder wird `position: all` verwendet. Für eine n.i.O.-Prüfung ist die konkrete Position Pflicht.
 
 ## TireCondition (Reifenzustand)
 
@@ -222,6 +378,7 @@ rear_left
 rear_right
 front
 rear
+all
 unknown
 ```
 

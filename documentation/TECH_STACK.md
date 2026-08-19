@@ -1,11 +1,11 @@
-# CarTech – Tech-Stack und Kosten
+# Fahrzeug- & Reifenerfassung – Tech-Stack und Kosten
 
 ## Ziel
 
-CarTech ist eine Voice-first-Anwendung zur Fahrzeug- und Reifenerfassung in kleinen Werkstätten. Der MVP unterstützt Neukundenaufnahmen und saisonale Reifenwechsel.
+Die Anwendung unterstützt die Werkstatt CarTech bei der Voice-first-Fahrzeug- und Reifenerfassung. Der MVP unterstützt zwei Werkstattprotokolle: Reifenwechsel und Reifeneinlagerung.
 
 ```text
-Mechaniker spricht
+Mechaniker wählt ein Protokoll und spricht
 → KI strukturiert Daten
 → Mechaniker bestätigt
 → Büro prüft

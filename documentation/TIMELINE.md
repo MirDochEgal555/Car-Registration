@@ -1,4 +1,4 @@
-# CarTech – Zeitplan
+# Fahrzeug- & Reifenerfassung – Zeitplan
 
 ## Ziel
 
@@ -91,7 +91,7 @@ Ziel: Der Kernworkflow funktioniert zunächst ohne KI vollständig.
 - React, TypeScript und Vite aufsetzen
 - PWA konfigurieren
 - Mechanikeransicht erstellen
-- neue Erfassung starten
+- Reifenwechsel- oder Einlagerungsprotokoll auswählen und starten
 - Kennzeichen und Reifendaten erfassen und anzeigen
 - Daten korrigieren
 - Vorgang bestätigen
@@ -339,6 +339,7 @@ Ziel: Den vollständigen Ablauf vor dem produktiven Start testen und verbleibend
 
 - neue Fahrzeugerfassung
 - Reifenwechsel
+- Reifeneinlagerung
 - vollständige und unvollständige Spracheingaben
 - Korrekturen durch den Mechaniker
 - Büroprüfung und Kundenzuordnung
@@ -415,7 +416,7 @@ Das System ist für den realen Werkstattbetrieb freigegeben. WERBAS bleibt zunä
 
 Der MVP ist fertig, wenn:
 
-- ein Mechaniker einen normalen Reifenwechsel primär per Sprache dokumentieren kann,
+- ein Mechaniker einen Reifenwechsel oder eine Reifeneinlagerung primär per Sprache dokumentieren kann,
 - im Standardfall nur minimale Interaktion nötig ist,
 - keine unsicheren Informationen erfunden werden,
 - relevante Reifeninformationen korrekt strukturiert werden,

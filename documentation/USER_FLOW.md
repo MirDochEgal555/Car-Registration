@@ -5,7 +5,8 @@
 Der Mechaniker soll möglichst wenig tippen oder klicken.
 
 ```text
-Mechaniker spricht
+Mechaniker wählt ein Protokoll
+→ Mechaniker spricht
 → KI extrahiert
 → Mechaniker bestätigt
 → Büro prüft
@@ -51,23 +52,24 @@ Unsicherheiten und Plausibilitätsfehler ändern den Ablaufstatus nicht. Sie wer
 
 ## Flow 1: Neue Erfassung
 
-### Schritt 1 – Vorgang starten
+### Schritt 1 – Protokoll wählen
 
-Der Mechaniker öffnet die neue Fahrzeugaufnahme. Die App zeigt möglichst nur eine primäre Aktion:
+Der Mechaniker öffnet die neue Erfassung und wählt eines der beiden Werkstattprotokolle:
 
 ```text
-Aufnahme starten
+Reifenwechsel
+Reifeneinlagerung
 ```
 
-Dadurch entsteht ein Vorgang mit dem Status `draft`.
+Die Auswahl setzt den `service_type` auf `tire_change` beziehungsweise `tire_storage` und erzeugt einen Vorgang mit dem Status `draft`. Der gewählte Protokolltyp bleibt für die Aufnahme maßgeblich; die KI darf ihn nicht aufgrund einer missverstandenen Formulierung ändern.
 
 ### Schritt 2 – Spracheingabe
 
-Beispiel:
+Beispiel für ein Reifenwechselprotokoll:
 
 > „CW AB 123, 73.400 Kilometer, vier Michelin Alpin 6 Winterreifen, 205 55 16, vorne sechs Millimeter, hinten fünf.“
 
-Der Mechaniker muss keine feste Reihenfolge einhalten. Er startet die Fahrzeug- oder Serviceerfassung über das Kennzeichen; ein Kundenobjekt wird dabei nicht angelegt.
+Der Mechaniker muss keine feste Reihenfolge einhalten. Er startet die Erfassung über das Kennzeichen; ein Kundenobjekt wird dabei nicht angelegt.
 
 ### Schritt 3 – Verarbeitung
 
@@ -94,6 +96,8 @@ Die wichtigsten Werte werden kompakt angezeigt:
 ```text
 CW-AB 123
 73.400 km
+
+Reifenwechsel
 
 Winterreifen
 Michelin Alpin 6
@@ -142,7 +146,7 @@ Das Büro öffnet die Liste offener Vorgänge, zum Beispiel:
 ```text
 CW-AB 123
 19.08.2026
-Reifenwechsel
+Reifenwechselprotokoll
 Mechaniker bestätigt
 ```
 
@@ -199,20 +203,91 @@ Mögliche Aktionen:
 
 Es werden keine geratenen Daten übernommen.
 
-## Flow 5: Saisonaler Reifenwechsel
+## Flow 5: Reifenwechselprotokoll
 
-Beispiel:
+Beim Reifenwechsel dokumentiert das Protokoll getrennt, was montiert und was demontiert wurde.
 
-> „Wechsel auf Winterreifen. Eingelagert werden vier Michelin Sommerreifen 225 45 17.“
+> „Wechsel auf Winterreifen. Abgenommen werden vier Michelin Sommerreifen 225 45 17.“
 
 Das System legt mehrere Reifensätze mit klarer Rolle an:
 
 ```text
 installed: Winterreifen
-stored: Michelin Sommerreifen, 225/45 R17, vier Stück
+removed: Michelin Sommerreifen, 225/45 R17, vier Stück
 ```
 
-Die erwähnten Sommerreifen dürfen nicht als montierter Satz gespeichert werden.
+Die erwähnten Sommerreifen dürfen nicht als montierter Satz gespeichert werden. Sollen sie eingelagert werden, wird zusätzlich ein Reifeneinlagerungsprotokoll angelegt.
+
+Für den Wechsel führt die Ansicht durch diese Bereiche:
+
+1. Kunde, Datum, Fahrzeug, EZ, Kennzeichen, Vmax, Kilometerstand und Antriebsart E/Hybrid
+2. RäWe, Wuchten Stahl/Alu, maschinelle/manuelle Radwäsche, WHM-Modus sowie nächster KD und Ölservice
+3. Luftdruck-Mittelwerte VA/HA, Felgenschloss, gleiche/verschiedene Radschrauben und HU-Fälligkeit
+4. Winter- und Sommerräder getrennt mit Profiltiefe, DOT, Größe, LI, VI, Hersteller und Profilbezeichnung
+5. Felgen- und Reifensichtprüfung je Satz mit i.O./n.i.O. und Position
+6. Fahrwerks- und Bremsensichtprüfung; bei n.i.O. die Bremsscheibendicke
+7. Radnabe gereinigt, RDKS, Limiter samt Aufkleber, Drehmoment, Kundenunterschrift und WhatsApp-Freigabe
+
+Der Kunde wird über das Fahrzeug zugeordnet. Fehlt die Zuordnung noch, ergänzt das Büro sie vor dem Abschluss des Protokolls.
+
+Beispiel für die komprimierte Prüfansicht:
+
+```text
+Reifenwechsel · CW-AB 123 · EZ 03/2024 · Vmax 180 km/h
+E-Antrieb · 73.400 km · RäWe
+
+Winterräder (montiert): 205/55 R16 91H · Continental WinterContact · DOT 2524
+Profil: VA 6,5 mm · HA 6,0 mm
+Felgen: i.O. · Reifen: i.O.
+
+Sommerräder (demontiert): 205/55 R16 91H · Michelin Primacy 4 · DOT 1423
+Profil: VA 4,5 mm · HA 4,0 mm
+Felge hinten rechts: n.i.O. – Kratzer
+
+Luftdruck: VA 2,4 bar · HA 2,3 bar
+Radnabe gereinigt: Ja · RDKS: aktiv, angelernt · Drehmoment: 120 Nm
+Fahrwerk: i.O. · Bremse: n.i.O. · Scheibe vorne rechts: 19,5 mm
+Limiter: gesetzt · Aufkleber: Ja · WhatsApp: Ja
+Kundenunterschrift: [erfasst]
+```
+
+## Flow 6: Reifeneinlagerungsprotokoll
+
+Für eine Einlagerung wählt der Mechaniker beim Start `Reifeneinlagerung`. Das Protokoll enthält ausschließlich die einzulagernden Reifensätze; es beschreibt keinen Reifenwechsel.
+
+Das Protokoll führt den Mechaniker durch diese Bereiche:
+
+1. Kunde, Datum, Fahrzeug und Kennzeichen
+2. Felgengröße, Felgenausführung (Alu/Stahl/Original), Felgenhersteller und Felgentyp
+3. jeden einzelnen Reifen mit Hersteller, Profil, Profiltiefe, DOT-Nummer, Gebrauchsspuren und Beschädigungen
+4. Anmerkungen, Mechaniker und Kundenunterschrift
+
+Der Kunde wird über das Fahrzeug zugeordnet. Ist der Kunde noch nicht hinterlegt, bleibt die Zuordnung bis zur Büroprüfung offen; das Büro ergänzt oder ordnet ihn vor dem Abschluss des Protokolls zu.
+
+Beispiel für die Reifenerfassung:
+
+> „CW AB 123. Vier Michelin Sommerreifen auf 17-Zoll-Alufelgen von Dezent, Typ TZ, zur Einlagerung. Vorne links Profil sechs Komma fünf, DOT 2324, Gebrauchsspuren ja, keine Beschädigung.“
+
+Das Ergebnis wird eindeutig als Einlagerung angezeigt:
+
+```text
+Reifeneinlagerung
+Kunde: [wird über Fahrzeug zugeordnet]
+Datum: 19.08.2026
+Fahrzeug: CW-AB 123
+Felgen: 17 Zoll, Alu, Dezent Typ TZ
+
+Vorne links
+Michelin, Profil 6,5 mm, DOT 2324
+Gebrauchsspuren: Ja
+Beschädigungen: Nein
+
+Anmerkungen: [optional]
+Mechaniker: [angemeldeter Benutzer]
+Kundenunterschrift: [erfasst]
+```
+
+Die Werte werden für alle Reifen einzeln erfasst. Fehlende technische Angaben werden deutlich markiert und dürfen nicht ergänzt werden. Ein eventuell stattfindender Reifenwechsel wird separat über ein Reifenwechselprotokoll dokumentiert.
 
 ## UI-Prinzipien
 
@@ -249,7 +324,7 @@ Kontrolle > Geschwindigkeit
 Ein normaler Vorgang soll idealerweise nur diese Mechanikerinteraktionen benötigen:
 
 ```text
-1× Aufnahme starten
+1× Protokoll wählen
 1× sprechen
 1× bestätigen
 ```
