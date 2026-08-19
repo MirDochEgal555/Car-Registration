@@ -20,7 +20,7 @@ tests/          Automatisierte Tests
 
 ## Dokumentation
 
-- [Projektstatus](Status.md)
+- [Projektstatus](STATUS.md)
 - [Projektziel und Leitprinzipien](documentation/PROJECT.md)
 - [Benutzerabläufe für Mechaniker und Büro](documentation/USER_FLOW.md)
 - [Datenmodell](documentation/DATA_MODEL.md)
@@ -28,6 +28,7 @@ tests/          Automatisierte Tests
 - [Extraktions-Testfälle](documentation/TEST_CASES.md)
 - [Technologie-Stack und Kosten](documentation/TECH_STACK.md)
 - [Projektzeitplan](documentation/TIMELINE.md)
+- [Arbeitsdokumentation][Stunden.csv]
 
 ## Wichtige Regeln
 
