@@ -1,6 +1,6 @@
 # Fahrzeug- & Reifenerfassung für CarTech
 
-Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowie zwei Werkstattprotokollen: **Reifenwechsel** und **Reifeneinlagerung**. Der Ablauf ist: **Mechaniker wählt das Protokoll → spricht → KI strukturiert Daten → Mechaniker bestätigt → Büro prüft → manuelle WERBAS-Übernahme**.
+Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowie zwei Werkstattprotokollen: **Reifenwechsel** und **Reifeneinlagerung**. Der Ablauf ist: **Mechaniker wählt das Protokoll → spricht → KI strukturiert Daten → bestätigt und sendet ab → Datensatz wird zentral gespeichert → Büro prüft ihn in der Inbox → Vorgang ist erledigt**.
 
 **Aktueller Stand: [Projektstatus](STATUS.md)**
 
@@ -35,5 +35,7 @@ tests/          Automatisierte Tests
 - Nur ausdrücklich genannte Informationen übernehmen; fehlende oder unsichere Werte markieren, niemals erraten.
 - Kundenzuordnung und finale Prüfung erfolgen ausschließlich im Büro.
 - Der Vorgangsstatus beschreibt den Ablauf; Feldstatus und `review_required` beschreiben Unsicherheiten oder Validierungsbedarf.
+- Jeder abgesendete Vorgang erscheint in der Büro-Inbox als **Neu** und löst eine kurze E-Mail mit Kennzeichen, Zeitpunkt und einem authentifizierten Link zur Detailansicht aus.
 - Im Reifenwechselprotokoll erhalten Reifensätze die Rolle `installed` oder `removed`; im Einlagerungsprotokoll die Rolle `stored`.
+- WERBAS ist nicht Teil des MVP. Die Datenstruktur hält lediglich saubere Erweiterungspunkte für eine spätere Integration vor.
 - Reale Audio-, Kunden- oder Fahrzeugdaten gehören nicht ins Repository; für Tests nur anonymisierte Fixtures verwenden.

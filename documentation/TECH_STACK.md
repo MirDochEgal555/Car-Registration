@@ -7,9 +7,10 @@ Die Anwendung unterstützt die Werkstatt CarTech bei der Voice-first-Fahrzeug- u
 ```text
 Mechaniker wählt ein Protokoll und spricht
 → KI strukturiert Daten
-→ Mechaniker bestätigt
-→ Büro prüft
-→ Büro übernimmt Daten manuell nach WERBAS
+→ Mechaniker bestätigt und sendet ab
+→ Datensatz wird zentral gespeichert
+→ Büro erhält E-Mail-Hinweis und prüft in der Inbox
+→ Vorgang wird erledigt
 ```
 
 ## Empfohlener Tech-Stack
@@ -41,6 +42,9 @@ Aufgaben des Backends:
 - Speech-to-Text ausführen
 - strukturierte KI-Extraktion durchführen
 - Daten validieren und zur Prüfung markieren
+- abgesendete Vorgänge zentral und dauerhaft speichern
+- Büro-Inbox nach `new`, `in_review` und `completed` bereitstellen
+- E-Mail-Benachrichtigungen nach erfolgreichem Absenden auslösen und wiederholbar zustellen
 - REST-API bereitstellen
 - Datenbankzugriff verwalten
 
@@ -58,7 +62,7 @@ Kernobjekte:
 - `TireInspection`
 - `TireCondition`
 
-WERBAS-spezifische IDs bleiben im MVP leer und können später ergänzt werden. Die vollständige Struktur ist im [Datenmodell](DATA_MODEL.md) beschrieben.
+WERBAS-spezifische IDs bleiben im MVP leer und können später ergänzt werden; es gibt keine WERBAS-Integration und keine Übergabe im Produktablauf. Die vollständige Struktur ist im [Datenmodell](DATA_MODEL.md) beschrieben.
 
 ## Voice- und KI-Pipeline
 
@@ -70,6 +74,8 @@ Audio
 → Entwurfsdaten und Feldstatus
 → Validierung
 → Mechanikerprüfung
+→ Absenden und zentrale Speicherung
+→ Büro-Inbox und E-Mail-Benachrichtigung
 → Büroprüfung
 → finaler Datensatz
 ```
@@ -141,9 +147,9 @@ Optionale Confidence-Werte können zusammen mit ihrer Quelle gespeichert werden:
 5. strukturierte KI-Extraktion implementieren
 6. Validierungslogik ergänzen
 7. Mechaniker-Bestätigung umsetzen
-8. Büroprüfung um KI-Daten, Transkript und Unsicherheiten erweitern
-9. Testbetrieb in der Werkstatt durchführen
-10. bestehende Kunden und WERBAS integrieren
+8. zentrale Speicherung, Büro-Inbox und E-Mail-Benachrichtigung umsetzen
+9. Büroprüfung um KI-Daten, Transkript und Unsicherheiten erweitern
+10. Testbetrieb in der Werkstatt durchführen
 
 Der Schwerpunkt liegt auf zuverlässiger Extraktion, nachvollziehbarer Validierung und einer schnellen Bestätigungsoberfläche.
 
@@ -156,6 +162,7 @@ Der Schwerpunkt liegt auf zuverlässiger Extraktion, nachvollziehbarer Validieru
 - MongoDB
 - eigene Speech-to-Text-Engine
 - direkte WERBAS-Integration
+- manuelle oder automatische WERBAS-Übergabe als Teil des MVP-Ablaufs
 - native Smartphone-App
 
 Diese Technologien erhöhen die Komplexität, ohne für den MVP notwendig zu sein.
@@ -173,6 +180,6 @@ Diese Technologien erhöhen die Komplexität, ohne für den MVP notwendig zu sei
 | React, FastAPI und PostgreSQL | 0 € |
 | Docker, Caddy oder Nginx | 0 € |
 | PWA | 0 € |
-| WERBAS-Integration | im MVP 0 € |
+| WERBAS-Integration | nicht im MVP enthalten |
 
 Für eine kleine Werkstatt sind Gesamtkosten von etwa 10–30 € pro Monat realistisch; als Zielwert für den MVP gelten etwa 15–25 € pro Monat. Die tatsächlichen KI-Kosten hängen vor allem von der Zahl der Aufnahmen, der Audiolänge sowie den verwendeten Speech-to-Text- und KI-Modellen ab.

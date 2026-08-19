@@ -12,6 +12,7 @@ Das bedeutet:
 - Mechaniker bestätigen Vorgänge mit minimaler Interaktion.
 - Das Büro prüft und korrigiert offene Vorgänge.
 - Daten werden zuverlässig gespeichert.
+- Jeder abgesendete Vorgang erscheint in der Büro-Inbox und löst eine E-Mail-Benachrichtigung aus.
 - Typische Werkstattformulierungen funktionieren robust.
 - Kritische Fehler sind behoben.
 - Das System ist für den täglichen Einsatz stabil genug.
@@ -71,8 +72,9 @@ Ziel: Das technische Fundament bereitstellen.
 - zentrale API-Struktur definieren
 - Modelle für `Vehicle`, `ServiceRecord`, `TireSet`, `ServiceTireSet`, `TireInspection` und `TireCondition` implementieren
 - Statuslogik implementieren
-- Feldstatus für `missing` und `uncertain` sowie `review_required` implementieren
+- Feldstatus für `missing`, `uncertain` und `invalid` sowie `review_required` implementieren
 - KI-Rohdaten und Audit-Informationen speichern
+- zentrale Speicherung beim Absenden und Benachrichtigungsauftrag atomar anlegen
 
 Bestätigungen und Korrekturen werden als Herkunfts- und Audit-Informationen gespeichert, nicht als zusätzliche Feldstatus.
 
@@ -120,11 +122,13 @@ Ziel: Das Büro kann direkt nach Fertigstellung des Mechaniker-Frontends erste V
 #### Aufgaben
 
 - Liste offener Vorgänge
+- Inbox-Status Neu, Prüfen und Erledigt
 - Detailansicht für manuell erfasste Vorgänge
 - Felder bearbeiten
 - Kunden neu anlegen oder zuordnen
 - Vorgang abschließen
 - Korrekturen nachvollziehbar speichern
+- kurze E-Mail-Benachrichtigung nach jedem abgesendeten Vorgang testen
 
 #### Ergebnis
 
@@ -216,6 +220,7 @@ Ziel: Das Büro kann KI- und Mechanikerdaten effizient prüfen.
 #### Aufgaben
 
 - Liste offener Vorgänge
+- Statuswechsel Neu → Prüfen → Erledigt
 - Detailansicht
 - Unsicherheiten hervorheben
 - Originaltranskript anzeigen
@@ -224,6 +229,7 @@ Ziel: Das Büro kann KI- und Mechanikerdaten effizient prüfen.
 - Felder bearbeiten
 - Kunden neu anlegen oder zuordnen
 - Vorgang abschließen
+- E-Mail-Inhalt mit Kennzeichen, Absendezeitpunkt und authentifiziertem Link prüfen
 
 #### Ergebnis
 
@@ -357,7 +363,7 @@ Kein Fehler darf einen normalen Werkstattvorgang blockieren.
 
 ### 15.10.2026
 
-Das System ist für den realen Werkstattbetrieb freigegeben. WERBAS bleibt zunächst manuell; der Altprozess kann für eine kurze Übergangsphase als Fallback bestehen bleiben.
+Das System ist für den realen Werkstattbetrieb freigegeben. Eine WERBAS-Integration gehört nicht zum MVP; die Datenstruktur bleibt dafür vorbereitet.
 
 ## Meilensteine
 
@@ -406,6 +412,7 @@ Das System ist für den realen Werkstattbetrieb freigegeben. WERBAS bleibt zunä
 ### Nicht vor dem 15.10. erforderlich
 
 - direkte WERBAS-API
+- manuelle oder automatische WERBAS-Übergabe als Teil des MVP-Ablaufs
 - Schadensfotos
 - native App
 - komplexe Kundenerkennung
@@ -422,6 +429,7 @@ Der MVP ist fertig, wenn:
 - relevante Reifeninformationen korrekt strukturiert werden,
 - falsche Werte schnell korrigierbar sind,
 - das Büro offene Vorgänge vollständig prüfen kann,
+- jeder abgesendete Vorgang zentral gespeichert, in der Inbox sichtbar und per E-Mail angekündigt wird,
 - Kunden ausschließlich im Büro angelegt oder zugeordnet werden,
 - Daten auch nach einem Neustart vorhanden sind,
 - typische reale Werkstattformulierungen funktionieren und

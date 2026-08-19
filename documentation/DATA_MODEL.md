@@ -10,7 +10,8 @@ Wichtige Prinzipien:
 - Fehlende oder unsichere Informationen werden nicht geraten.
 - Die Kundenanlage und -zuordnung erfolgt im Büro, nicht durch den Mechaniker.
 - KI-Extraktion und final geprüfte Daten bleiben unterscheidbar.
-- Eine spätere WERBAS-Integration bleibt möglich.
+- Absenden, zentrale Speicherung und E-Mail-Benachrichtigung sind nachvollziehbar voneinander getrennt.
+- Eine spätere WERBAS-Integration bleibt durch saubere Erweiterungspunkte möglich, ist aber nicht Teil des MVP.
 
 ## Beziehungen
 
@@ -24,6 +25,7 @@ Customer
         ├── TireInspection
         │   └── TireCondition
         ├── VisualInspection
+        ├── OfficeNotification
         └── ServiceTireSet
             └── TireSet
                 └── Tire
@@ -100,6 +102,7 @@ unknown
 | review_required | boolean | ja | Prüfung wegen Unsicherheit oder Validierung nötig |
 | created_by | UUID | ja | erfassender Mechaniker |
 | mechanic_confirmed_at | datetime | nein | Bestätigung durch Mechaniker |
+| submitted_at | datetime | nein | erfolgreicher Absendezeitpunkt; der Datensatz ist zentral gespeichert |
 | office_reviewed_at | datetime | nein | Prüfung durch Büro |
 | created_at | datetime | ja | Erstellungszeitpunkt |
 | updated_at | datetime | ja | letzter Änderungszeitpunkt |
@@ -119,14 +122,35 @@ tire_storage
 ```text
 draft
 mechanic_review
-office_review
+new
+in_review
 completed
 rejected
 ```
 
-`status` beschreibt ausschließlich den Lebenszyklus eines Vorgangs. `field_status` enthält beispielsweise `missing` oder `uncertain`; `review_required` markiert einen offenen Prüfbedarf.
+`status` beschreibt ausschließlich den Lebenszyklus eines Vorgangs. Nach erfolgreichem Absenden wechselt ein Vorgang zu `new` und erscheint in der Büro-Inbox als **Neu**. Bei Beginn der Büroarbeit wechselt er zu `in_review` (**Prüfen**); `completed` wird als **Erledigt** angezeigt.
+
+`field_status` enthält beispielsweise `missing`, `uncertain` oder `invalid`; `review_required` markiert einen offenen Prüfbedarf. Diese Markierungen sind unabhängig vom Vorgangsstatus und müssen in der Büroansicht direkt am jeweiligen Feld angezeigt werden. Felder bleiben dort bearbeitbar.
 
 Bei `tire_storage` und `tire_change` müssen vor dem Abschluss ein Kunde über `Vehicle.customer_id`, ein Fahrzeug mit Kennzeichen, das Protokolldatum und der Mechaniker vorhanden sein. Die Kundenanlage oder -zuordnung bleibt Aufgabe des Büros.
+
+## OfficeNotification (Bürobenachrichtigung)
+
+Für jeden erfolgreich abgesendeten Vorgang wird eine Benachrichtigung für das Büro angelegt. Die zentrale Speicherung des `ServiceRecord` und das Anlegen der Benachrichtigung erfolgen gemeinsam; der E-Mail-Versand erfolgt anschließend zuverlässig und erneut versuchbar. Ein fehlgeschlagener Versand ändert den Status des Vorgangs nicht.
+
+| Feld | Typ | Pflicht | Beschreibung |
+| --- | --- | :---: | --- |
+| id | UUID | ja | interne ID |
+| service_record_id | UUID | ja | referenzierter Vorgang |
+| event_type | enum | ja | im MVP `record_submitted` |
+| channel | enum | ja | im MVP `email` |
+| recipient | string | ja | konfigurierte Büro-E-Mail-Adresse |
+| delivery_status | enum | ja | `pending`, `sent` oder `failed` |
+| sent_at | datetime | nein | erfolgreicher Versandzeitpunkt |
+| created_at | datetime | ja | Zeitpunkt des Anlegens |
+| updated_at | datetime | ja | letzter Versand- oder Wiederholungsversuch |
+
+Die E-Mail enthält nur Kennzeichen, Absendezeitpunkt und einen authentifizierten Link zur Detailansicht. Personen- oder Servicedetails stehen ausschließlich nach Anmeldung in der Web-App bereit.
 
 ## CustomerSignature (Kundenunterschrift)
 

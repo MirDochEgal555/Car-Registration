@@ -8,9 +8,11 @@ Der Mechaniker soll möglichst wenig tippen oder klicken.
 Mechaniker wählt ein Protokoll
 → Mechaniker spricht
 → KI extrahiert
-→ Mechaniker bestätigt
+→ Mechaniker bestätigt und sendet ab
+→ Datensatz wird zentral gespeichert
+→ Büro-Inbox: Neu
 → Büro prüft
-→ Datensatz abgeschlossen
+→ Büro-Inbox: Erledigt
 ```
 
 ## Hauptrollen
@@ -36,19 +38,20 @@ Aufgaben:
 - fehlende Kundendaten ergänzen
 - Kunden zuordnen oder neu anlegen
 - Vorgang finalisieren
-- Daten im MVP manuell nach WERBAS übernehmen
+- abgesendete Vorgänge über die Web-App-Inbox bearbeiten
 
 ## Statusablauf
 
 ```text
 Neue Erfassung: draft
 Nach Extraktion: mechanic_review
-Nach Mechanikerbestätigung: office_review
-Nach Büroprüfung: completed
+Nach Absenden durch den Mechaniker: new (Anzeige in der Büro-Inbox: Neu)
+Während der Büroprüfung: in_review (Anzeige in der Büro-Inbox: Prüfen)
+Nach Büroabschluss: completed (Anzeige in der Büro-Inbox: Erledigt)
 Bei Abbruch: rejected
 ```
 
-Unsicherheiten und Plausibilitätsfehler ändern den Ablaufstatus nicht. Sie werden separat durch Feldstatus und `review_required` gekennzeichnet.
+Unsicherheiten und Plausibilitätsfehler ändern den Ablaufstatus nicht. Sie werden separat durch Feldstatus und `review_required` gekennzeichnet. In der Büro-Inbox und Detailansicht bleiben sie deutlich sichtbar und bearbeitbar.
 
 ## Flow 1: Neue Erfassung
 
@@ -129,36 +132,54 @@ Das System soll eine kurze ergänzende Spracheingabe erlauben:
 
 Danach wird nur das betroffene Feld aktualisiert.
 
-### Schritt 6 – Mechanikerbestätigung
+### Schritt 6 – Mechanikerbestätigung und Absenden
 
 Die primäre Aktion lautet:
 
 ```text
-Bestätigen
+Bestätigen und absenden
 ```
 
-Nach der Bestätigung erhält der Vorgang den Status `office_review`. Der Mechaniker ist fertig.
+Nach dem Absenden wird der bestätigte Datensatz zentral und dauerhaft gespeichert. Erst wenn die Speicherung erfolgreich war, erhält der Vorgang den Status `new` und erscheint in der Büro-Inbox als **Neu**. Der Mechaniker ist dann fertig.
 
-## Flow 2: Büroprüfung
+Zusätzlich erzeugt das System eine kurze E-Mail-Benachrichtigung an das Büro. Sie enthält ausschließlich:
 
-Das Büro öffnet die Liste offener Vorgänge, zum Beispiel:
+- Kennzeichen,
+- Absendezeitpunkt und
+- einen authentifizierten Link zur Detailansicht des Vorgangs.
+
+Die E-Mail wird erst nach erfolgreicher Speicherung versendet. Schlägt der Versand fehl, bleibt der Vorgang trotzdem sicher in der Inbox vorhanden; der Versand kann erneut versucht werden.
+
+## Flow 2: Büro-Inbox und Büroprüfung
+
+Das Büro öffnet die Web-App-Inbox. Sie bietet mindestens diese Statusbereiche:
+
+| Anzeige | Interner Status | Bedeutung |
+| --- | --- | --- |
+| Neu | `new` | vom Mechaniker abgesendet, noch nicht bearbeitet |
+| Prüfen | `in_review` | vom Büro zur Prüfung geöffnet oder übernommen |
+| Erledigt | `completed` | Büroprüfung abgeschlossen |
+
+Ein neuer Eintrag sieht zum Beispiel so aus:
 
 ```text
 CW-AB 123
 19.08.2026
 Reifenwechselprotokoll
-Mechaniker bestätigt
+Neu
 ```
 
 In der Detailansicht sind verfügbar:
 
 - geprüfte Mechanikerdaten
-- markierte Unsicherheiten und Plausibilitätsfehler
+- klar markierte fehlende, unsichere und unplausible Felder
 - Originaltranskript
 - ursprüngliche KI-Extraktion
 - Korrekturen des Mechanikers
 
-Das Büro kann jedes relevante Feld bearbeiten, den Kunden zuordnen oder neu anlegen und zusätzliche Kundendaten ergänzen.
+Das Büro kann jedes relevante Feld direkt bearbeiten, den Kunden zuordnen oder neu anlegen und zusätzliche Kundendaten ergänzen. Markierungen müssen am jeweiligen Feld sichtbar bleiben, bis das Büro den Wert korrigiert oder die Angabe bewusst bestätigt. Eine Korrektur dokumentiert Quelle und Zeitpunkt, damit der ursprüngliche KI-Wert nachvollziehbar bleibt.
+
+Beim Öffnen oder Übernehmen eines neuen Vorgangs wechselt dessen Status zu `in_review` und wird in der Inbox unter **Prüfen** angezeigt.
 
 Nach der Prüfung wählt das Büro:
 
@@ -166,7 +187,9 @@ Nach der Prüfung wählt das Büro:
 Vorgang abschließen
 ```
 
-Der Status wird `completed`. Anschließend können die Daten manuell nach WERBAS übernommen werden.
+Der Status wird `completed` und der Vorgang erscheint in der Inbox unter **Erledigt**.
+
+Eine WERBAS-Übergabe gehört nicht zum MVP. Die Daten werden nur so strukturiert gespeichert, dass eine spätere Integration möglich bleibt.
 
 ## Flow 3: Fehlerhafte Erkennung
 

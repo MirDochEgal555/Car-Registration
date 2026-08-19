@@ -2,7 +2,7 @@
 
 ## Ziel
 
-Das Projekt unterstützt die Werkstatt CarTech bei der Fahrzeugaufnahme sowie der Dokumentation von Reifenwechseln und Reifeneinlagerungen. Mechaniker erfassen Informationen per Sprache; das Büro prüft und vervollständigt den Datensatz, bevor die Daten im MVP manuell nach WERBAS übernommen werden.
+Das Projekt unterstützt die Werkstatt CarTech bei der Fahrzeugaufnahme sowie der Dokumentation von Reifenwechseln und Reifeneinlagerungen. Mechaniker erfassen Informationen per Sprache, prüfen das Ergebnis und senden den Vorgang in der Web-App ab. Der Datensatz wird danach zentral gespeichert und in der Büro-Inbox bereitgestellt.
 
 Der MVP umfasst zwei Werkstattprotokolle:
 
@@ -18,7 +18,7 @@ Der bisherige Ablauf ist papierbasiert:
 ```text
 Mechaniker füllt Formular aus
 → Büro liest das Formular
-→ Büro überträgt die Daten nach WERBAS
+→ Daten liegen verteilt auf Papier und in Folgesystemen vor
 ```
 
 Dadurch dokumentieren beide Rollen dieselben Informationen. Die Anwendung reduziert den Aufwand des Mechanikers und gibt dem Büro einen strukturierten Datensatz zur Prüfung.
@@ -29,10 +29,11 @@ Dadurch dokumentieren beide Rollen dieselben Informationen. Die Anwendung reduzi
 Mechaniker spricht
 → Speech-to-Text erstellt ein Transkript
 → KI extrahiert strukturierte Entwurfsdaten
-→ Mechaniker prüft und bestätigt
-→ Büro prüft und ergänzt
-→ Vorgang wird abgeschlossen
-→ Büro übernimmt die Daten manuell nach WERBAS
+→ Mechaniker prüft, bestätigt und sendet ab
+→ Datensatz wird zentral gespeichert
+→ Büro erhält einen E-Mail-Hinweis und sieht den Vorgang als Neu in der Inbox
+→ Büro prüft, korrigiert und ergänzt
+→ Vorgang wird als Erledigt abgeschlossen
 ```
 
 Die KI darf ausschließlich explizit genannte oder eindeutig normalisierbare Werte übernehmen. Unsichere und fehlende Werte bleiben markiert; sie werden nicht geraten.
@@ -106,7 +107,8 @@ Kunde, Fahrzeug und Kennzeichen werden über die vorhandenen Stammdaten referenz
 - Die Mechanikeransicht zeigt nur die wichtigsten Informationen und eine klar erkennbare Bestätigungsaktion.
 - Unsichere Angaben und Plausibilitätsfehler benötigen eine Prüfung, ändern Werte aber nicht automatisch.
 - Das Originaltranskript und die ursprüngliche KI-Extraktion bleiben für die Nachvollziehbarkeit erhalten.
-- Das Büro kann einzelne Felder korrigieren, ohne den gesamten Vorgang neu einzugeben.
+- Das Büro kann jedes fachliche Feld korrigieren, ohne den gesamten Vorgang neu einzugeben; unsichere, fehlende und unplausible Felder sind dabei klar markiert.
+- Bei jedem Absenden erhält das Büro zusätzlich eine kurze E-Mail mit Kennzeichen, Absendezeitpunkt und einem authentifizierten Link zum Datensatz.
 
 ## Statusmodell
 
@@ -115,20 +117,21 @@ Der Vorgangsstatus beschreibt nur den Ablauf, nicht die Qualität einzelner Wert
 ```text
 draft
 → mechanic_review
-→ office_review
+→ new          (Büro-Inbox: Neu)
+→ in_review    (Büro-Inbox: Prüfen)
 → completed
 ```
 
-Ein abgebrochener Vorgang kann den Status `rejected` erhalten. Fehlende, unsichere oder unplausible Werte werden separat über Feldstatus und `review_required` dargestellt.
+`completed` wird in der Büro-Inbox als **Erledigt** angezeigt. Ein abgebrochener Vorgang kann den Status `rejected` erhalten. Fehlende, unsichere oder unplausible Werte werden separat über Feldstatus und `review_required` dargestellt; sie sind kein Grund, den Vorgang aus der Inbox auszublenden.
 
 ## Abgrenzung des MVP
 
 Nicht Teil des MVP sind:
 
 - direkte WERBAS-Integration
-- automatische Übernahme nach WERBAS
+- manuelle oder automatische Übergabe an WERBAS als Teil des Produktablaufs
 - native Smartphone-App
 - eigene Speech-to-Text-Engine
 - Microservices oder Kubernetes
 
-Bestehende Kunden und eine WERBAS-Anbindung sind sinnvolle spätere Erweiterungen. Der MVP bleibt jedoch auch ohne diese Integration nutzbar.
+Eine WERBAS-Anbindung ist eine spätere Erweiterung. Der MVP bereitet sie ausschließlich durch eine saubere, erweiterbare Datenstruktur vor und bleibt vollständig ohne WERBAS-Integration nutzbar.
