@@ -1,0 +1,50 @@
+# Betriebssystem und Editoren
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Geheimnisse und lokale Konfiguration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Frontend (React / Vite)
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Backend (Python / FastAPI)
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Lokale Datenbanken, Logs und Laufzeitdateien
+*.sqlite
+*.sqlite3
+*.db
+*.log
+logs/
+uploads/
+
+# Lokale, potenziell personenbezogene Erfassungsdaten
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
