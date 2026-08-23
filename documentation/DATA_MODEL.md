@@ -138,7 +138,7 @@ Bei `tire_storage` und `tire_change` müssen für die Übernahme in WERBAS minde
 
 ## MVP-E-Mail-Ausgabe
 
-Nach der Mechanikerbestätigung rendert das System den strukturierten Entwurf als E-Mail-Text für die konfigurierte Büro-Adresse. Die E-Mail enthält Protokolltyp, Kennzeichen, Absendezeitpunkt, alle erfassten Fahrzeug-, Reifen- und Servicedaten sowie einen getrennten Abschnitt „Prüfhinweise“ für `missing`, `uncertain` und `invalid`.
+Nach der Mechanikerbestätigung rendert das System den strukturierten Entwurf für die konfigurierte Büro-Adresse als `multipart/alternative`-E-Mail. Eine HTML- und eine Textansicht entstehen aus demselben E-Mail-Dokument und enthalten daher identische Fachinformationen: Protokolltyp, Kennzeichen, Absendezeitpunkt, alle erfassten Fahrzeug-, Reifen- und Servicedaten sowie einen getrennten Abschnitt „Prüfhinweise“ für `missing`, `uncertain` und `invalid`. Die Textansicht bleibt für reine Text-Mailclients und Weiterleitungen verfügbar.
 
 Die E-Mail ersetzt im MVP weder WERBAS noch eine zentrale CarTech-Datenbank. Schlägt der Versand fehl, bleibt der Entwurf nur in der laufenden Web-App-Sitzung zum erneuten Absenden verfügbar.
 

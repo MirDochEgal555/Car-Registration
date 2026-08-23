@@ -136,3 +136,5 @@ def test_send_delivers_rendered_email(monkeypatch: object) -> None:
     assert len(sender.messages) == 1
     assert "Kennzeichen: CW-AB 123" in sender.messages[0].body
     assert "tire_sets.0.tire_set" not in sender.messages[0].body
+    assert sender.messages[0].html_body is not None
+    assert "Kennzeichen: <strong>CW-AB 123</strong>" in sender.messages[0].html_body

@@ -20,11 +20,18 @@ class EmailDeliveryError(RuntimeError):
 
 @dataclass(frozen=True)
 class OutgoingEmail:
-    """The rendered email handed to a delivery adapter."""
+    """The rendered email handed to a delivery adapter.
+
+    ``body`` is deliberately kept as the plain-text alternative so existing
+    callers and text-only clients continue to work.  When ``html_body`` is
+    present, the SMTP adapter sends both representations in one
+    ``multipart/alternative`` message.
+    """
 
     recipient: str
     subject: str
     body: str
+    html_body: str | None = None
 
 
 class EmailSender(Protocol):
@@ -35,7 +42,7 @@ class EmailSender(Protocol):
 
 
 class SmtpEmailSender:
-    """Send plain-text messages through the SMTP settings in ``Settings``."""
+    """Send plain-text and optional HTML messages through SMTP."""
 
     def __init__(self, configuration: Settings) -> None:
         self._configuration = configuration
@@ -52,6 +59,8 @@ class SmtpEmailSender:
         message["To"] = email.recipient
         message["Subject"] = email.subject
         message.set_content(email.body)
+        if email.html_body:
+            message.add_alternative(email.html_body, subtype="html")
 
         try:
             if configuration.smtp_use_ssl:

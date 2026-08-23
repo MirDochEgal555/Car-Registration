@@ -26,7 +26,8 @@ documentation is available at `/docs`.
   `mechanic_review` workflow status; known plate spelling is normalized in the
   returned draft.
 - `POST /api/v1/registrations/send` validates again, requires
-  `mechanic_confirmed: true`, renders the office email, and sends it via SMTP.
+  `mechanic_confirmed: true`, renders matching HTML and plain-text office-email
+  alternatives from one validated registration document, and sends them via SMTP.
   Missing/invalid required values return `409`; a missing confirmation returns
   `422`; an unconfigured delivery service returns `503`.
 
