@@ -2,7 +2,7 @@
 
 ## Ziel
 
-Das Projekt unterstützt die Werkstatt CarTech bei der Fahrzeugaufnahme sowie der Dokumentation von Reifenwechseln und Reifeneinlagerungen. Mechaniker erfassen Informationen per Sprache, prüfen das Ergebnis und senden den Vorgang in der Web-App ab. Der Datensatz wird danach zentral gespeichert und in der Büro-Inbox bereitgestellt.
+Das Projekt unterstützt die Werkstatt CarTech bei der Fahrzeugaufnahme sowie der Dokumentation von Reifenwechseln und Reifeneinlagerungen. Mechaniker erfassen Informationen per Sprache, prüfen das Ergebnis und senden den Vorgang in der Web-App ab. Der MVP versendet anschließend eine strukturierte E-Mail an das Büro; die fachliche Speicherung und Weiterbearbeitung erfolgen in WERBAS.
 
 Der MVP umfasst zwei Werkstattprotokolle:
 
@@ -30,10 +30,8 @@ Mechaniker spricht
 → Speech-to-Text erstellt ein Transkript
 → KI extrahiert strukturierte Entwurfsdaten
 → Mechaniker prüft, bestätigt und sendet ab
-→ Datensatz wird zentral gespeichert
-→ Büro erhält einen E-Mail-Hinweis und sieht den Vorgang als Neu in der Inbox
-→ Büro prüft, korrigiert und ergänzt
-→ Vorgang wird als Erledigt abgeschlossen
+→ Büro erhält das strukturierte Protokoll per E-Mail
+→ Büro prüft, korrigiert und speichert den Vorgang in WERBAS
 ```
 
 Die KI darf ausschließlich explizit genannte oder eindeutig normalisierbare Werte übernehmen. Unsichere und fehlende Werte bleiben markiert; sie werden nicht geraten.
@@ -106,32 +104,31 @@ Kunde, Fahrzeug und Kennzeichen werden über die vorhandenen Stammdaten referenz
 - Sprachaufnahme ist der primäre Eingabekanal; kurze Korrekturen per Sprache oder Touch bleiben möglich.
 - Die Mechanikeransicht zeigt nur die wichtigsten Informationen und eine klar erkennbare Bestätigungsaktion.
 - Unsichere Angaben und Plausibilitätsfehler benötigen eine Prüfung, ändern Werte aber nicht automatisch.
-- Das Originaltranskript und die ursprüngliche KI-Extraktion bleiben für die Nachvollziehbarkeit erhalten.
-- Das Büro kann jedes fachliche Feld korrigieren, ohne den gesamten Vorgang neu einzugeben; unsichere, fehlende und unplausible Felder sind dabei klar markiert.
-- Bei jedem Absenden erhält das Büro zusätzlich eine kurze E-Mail mit Kennzeichen, Absendezeitpunkt und einem authentifizierten Link zum Datensatz.
+- Das Originaltranskript und die ursprüngliche KI-Extraktion bleiben während der Mechanikerprüfung sichtbar; im MVP werden sie nicht zentral gespeichert.
+- Das Büro kann Werte nach Bedarf in WERBAS korrigieren; unsichere, fehlende und unplausible Felder sind in der E-Mail klar markiert.
+- Bei jedem Absenden erhält das Büro eine strukturierte E-Mail mit allen erfassten Werten, Kennzeichen, Absendezeitpunkt und Prüfhinweisen.
 
 ## Statusmodell
 
-Der Vorgangsstatus beschreibt nur den Ablauf, nicht die Qualität einzelner Werte:
+Im MVP ist der Ablaufstatus nur in der Mechaniker-Web-App bis zum erfolgreichen E-Mail-Versand relevant:
 
 ```text
 draft
 → mechanic_review
-→ new          (Büro-Inbox: Neu)
-→ in_review    (Büro-Inbox: Prüfen)
-→ completed
+→ email_sent
 ```
 
-`completed` wird in der Büro-Inbox als **Erledigt** angezeigt. Ein abgebrochener Vorgang kann den Status `rejected` erhalten. Fehlende, unsichere oder unplausible Werte werden separat über Feldstatus und `review_required` dargestellt; sie sind kein Grund, den Vorgang aus der Inbox auszublenden.
+Ein abgebrochener Vorgang kann den Status `rejected` erhalten. Fehlende, unsichere oder unplausible Werte werden separat über Feldstatus und `review_required` dargestellt und in der E-Mail als Prüfhinweis ausgegeben. Die weitere Bearbeitung und Statusführung erfolgen in WERBAS.
 
 ## Abgrenzung des MVP
 
 Nicht Teil des MVP sind:
 
 - direkte WERBAS-Integration
-- manuelle oder automatische Übergabe an WERBAS als Teil des Produktablaufs
+- zentrale Speicherung in der CarTech-Anwendung
+- Büro-Inbox und Büro-Bearbeitung in der CarTech-Web-App
 - native Smartphone-App
 - eigene Speech-to-Text-Engine
 - Microservices oder Kubernetes
 
-Eine WERBAS-Anbindung ist eine spätere Erweiterung. Der MVP bereitet sie ausschließlich durch eine saubere, erweiterbare Datenstruktur vor und bleibt vollständig ohne WERBAS-Integration nutzbar.
+WERBAS bleibt im MVP das führende Speichersystem. Die Übernahme erfolgt durch das Büro anhand der strukturierten E-Mail, ohne API oder sonstige direkte technische Anbindung. Eine zentrale Speicherung und Büro-Inbox können später auf Basis der beschriebenen Datenstruktur ergänzt werden.

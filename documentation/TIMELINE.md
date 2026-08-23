@@ -10,9 +10,8 @@ Das bedeutet:
 - Strukturierte Daten werden korrekt extrahiert.
 - Unsichere Angaben werden markiert und nicht geraten.
 - Mechaniker bestätigen Vorgänge mit minimaler Interaktion.
-- Das Büro prüft und korrigiert offene Vorgänge.
-- Daten werden zuverlässig gespeichert.
-- Jeder abgesendete Vorgang erscheint in der Büro-Inbox und löst eine E-Mail-Benachrichtigung aus.
+- Das Büro erhält strukturierte Protokolle per E-Mail, prüft sie und speichert sie in WERBAS.
+- Jeder abgesendete Vorgang löst eine strukturierte E-Mail aus.
 - Typische Werkstattformulierungen funktionieren robust.
 - Kritische Fehler sind behoben.
 - Das System ist für den täglichen Einsatz stabil genug.
@@ -49,8 +48,8 @@ Mechaniker
 
 Büro
 → Kunden neu anlegen oder zuordnen
-→ Daten prüfen
-→ Vorgang finalisieren
+→ strukturierte E-Mail prüfen
+→ Vorgang in WERBAS speichern und finalisieren
 ```
 
 #### Ergebnis
@@ -66,21 +65,17 @@ Ziel: Das technische Fundament bereitstellen.
 #### Aufgaben
 
 - FastAPI-Projekt aufsetzen
-- PostgreSQL anbinden
-- SQLAlchemy-Modelle erstellen
-- Migrationen einrichten
 - zentrale API-Struktur definieren
-- Modelle für `Vehicle`, `ServiceRecord`, `TireSet`, `ServiceTireSet`, `TireInspection` und `TireCondition` implementieren
-- Statuslogik implementieren
 - Feldstatus für `missing`, `uncertain` und `invalid` sowie `review_required` implementieren
-- KI-Rohdaten und Audit-Informationen speichern
-- zentrale Speicherung beim Absenden und Benachrichtigungsauftrag atomar anlegen
+- strukturiertes E-Mail-Format aus dem Entwurf erzeugen
+- SMTP- oder E-Mail-Dienst anbinden
+- Versandfehler und erneutes Absenden behandeln
 
-Bestätigungen und Korrekturen werden als Herkunfts- und Audit-Informationen gespeichert, nicht als zusätzliche Feldstatus.
+Das [Datenmodell](DATA_MODEL.md) bleibt als Struktur für E-Mail-Ausgabe und eine mögliche spätere zentrale Speicherung erhalten.
 
 #### Ergebnis
 
-Fahrzeug- und Reifeninformationen können vollständig strukturiert gespeichert und über die API gelesen und geschrieben werden.
+Fahrzeug- und Reifeninformationen können vollständig strukturiert aufbereitet und als E-Mail an das Büro versendet werden.
 
 ## Phase 3 – Mechaniker-Frontend
 
@@ -113,26 +108,24 @@ Neue Erfassung
 
 Der vollständige Ablauf kann bereits manuell getestet werden.
 
-## Phase 4 – Büroprüfung (Basis)
+## Phase 4 – Strukturierte E-Mail-Ausgabe
 
 ### 06.09.–12.09.
 
-Ziel: Das Büro kann direkt nach Fertigstellung des Mechaniker-Frontends erste Vorgänge prüfen und korrigieren.
+Ziel: Das Büro erhält nach jeder Mechanikerbestätigung ein vollständig strukturiertes Protokoll zur Übernahme in WERBAS.
 
 #### Aufgaben
 
-- Liste offener Vorgänge
-- Inbox-Status Neu, Prüfen und Erledigt
-- Detailansicht für manuell erfasste Vorgänge
-- Felder bearbeiten
-- Kunden neu anlegen oder zuordnen
-- Vorgang abschließen
-- Korrekturen nachvollziehbar speichern
-- kurze E-Mail-Benachrichtigung nach jedem abgesendeten Vorgang testen
+- E-Mail-Template für Reifenwechsel und Reifeneinlagerung erstellen
+- Kennzeichen, Zeitpunkt und alle strukturierten Werte ausgeben
+- fehlende, unsichere und unplausible Felder als Prüfhinweise ausgeben
+- E-Mail-Versand nach der Mechanikerbestätigung testen
+- Versandfehler anzeigen und erneutes Absenden ermöglichen
+- manuelle Übernahme in WERBAS mit dem Büro testen
 
 #### Ergebnis
 
-Der durchgängige Ablauf von Mechaniker-Frontend zu Büroprüfung ist bereits ohne Spracheingabe testbar. Diese Phase läuft parallel zur Speech-to-Text-Anbindung.
+Der durchgängige Ablauf von Mechaniker-Frontend über E-Mail bis zur Übernahme in WERBAS ist bereits ohne Spracheingabe testbar. Diese Phase läuft parallel zur Speech-to-Text-Anbindung.
 
 ## Phase 5 – Speech-to-Text
 
@@ -211,25 +204,20 @@ Bei Unsicherheit:
 
 Die dokumentierten [Extraktions-Testfälle](TEST_CASES.md) laufen weitgehend automatisiert durch.
 
-## Phase 7 – Integrierte Büroprüfung
+## Phase 7 – E-Mail-Übergabe validieren
 
 ### 19.09.–24.09.
 
-Ziel: Das Büro kann KI- und Mechanikerdaten effizient prüfen.
+Ziel: Die E-Mail-Ausgabe ist für die verlässliche manuelle Übernahme in WERBAS vollständig und verständlich.
 
 #### Aufgaben
 
-- Liste offener Vorgänge
-- Statuswechsel Neu → Prüfen → Erledigt
-- Detailansicht
-- Unsicherheiten hervorheben
-- Originaltranskript anzeigen
-- ursprüngliche KI-Ausgabe anzeigen
-- Mechanikerkorrekturen nachvollziehbar machen
-- Felder bearbeiten
-- Kunden neu anlegen oder zuordnen
-- Vorgang abschließen
-- E-Mail-Inhalt mit Kennzeichen, Absendezeitpunkt und authentifiziertem Link prüfen
+- E-Mail-Inhalt für beide Protokolltypen prüfen
+- Unsicherheiten, fehlende und unplausible Werte als Prüfhinweise hervorheben
+- Originaltranskript und KI-Ausgabe bei Bedarf in die E-Mail aufnehmen
+- Mechanikerkorrekturen in der E-Mail nachvollziehbar ausgeben
+- Übernahme der Daten in WERBAS mit Büroanwendern testen
+- E-Mail-Inhalt mit Kennzeichen und Absendezeitpunkt prüfen
 
 #### Ergebnis
 
@@ -239,8 +227,8 @@ Der vollständige Ablauf funktioniert:
 Mechaniker
 → KI-Extraktion
 → Bestätigung
-→ Büroprüfung
-→ Finalisierung
+→ strukturierte E-Mail
+→ Übernahme und Finalisierung in WERBAS
 ```
 
 ## Phase 8 – Interner Integrationstest
@@ -256,10 +244,10 @@ Ziel: Alle Komponenten gemeinsam testen.
 - ungültige Eingaben testen
 - schlechte Spracheingaben testen
 - doppelte Vorgänge testen
-- Datenbankfehler testen
+- E-Mail-Versandfehler und erneutes Absenden testen
 - langsame Netzwerkverbindungen testen
 - Smartphone- und Tablet-Tests
-- Desktop-Tests für das Büro
+- E-Mail-Darstellung am Büro-Arbeitsplatz testen
 - Browser-Kompatibilität prüfen
 
 #### Testdatensatz
@@ -348,11 +336,9 @@ Ziel: Den vollständigen Ablauf vor dem produktiven Start testen und verbleibend
 - Reifeneinlagerung
 - vollständige und unvollständige Spracheingaben
 - Korrekturen durch den Mechaniker
-- Büroprüfung und Kundenzuordnung
-- Finalisierung
-- Datenbankpersistenz
-- Neustart des Systems
-- Backup
+- E-Mail-Ausgabe und manuelle Übernahme in WERBAS
+- Kundenzuordnung und Finalisierung in WERBAS
+- erneutes Absenden nach einem E-Mail-Fehler
 - Smartphone, Tablet und Büro-PC
 
 #### Go-Live-Kriterium
@@ -363,7 +349,7 @@ Kein Fehler darf einen normalen Werkstattvorgang blockieren.
 
 ### 15.10.2026
 
-Das System ist für den realen Werkstattbetrieb freigegeben. Eine WERBAS-Integration gehört nicht zum MVP; die Datenstruktur bleibt dafür vorbereitet.
+Das System ist für den realen Werkstattbetrieb freigegeben. WERBAS bleibt das führende Speichersystem; der MVP übergibt die strukturierten Protokolle per E-Mail und nutzt keine direkte technische Integration.
 
 ## Meilensteine
 
@@ -372,9 +358,9 @@ Das System ist für den realen Werkstattbetrieb freigegeben. Eine WERBAS-Integra
 | 22.08. | Spezifikation abgeschlossen |
 | 29.08. | Backend und Datenmodell stehen |
 | 05.09. | Mechaniker-Frontend funktioniert |
-| 12.09. | erste Büroprüfung und Speech-to-Text funktionieren |
+| 12.09. | strukturierte E-Mail-Ausgabe und Speech-to-Text funktionieren |
 | 18.09. | KI-Extraktion funktioniert |
-| 24.09. | integrierte Büroprüfung funktioniert |
+| 24.09. | E-Mail-Übergabe an WERBAS validiert |
 | 30.09. | Integrationstest abgeschlossen |
 | 05.10. | Werkstatt-Pilot abgeschlossen |
 | 06.10. | Feature Freeze |
@@ -396,8 +382,8 @@ Das System ist für den realen Werkstattbetrieb freigegeben. Eine WERBAS-Integra
 8. Profiltiefe
 9. Reifenzustand
 10. Mechanikerbestätigung
-11. Büroprüfung
-12. persistente Speicherung
+11. strukturierte E-Mail-Ausgabe
+12. erfolgreicher E-Mail-Versand mit Wiederholen bei Fehlern
 
 ### Kann reduziert werden
 
@@ -406,13 +392,15 @@ Das System ist für den realen Werkstattbetrieb freigegeben. Eine WERBAS-Integra
 - umfangreiche Rollenverwaltung
 - detailliertes Audit-Frontend
 - bestehende Kundenerkennung
+- zentrale Speicherung und Büro-Inbox
 - Automatisierungen
 - zusätzliche Servicearten
 
 ### Nicht vor dem 15.10. erforderlich
 
 - direkte WERBAS-API
-- manuelle oder automatische WERBAS-Übergabe als Teil des MVP-Ablaufs
+- zentrale Speicherung in der CarTech-Anwendung
+- Büro-Inbox oder Büro-Bearbeitung in der CarTech-Web-App
 - Schadensfotos
 - native App
 - komplexe Kundenerkennung
@@ -428,9 +416,8 @@ Der MVP ist fertig, wenn:
 - keine unsicheren Informationen erfunden werden,
 - relevante Reifeninformationen korrekt strukturiert werden,
 - falsche Werte schnell korrigierbar sind,
-- das Büro offene Vorgänge vollständig prüfen kann,
-- jeder abgesendete Vorgang zentral gespeichert, in der Inbox sichtbar und per E-Mail angekündigt wird,
+- das Büro die strukturierten E-Mails vollständig in WERBAS übernehmen und dort prüfen kann,
+- jeder abgesendete Vorgang eine vollständige strukturierte E-Mail mit Prüfhinweisen erzeugt,
 - Kunden ausschließlich im Büro angelegt oder zugeordnet werden,
-- Daten auch nach einem Neustart vorhanden sind,
 - typische reale Werkstattformulierungen funktionieren und
 - der Pilot keine kritischen Blocker mehr zeigt.

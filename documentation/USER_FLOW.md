@@ -9,10 +9,8 @@ Mechaniker wählt ein Protokoll
 → Mechaniker spricht
 → KI extrahiert
 → Mechaniker bestätigt und sendet ab
-→ Datensatz wird zentral gespeichert
-→ Büro-Inbox: Neu
-→ Büro prüft
-→ Büro-Inbox: Erledigt
+→ Büro erhält ein strukturiertes Protokoll per E-Mail
+→ Büro prüft, korrigiert und speichert den Vorgang in WERBAS
 ```
 
 ## Hauptrollen
@@ -38,20 +36,18 @@ Aufgaben:
 - fehlende Kundendaten ergänzen
 - Kunden zuordnen oder neu anlegen
 - Vorgang finalisieren
-- abgesendete Vorgänge über die Web-App-Inbox bearbeiten
+- strukturierte E-Mails in WERBAS übernehmen und dort bearbeiten
 
 ## Statusablauf
 
 ```text
 Neue Erfassung: draft
 Nach Extraktion: mechanic_review
-Nach Absenden durch den Mechaniker: new (Anzeige in der Büro-Inbox: Neu)
-Während der Büroprüfung: in_review (Anzeige in der Büro-Inbox: Prüfen)
-Nach Büroabschluss: completed (Anzeige in der Büro-Inbox: Erledigt)
+Nach erfolgreichem E-Mail-Versand: email_sent
 Bei Abbruch: rejected
 ```
 
-Unsicherheiten und Plausibilitätsfehler ändern den Ablaufstatus nicht. Sie werden separat durch Feldstatus und `review_required` gekennzeichnet. In der Büro-Inbox und Detailansicht bleiben sie deutlich sichtbar und bearbeitbar.
+Der Ablaufstatus wird im MVP nicht zentral gespeichert und endet nach erfolgreichem Versand. Unsicherheiten und Plausibilitätsfehler werden separat durch Feldstatus und `review_required` gekennzeichnet und als Prüfhinweis in der E-Mail ausgegeben. Korrekturen nimmt das Büro anschließend in WERBAS vor.
 
 ## Flow 1: Neue Erfassung
 
@@ -140,56 +136,43 @@ Die primäre Aktion lautet:
 Bestätigen und absenden
 ```
 
-Nach dem Absenden wird der bestätigte Datensatz zentral und dauerhaft gespeichert. Erst wenn die Speicherung erfolgreich war, erhält der Vorgang den Status `new` und erscheint in der Büro-Inbox als **Neu**. Der Mechaniker ist dann fertig.
+Nach dem Absenden erzeugt das System aus dem bestätigten Entwurf eine strukturierte E-Mail an das Büro. Erst wenn der E-Mail-Versand erfolgreich angestoßen wurde, erhält der Vorgang in der laufenden Sitzung den Status `email_sent`. Der Mechaniker ist dann fertig.
 
-Zusätzlich erzeugt das System eine kurze E-Mail-Benachrichtigung an das Büro. Sie enthält ausschließlich:
+Die E-Mail enthält das vollständige strukturierte Protokoll, mindestens:
 
-- Kennzeichen,
+- Protokolltyp,
+- Kennzeichen und erfasste Fahrzeug-, Reifen- und Servicedaten,
 - Absendezeitpunkt und
-- einen authentifizierten Link zur Detailansicht des Vorgangs.
+- klar ausgewiesene fehlende, unsichere oder unplausible Angaben.
 
-Die E-Mail wird erst nach erfolgreicher Speicherung versendet. Schlägt der Versand fehl, bleibt der Vorgang trotzdem sicher in der Inbox vorhanden; der Versand kann erneut versucht werden.
+Die E-Mail dient dem Büro als Vorlage für die manuelle Übernahme nach WERBAS. Schlägt der Versand fehl, zeigt die Web-App einen Fehler und eine Wiederholen-Aktion; eine zentrale Inbox oder dauerhafte CarTech-Speicherung ist im MVP nicht vorgesehen.
 
-## Flow 2: Büro-Inbox und Büroprüfung
+## Flow 2: Büroprüfung in WERBAS
 
-Das Büro öffnet die Web-App-Inbox. Sie bietet mindestens diese Statusbereiche:
+Das Büro erhält die strukturierte E-Mail und legt oder öffnet anschließend den passenden Vorgang in WERBAS. Eine Büro-Inbox in der CarTech-Web-App ist nicht Teil des MVP.
 
-| Anzeige | Interner Status | Bedeutung |
-| --- | --- | --- |
-| Neu | `new` | vom Mechaniker abgesendet, noch nicht bearbeitet |
-| Prüfen | `in_review` | vom Büro zur Prüfung geöffnet oder übernommen |
-| Erledigt | `completed` | Büroprüfung abgeschlossen |
-
-Ein neuer Eintrag sieht zum Beispiel so aus:
+Beispiel für den strukturierten Text der E-Mail:
 
 ```text
-CW-AB 123
-19.08.2026
-Reifenwechselprotokoll
-Neu
+Reifenwechsel · abgesendet am 19.08.2026, 10:42
+Kennzeichen: CW-AB 123
+Kilometerstand: 73.400 km
+Montierte Räder: Winterreifen, Michelin Alpin 6, 205/55 R16, 4 Stück
+Profil: vorne 6 mm, hinten 5 mm
+
+Prüfhinweise
+- Reifenmodell: unsicher
 ```
 
-In der Detailansicht sind verfügbar:
+Das Büro übernimmt die Werte in WERBAS. Für die Prüfung stehen in der E-Mail zur Verfügung:
 
-- geprüfte Mechanikerdaten
 - klar markierte fehlende, unsichere und unplausible Felder
-- Originaltranskript
-- ursprüngliche KI-Extraktion
-- Korrekturen des Mechanikers
+- die strukturierten, vom Mechaniker bestätigten Werte
+- Protokolltyp, Kennzeichen und Absendezeitpunkt
 
-Das Büro kann jedes relevante Feld direkt bearbeiten, den Kunden zuordnen oder neu anlegen und zusätzliche Kundendaten ergänzen. Markierungen müssen am jeweiligen Feld sichtbar bleiben, bis das Büro den Wert korrigiert oder die Angabe bewusst bestätigt. Eine Korrektur dokumentiert Quelle und Zeitpunkt, damit der ursprüngliche KI-Wert nachvollziehbar bleibt.
+Das Büro kann Werte in WERBAS korrigieren, den Kunden zuordnen oder neu anlegen und zusätzliche Kundendaten ergänzen. Die Prüfhinweise aus der E-Mail werden dabei abgearbeitet; die verbindliche Dokumentation entsteht in WERBAS.
 
-Beim Öffnen oder Übernehmen eines neuen Vorgangs wechselt dessen Status zu `in_review` und wird in der Inbox unter **Prüfen** angezeigt.
-
-Nach der Prüfung wählt das Büro:
-
-```text
-Vorgang abschließen
-```
-
-Der Status wird `completed` und der Vorgang erscheint in der Inbox unter **Erledigt**.
-
-Eine WERBAS-Übergabe gehört nicht zum MVP. Die Daten werden nur so strukturiert gespeichert, dass eine spätere Integration möglich bleibt.
+Eine zentrale Speicherung samt Büro-Inbox mit den Status **Neu**, **Prüfen** und **Erledigt** kann später als Erweiterung ergänzt werden.
 
 ## Flow 3: Fehlerhafte Erkennung
 

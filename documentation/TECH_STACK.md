@@ -8,9 +8,8 @@ Die Anwendung unterstützt die Werkstatt CarTech bei der Voice-first-Fahrzeug- u
 Mechaniker wählt ein Protokoll und spricht
 → KI strukturiert Daten
 → Mechaniker bestätigt und sendet ab
-→ Datensatz wird zentral gespeichert
-→ Büro erhält E-Mail-Hinweis und prüft in der Inbox
-→ Vorgang wird erledigt
+→ Büro erhält das strukturierte Protokoll per E-Mail
+→ Büro prüft, korrigiert und speichert in WERBAS
 ```
 
 ## Empfohlener Tech-Stack
@@ -23,18 +22,18 @@ Mechaniker wählt ein Protokoll und spricht
 - Tailwind CSS
 - Progressive Web App (PWA)
 
-Die PWA läuft auf Smartphone, Tablet und Desktop, benötigt keine App-Store-Veröffentlichung und kann eine gemeinsame Anwendung für Mechaniker und Büro bereitstellen.
+Die PWA läuft auf Smartphone, Tablet und Desktop und benötigt keine App-Store-Veröffentlichung. Im MVP ist sie die Eingabeoberfläche für Mechaniker.
 
 Geplante Bereiche:
 
 - `/mechanic`
-- `/office`
+
+`/office` ist eine optionale spätere Erweiterung; im MVP arbeitet das Büro in WERBAS.
 
 ### Backend
 
 - Python
 - FastAPI
-- SQLAlchemy
 
 Aufgaben des Backends:
 
@@ -42,18 +41,21 @@ Aufgaben des Backends:
 - Speech-to-Text ausführen
 - strukturierte KI-Extraktion durchführen
 - Daten validieren und zur Prüfung markieren
-- abgesendete Vorgänge zentral und dauerhaft speichern
-- Büro-Inbox nach `new`, `in_review` und `completed` bereitstellen
-- E-Mail-Benachrichtigungen nach erfolgreichem Absenden auslösen und wiederholbar zustellen
+- den strukturierten E-Mail-Text erzeugen und an die konfigurierte Büro-Adresse versenden
 - REST-API bereitstellen
-- Datenbankzugriff verwalten
 
-### Datenbank
+### E-Mail-Versand
+
+- SMTP oder ein transaktionaler E-Mail-Dienst
+- Versandstatus an die Mechaniker-Web-App zurückgeben
+- bei Fehlern erneutes Absenden aus der laufenden Sitzung erlauben
+
+### Optionale Datenbank und Büro-Oberfläche
+
+Für eine spätere zentrale Speicherung und Büro-Inbox:
 
 - PostgreSQL
-
-Kernobjekte:
-
+- SQLAlchemy
 - `Customer`
 - `Vehicle`
 - `ServiceRecord`
@@ -62,7 +64,7 @@ Kernobjekte:
 - `TireInspection`
 - `TireCondition`
 
-WERBAS-spezifische IDs bleiben im MVP leer und können später ergänzt werden; es gibt keine WERBAS-Integration und keine Übergabe im Produktablauf. Die vollständige Struktur ist im [Datenmodell](DATA_MODEL.md) beschrieben.
+WERBAS bleibt im MVP das führende Speichersystem. Die E-Mail wird dort manuell übernommen; es gibt keine direkte API-Integration. Die vollständige, auch für eine spätere zentrale Speicherung geeignete Struktur ist im [Datenmodell](DATA_MODEL.md) beschrieben.
 
 ## Voice- und KI-Pipeline
 
@@ -74,10 +76,8 @@ Audio
 → Entwurfsdaten und Feldstatus
 → Validierung
 → Mechanikerprüfung
-→ Absenden und zentrale Speicherung
-→ Büro-Inbox und E-Mail-Benachrichtigung
-→ Büroprüfung
-→ finaler Datensatz
+→ strukturierte E-Mail an das Büro
+→ manuelle Prüfung und Speicherung in WERBAS
 ```
 
 Beispiel für eine Eingabe:
@@ -108,7 +108,7 @@ Extrahierter Entwurf:
 }
 ```
 
-Unsichere Werte werden nicht ergänzt. Feldstatus und Validierungsbedarf werden getrennt vom Vorgangsstatus gespeichert:
+Unsichere Werte werden nicht ergänzt. Feldstatus und Validierungsbedarf werden im E-Mail-Abschnitt „Prüfhinweise“ ausgegeben:
 
 ```json
 {
@@ -120,7 +120,7 @@ Unsichere Werte werden nicht ergänzt. Feldstatus und Validierungsbedarf werden 
 }
 ```
 
-Optionale Confidence-Werte können zusammen mit ihrer Quelle gespeichert werden:
+Optionale Confidence-Werte können im strukturierten Entwurf zusammen mit ihrer Quelle ausgegeben werden:
 
 ```json
 {
@@ -136,19 +136,19 @@ Optionale Confidence-Werte können zusammen mit ihrer Quelle gespeichert werden:
 - kleiner VPS
 - Caddy oder Nginx als Reverse Proxy
 - HTTPS
-- PostgreSQL auf demselben Server für den MVP
+- Zugang zu einem E-Mail-Dienst oder SMTP-Server
 
 ## Empfohlene Entwicklungsreihenfolge
 
 1. Datenmodell definieren
 2. Mechaniker-UI erstellen
-3. grundlegende Büroprüfung für manuell erfasste Vorgänge erstellen
+3. E-Mail-Template für die strukturierte Ausgabe erstellen
 4. Audioaufnahme und Speech-to-Text parallel integrieren
 5. strukturierte KI-Extraktion implementieren
 6. Validierungslogik ergänzen
 7. Mechaniker-Bestätigung umsetzen
-8. zentrale Speicherung, Büro-Inbox und E-Mail-Benachrichtigung umsetzen
-9. Büroprüfung um KI-Daten, Transkript und Unsicherheiten erweitern
+8. E-Mail-Versand, Fehleranzeige und Wiederholen umsetzen
+9. E-Mail-Ausgabe mit WERBAS-Eingabe im Büro testen
 10. Testbetrieb in der Werkstatt durchführen
 
 Der Schwerpunkt liegt auf zuverlässiger Extraktion, nachvollziehbarer Validierung und einer schnellen Bestätigungsoberfläche.
@@ -162,7 +162,8 @@ Der Schwerpunkt liegt auf zuverlässiger Extraktion, nachvollziehbarer Validieru
 - MongoDB
 - eigene Speech-to-Text-Engine
 - direkte WERBAS-Integration
-- manuelle oder automatische WERBAS-Übergabe als Teil des MVP-Ablaufs
+- zentrale Speicherung in der CarTech-Anwendung
+- Büro-Inbox oder Büro-Bearbeitung in der CarTech-Web-App
 - native Smartphone-App
 
 Diese Technologien erhöhen die Komplexität, ohne für den MVP notwendig zu sein.
@@ -172,14 +173,14 @@ Diese Technologien erhöhen die Komplexität, ohne für den MVP notwendig zu sei
 | Kostenpunkt | Erwartete Kosten |
 | --- | --- |
 | VPS / Hosting | ca. 5–15 € pro Monat |
-| PostgreSQL | 0 € bei Self-Hosting |
+| E-Mail-Versand | je nach SMTP- oder E-Mail-Dienst, meist wenige Euro pro Monat |
 | Domain | ca. 10–20 € pro Jahr |
 | HTTPS / SSL | 0 € |
 | Speech-to-Text-API | wenige Euro bis ca. 20 € pro Monat |
 | KI-Datenextraktion | wenige Euro pro Monat |
-| React, FastAPI und PostgreSQL | 0 € |
+| React und FastAPI | 0 € |
 | Docker, Caddy oder Nginx | 0 € |
 | PWA | 0 € |
-| WERBAS-Integration | nicht im MVP enthalten |
+| direkte WERBAS-Integration | nicht im MVP enthalten |
 
 Für eine kleine Werkstatt sind Gesamtkosten von etwa 10–30 € pro Monat realistisch; als Zielwert für den MVP gelten etwa 15–25 € pro Monat. Die tatsächlichen KI-Kosten hängen vor allem von der Zahl der Aufnahmen, der Audiolänge sowie den verwendeten Speech-to-Text- und KI-Modellen ab.

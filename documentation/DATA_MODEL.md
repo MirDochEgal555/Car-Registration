@@ -2,18 +2,20 @@
 
 ## Ziel
 
-Das Datenmodell bildet die beiden Werkstattprotokolle Reifenwechsel und Reifeneinlagerung ab. Es trennt KI-Rohdaten, geprüfte Fachwerte und Verwaltungsdaten, damit jede Korrektur nachvollziehbar bleibt.
+Das Datenmodell beschreibt die strukturierte Ausgabe für die beiden Werkstattprotokolle Reifenwechsel und Reifeneinlagerung. Im MVP wird diese Struktur als E-Mail-Text an das Büro übergeben; die dauerhafte Speicherung und finale Bearbeitung erfolgen in WERBAS. Das Modell dient zugleich als saubere Grundlage für eine optionale spätere zentrale Speicherung.
 
 Wichtige Prinzipien:
 
-- Informationen werden strukturiert gespeichert.
+- Informationen werden für E-Mail und spätere Speicheroptionen strukturiert aufbereitet.
 - Fehlende oder unsichere Informationen werden nicht geraten.
-- Die Kundenanlage und -zuordnung erfolgt im Büro, nicht durch den Mechaniker.
-- KI-Extraktion und final geprüfte Daten bleiben unterscheidbar.
-- Absenden, zentrale Speicherung und E-Mail-Benachrichtigung sind nachvollziehbar voneinander getrennt.
-- Eine spätere WERBAS-Integration bleibt durch saubere Erweiterungspunkte möglich, ist aber nicht Teil des MVP.
+- Die Kundenanlage und -zuordnung erfolgt durch das Büro in WERBAS, nicht durch den Mechaniker.
+- KI-Extraktion und Prüfhinweise bleiben in der strukturierten E-Mail unterscheidbar.
+- Eine zentrale Speicherung und Büro-Oberfläche bleiben optionale Erweiterungen; der MVP benötigt keine CarTech-Datenbank.
+- Eine direkte technische WERBAS-Integration ist nicht Teil des MVP.
 
-## Beziehungen
+## Optionales Zieldatenmodell
+
+Die folgenden Beziehungen beschreiben eine mögliche spätere zentrale Speicherung. Sie werden im MVP nicht als CarTech-Datenbank implementiert; WERBAS ist das führende Speichersystem.
 
 ```text
 Customer
@@ -25,13 +27,12 @@ Customer
         ├── TireInspection
         │   └── TireCondition
         ├── VisualInspection
-        ├── OfficeNotification
         └── ServiceTireSet
             └── TireSet
                 └── Tire
 ```
 
-Ein `Vehicle` kann vor der Büroprüfung ohne `customer_id` angelegt werden. Ein `ServiceRecord` kann mehrere Reifensätze referenzieren; ihre Rolle ist immer explizit.
+Ein `Vehicle` kann im optionalen Zieldatenmodell vor der Büroprüfung ohne `customer_id` angelegt werden. Ein `ServiceRecord` kann mehrere Reifensätze referenzieren; ihre Rolle ist immer explizit.
 
 ## Customer (Kunde)
 
@@ -102,7 +103,7 @@ unknown
 | review_required | boolean | ja | Prüfung wegen Unsicherheit oder Validierung nötig |
 | created_by | UUID | ja | erfassender Mechaniker |
 | mechanic_confirmed_at | datetime | nein | Bestätigung durch Mechaniker |
-| submitted_at | datetime | nein | erfolgreicher Absendezeitpunkt; der Datensatz ist zentral gespeichert |
+| submitted_at | datetime | nein | erfolgreicher Versandzeitpunkt der strukturierten E-Mail |
 | office_reviewed_at | datetime | nein | Prüfung durch Büro |
 | created_at | datetime | ja | Erstellungszeitpunkt |
 | updated_at | datetime | ja | letzter Änderungszeitpunkt |
@@ -122,35 +123,24 @@ tire_storage
 ```text
 draft
 mechanic_review
+email_sent
 new
 in_review
 completed
 rejected
 ```
 
-`status` beschreibt ausschließlich den Lebenszyklus eines Vorgangs. Nach erfolgreichem Absenden wechselt ein Vorgang zu `new` und erscheint in der Büro-Inbox als **Neu**. Bei Beginn der Büroarbeit wechselt er zu `in_review` (**Prüfen**); `completed` wird als **Erledigt** angezeigt.
+`status` gehört zum optionalen Zieldatenmodell. Im MVP endet der temporäre Ablauf nach `email_sent`; die weitere Statusführung erfolgt in WERBAS. Bei einer späteren zentralen Büro-Oberfläche können zusätzlich die Status `new`, `in_review` und `completed` verwendet werden.
 
-`field_status` enthält beispielsweise `missing`, `uncertain` oder `invalid`; `review_required` markiert einen offenen Prüfbedarf. Diese Markierungen sind unabhängig vom Vorgangsstatus und müssen in der Büroansicht direkt am jeweiligen Feld angezeigt werden. Felder bleiben dort bearbeitbar.
+`field_status` enthält beispielsweise `missing`, `uncertain` oder `invalid`; `review_required` markiert einen offenen Prüfbedarf. Im MVP werden diese Markierungen in den E-Mail-Abschnitt „Prüfhinweise“ übernommen. In einer späteren Büro-Oberfläche müssen sie direkt am jeweiligen Feld angezeigt werden.
 
-Bei `tire_storage` und `tire_change` müssen vor dem Abschluss ein Kunde über `Vehicle.customer_id`, ein Fahrzeug mit Kennzeichen, das Protokolldatum und der Mechaniker vorhanden sein. Die Kundenanlage oder -zuordnung bleibt Aufgabe des Büros.
+Bei `tire_storage` und `tire_change` müssen für die Übernahme in WERBAS mindestens ein Fahrzeug mit Kennzeichen, das Protokolldatum und der Mechaniker vorhanden sein. Kundenanlage oder -zuordnung bleibt Aufgabe des Büros.
 
-## OfficeNotification (Bürobenachrichtigung)
+## MVP-E-Mail-Ausgabe
 
-Für jeden erfolgreich abgesendeten Vorgang wird eine Benachrichtigung für das Büro angelegt. Die zentrale Speicherung des `ServiceRecord` und das Anlegen der Benachrichtigung erfolgen gemeinsam; der E-Mail-Versand erfolgt anschließend zuverlässig und erneut versuchbar. Ein fehlgeschlagener Versand ändert den Status des Vorgangs nicht.
+Nach der Mechanikerbestätigung rendert das System den strukturierten Entwurf als E-Mail-Text für die konfigurierte Büro-Adresse. Die E-Mail enthält Protokolltyp, Kennzeichen, Absendezeitpunkt, alle erfassten Fahrzeug-, Reifen- und Servicedaten sowie einen getrennten Abschnitt „Prüfhinweise“ für `missing`, `uncertain` und `invalid`.
 
-| Feld | Typ | Pflicht | Beschreibung |
-| --- | --- | :---: | --- |
-| id | UUID | ja | interne ID |
-| service_record_id | UUID | ja | referenzierter Vorgang |
-| event_type | enum | ja | im MVP `record_submitted` |
-| channel | enum | ja | im MVP `email` |
-| recipient | string | ja | konfigurierte Büro-E-Mail-Adresse |
-| delivery_status | enum | ja | `pending`, `sent` oder `failed` |
-| sent_at | datetime | nein | erfolgreicher Versandzeitpunkt |
-| created_at | datetime | ja | Zeitpunkt des Anlegens |
-| updated_at | datetime | ja | letzter Versand- oder Wiederholungsversuch |
-
-Die E-Mail enthält nur Kennzeichen, Absendezeitpunkt und einen authentifizierten Link zur Detailansicht. Personen- oder Servicedetails stehen ausschließlich nach Anmeldung in der Web-App bereit.
+Die E-Mail ersetzt im MVP weder WERBAS noch eine zentrale CarTech-Datenbank. Schlägt der Versand fehl, bleibt der Entwurf nur in der laufenden Web-App-Sitzung zum erneuten Absenden verfügbar.
 
 ## CustomerSignature (Kundenunterschrift)
 
