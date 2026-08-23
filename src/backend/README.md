@@ -53,6 +53,21 @@ stores the complete structured confirmed registration locally (not the raw
 transcript) and must therefore be placed on encrypted, access-controlled
 persistent storage in production.
 
+## Tests
+
+Run the complete backend suite from this directory:
+
+```bash
+python3 -m pytest -q
+```
+
+`tests/test_workshop_e2e.py` executes all 23 anonymised workshop phrases from
+[`data/fixtures/workshop_e2e_cases.json`](../../data/fixtures/workshop_e2e_cases.json)
+through the extraction-result contract, validation API, and—using an
+in-process mailbox—the durable outbox and office-email handoff. The actual
+speech-to-text/AI extraction adapter remains a separate integration point; the
+fixtures define its regression contract without requiring external services.
+
 Configure SMTP in the deployment environment:
 
 ```text

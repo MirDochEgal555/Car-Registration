@@ -134,6 +134,7 @@ def validate_registration(draft: RegistrationDraft) -> ValidationResponse:
 
     _validate_tire_sets(draft, add_issue)
     _validate_tire_inspections(draft, add_issue)
+    _validate_conditions(draft, add_issue)
     _validate_visual_inspections(draft, add_issue)
     _validate_tire_change_details(draft, add_issue)
 
@@ -241,6 +242,20 @@ def _validate_tire_inspections(draft: RegistrationDraft, add_issue: IssueAdder) 
                 Decimal("0"),
                 Decimal("20"),
                 "Die Profiltiefe ist unplausibel.",
+            )
+
+
+def _validate_conditions(draft: RegistrationDraft, add_issue: IssueAdder) -> None:
+    """Ensure spoken tire findings stay attached to an existing tire-set role."""
+
+    allowed_roles = {relation.role for relation in draft.tire_sets}
+    for index, condition in enumerate(draft.conditions):
+        if condition.tire_set_role and condition.tire_set_role not in allowed_roles:
+            add_issue(
+                f"conditions.{index}.tire_set_role",
+                "unknown_tire_set_role",
+                "Der Reifenzustand verweist auf keinen erfassten Reifensatz.",
+                FieldStatus.INVALID,
             )
 
 

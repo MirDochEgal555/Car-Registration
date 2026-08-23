@@ -22,6 +22,7 @@ from app.models.enums import (
     RimCategory,
     ServiceStatus,
     ServiceType,
+    TireConditionType,
     TirePosition,
     TireSetRole,
     TireType,
@@ -98,6 +99,15 @@ class TireInspectionDraft(DomainModel):
     notes: Optional[str] = None
 
 
+class TireConditionDraft(DomainModel):
+    """A spoken tire finding, kept separate so multiple findings are lossless."""
+
+    tire_set_role: Optional[TireSetRole] = None
+    condition: Optional[TireConditionType] = None
+    position: Optional[TirePosition] = None
+    notes: Optional[str] = None
+
+
 class VisualInspectionDraft(DomainModel):
     """A visual wheel or tire inspection from a tire-change record."""
 
@@ -162,6 +172,7 @@ class RegistrationDraft(DomainModel):
     field_status: dict[str, FieldStatus] = Field(default_factory=dict)
     tire_sets: list[RegistrationTireSet] = Field(default_factory=list)
     tire_inspections: list[TireInspectionDraft] = Field(default_factory=list)
+    conditions: list[TireConditionDraft] = Field(default_factory=list)
     visual_inspections: list[VisualInspectionDraft] = Field(default_factory=list)
     tire_change_details: Optional[TireChangeDetailsDraft] = None
     customer_signature_present: bool = False
@@ -213,6 +224,7 @@ __all__ = [
     "RegistrationDraft",
     "DeliveryStatusResponse",
     "SendResponse",
+    "TireConditionDraft",
     "ValidationIssue",
     "ValidationResponse",
 ]
