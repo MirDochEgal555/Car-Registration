@@ -22,7 +22,10 @@ class ServiceType(StrEnum):
 class ServiceStatus(StrEnum):
     DRAFT = "draft"
     MECHANIC_REVIEW = "mechanic_review"
+    EMAIL_PENDING = "email_pending"
+    EMAIL_SENDING = "email_sending"
     EMAIL_SENT = "email_sent"
+    EMAIL_FAILED = "email_failed"
     NEW = "new"
     IN_REVIEW = "in_review"
     COMPLETED = "completed"

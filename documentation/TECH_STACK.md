@@ -48,7 +48,8 @@ Aufgaben des Backends:
 
 - SMTP oder ein transaktionaler E-Mail-Dienst
 - Versandstatus an die Mechaniker-Web-App zurückgeben
-- bei Fehlern erneutes Absenden aus der laufenden Sitzung erlauben
+- bestätigte Datensätze vor dem SMTP-Aufruf in einer persistenten Versand-Outbox sichern
+- bei Fehlern über einen Retry-Endpunkt erneut versenden, auch nach Browser- oder Server-Neustart
 
 ### Optionale Datenbank und Büro-Oberfläche
 

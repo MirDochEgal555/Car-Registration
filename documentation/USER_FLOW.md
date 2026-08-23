@@ -136,7 +136,7 @@ Die primäre Aktion lautet:
 Bestätigen und absenden
 ```
 
-Nach dem Absenden erzeugt das System aus dem bestätigten Entwurf eine strukturierte E-Mail an das Büro. Erst wenn der E-Mail-Versand erfolgreich angestoßen wurde, erhält der Vorgang in der laufenden Sitzung den Status `email_sent`. Der Mechaniker ist dann fertig.
+Nach dem Absenden speichert das System den bestätigten, validierten Entwurf zunächst sicher in der Versand-Outbox und erzeugt daraus die strukturierte E-Mail an das Büro. Erst wenn der Mailserver die Nachricht erfolgreich angenommen hat, erhält der Vorgang den Status `email_sent`. Der Mechaniker ist dann fertig.
 
 Die E-Mail enthält das vollständige strukturierte Protokoll, mindestens:
 
@@ -145,7 +145,7 @@ Die E-Mail enthält das vollständige strukturierte Protokoll, mindestens:
 - Absendezeitpunkt und
 - klar ausgewiesene fehlende, unsichere oder unplausible Angaben.
 
-Die E-Mail dient dem Büro als Vorlage für die manuelle Übernahme nach WERBAS. Schlägt der Versand fehl, zeigt die Web-App einen Fehler und eine Wiederholen-Aktion; eine zentrale Inbox oder dauerhafte CarTech-Speicherung ist im MVP nicht vorgesehen.
+Die E-Mail dient dem Büro als Vorlage für die manuelle Übernahme nach WERBAS. Schlägt der Versand fehl, zeigt die Web-App den Status `email_failed`, eine verständliche Fehlermeldung und eine Wiederholen-Aktion. Der bestätigte Datensatz bleibt serverseitig in der Versand-Outbox erhalten; `POST /api/v1/registrations/{id}/retry` versendet genau diese gespeicherte Fassung erneut. Eine zentrale Büro-Inbox oder fachliche CarTech-Speicherung ist weiterhin nicht Teil des MVP.
 
 ## Flow 2: Büroprüfung in WERBAS
 

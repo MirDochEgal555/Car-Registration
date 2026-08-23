@@ -10,7 +10,7 @@ Wichtige Prinzipien:
 - Fehlende oder unsichere Informationen werden nicht geraten.
 - Die Kundenanlage und -zuordnung erfolgt durch das Büro in WERBAS, nicht durch den Mechaniker.
 - KI-Extraktion und Prüfhinweise bleiben in der strukturierten E-Mail unterscheidbar.
-- Eine zentrale Speicherung und Büro-Oberfläche bleiben optionale Erweiterungen; der MVP benötigt keine CarTech-Datenbank.
+- Eine zentrale Speicherung und Büro-Oberfläche bleiben optionale Erweiterungen. Für die technische Zustellung hält der MVP jedoch eine kleine, lokale Versand-Outbox vor, damit bestätigte Datensätze bei SMTP-Fehlern nicht verloren gehen.
 - Eine direkte technische WERBAS-Integration ist nicht Teil des MVP.
 
 ## Optionales Zieldatenmodell
@@ -123,14 +123,17 @@ tire_storage
 ```text
 draft
 mechanic_review
+email_pending
+email_sending
 email_sent
+email_failed
 new
 in_review
 completed
 rejected
 ```
 
-`status` gehört zum optionalen Zieldatenmodell. Im MVP endet der temporäre Ablauf nach `email_sent`; die weitere Statusführung erfolgt in WERBAS. Bei einer späteren zentralen Büro-Oberfläche können zusätzlich die Status `new`, `in_review` und `completed` verwendet werden.
+`status` gehört zum optionalen Zieldatenmodell. Für die MVP-Zustellung wird der bestätigte Datensatz vor dem SMTP-Aufruf lokal als `email_pending` abgelegt und während des laufenden Versuchs als `email_sending` geführt. Nimmt der Mailserver die Nachricht an, wird der Status `email_sent`; bei Konfigurations-, Verbindungs- oder Zustellfehlern `email_failed`. Ein fehlgeschlagener Datensatz bleibt zusammen mit Versuchszähler und einer sicheren Fehlermeldung in der Versand-Outbox erhalten und kann erneut versendet werden. Nach erfolgreicher Zustellung endet die fachliche weitere Statusführung in WERBAS. Bei einer späteren zentralen Büro-Oberfläche können zusätzlich die Status `new`, `in_review` und `completed` verwendet werden.
 
 `field_status` enthält für jedes gekennzeichnete Feld einen der Werte `missing`, `uncertain`, `invalid` oder `valid`. `review_required` wird zentral aus diesen Feldstatus berechnet: Er ist genau dann `true`, wenn mindestens ein Feld `uncertain` oder `invalid` ist. `missing` (bei optionalen Angaben) und `valid` lösen allein keinen Prüfbedarf aus. Im MVP werden diese Markierungen in den E-Mail-Abschnitt „Prüfhinweise“ übernommen. In einer späteren Büro-Oberfläche müssen sie direkt am jeweiligen Feld angezeigt werden.
 
@@ -140,7 +143,7 @@ Bei `tire_storage` und `tire_change` müssen für die Übernahme in WERBAS minde
 
 Nach der Mechanikerbestätigung rendert das System den strukturierten Entwurf für die konfigurierte Büro-Adresse als `multipart/alternative`-E-Mail. Eine HTML- und eine Textansicht entstehen aus demselben E-Mail-Dokument und enthalten daher identische Fachinformationen: Protokolltyp, Kennzeichen, Absendezeitpunkt, alle erfassten Fahrzeug-, Reifen- und Servicedaten sowie einen getrennten Abschnitt „Prüfhinweise“ für `missing`, `uncertain` und `invalid`. Die Textansicht bleibt für reine Text-Mailclients und Weiterleitungen verfügbar.
 
-Die E-Mail ersetzt im MVP weder WERBAS noch eine zentrale CarTech-Datenbank. Schlägt der Versand fehl, bleibt der Entwurf nur in der laufenden Web-App-Sitzung zum erneuten Absenden verfügbar.
+Die E-Mail ersetzt im MVP weder WERBAS noch eine zentrale CarTech-Datenbank. Damit ein SMTP-Fehler keinen bestätigten Vorgang still verliert, wird die vollständige, validierte Fassung der strukturierten Protokolldaten vor dem Versand in einer lokalen SQLite-Versand-Outbox gespeichert; das Rohtranskript wird dabei nicht übernommen. `GET /api/v1/registrations/{id}/delivery-status` zeigt Status, Fehler und Versuchszähler; `POST /api/v1/registrations/{id}/retry` versendet den gespeicherten Datensatz erneut. Die Outbox enthält personenbezogene Werkstattdaten und muss deshalb im Produktivbetrieb auf einem persistenten, zugriffsgeschützten und verschlüsselten Volume liegen.
 
 ## CustomerSignature (Kundenunterschrift)
 

@@ -99,6 +99,10 @@ class Settings:
             "CARTECH_SMTP_TIMEOUT_SECONDS", default=15.0
         )
     )
+    delivery_store_path: str = field(
+        default_factory=lambda: _environment_value("CARTECH_DELIVERY_STORE_PATH")
+        or "data/processed/cartech-deliveries.sqlite3"
+    )
 
 
 settings = Settings()

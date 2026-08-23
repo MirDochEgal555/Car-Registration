@@ -2,9 +2,11 @@
 
 FastAPI service for the mechanic-facing CarTech MVP. It provides the
 application foundation, API versioning, a health endpoint, the central
-Pydantic domain models, and the stateless mechanic-registration workflow. A
-browser sends its complete draft for validation and, after explicit mechanic
-confirmation, for email delivery. Audio processing and AI extraction remain
+Pydantic domain models, and the mechanic-registration workflow. A browser
+sends its complete draft for validation and, after explicit mechanic
+confirmation, for email delivery. A small durable outbox preserves every valid
+confirmed record before SMTP is called, so failed deliveries can be retried
+after a browser or server restart. Audio processing and AI extraction remain
 separate follow-up tasks.
 
 ## Local start
@@ -27,16 +29,29 @@ documentation is available at `/docs`.
   returned draft.
 - `POST /api/v1/registrations/send` validates again, requires
   `mechanic_confirmed: true`, renders matching HTML and plain-text office-email
-  alternatives from one validated registration document, and sends them via SMTP.
-  Missing/invalid required values return `409`; a missing confirmation returns
-  `422`; an unconfigured delivery service returns `503`.
+  alternatives from one validated registration document, persists that document
+  in the delivery outbox, and sends it via SMTP. A repeated request with the
+  same registration ID and unchanged payload is idempotent and does not send a
+  duplicate message.
+- `GET /api/v1/registrations/{registration_id}/delivery-status` returns the
+  durable delivery status, latest safe error message, and number of attempts.
+- `POST /api/v1/registrations/{registration_id}/retry` sends the exact saved
+  registration again without requiring the browser to submit the data anew.
+
+Missing/invalid required values return `409`; a missing confirmation returns
+`422`. SMTP/configuration failures return `502` or `503` with the saved
+delivery status and a retry URL. The record remains in `email_failed` until a
+retry succeeds. `email_pending` and `email_sending` make an unfinished attempt
+visible; interrupted `email_sending` records become retryable on service start.
 
 The only required values for handoff to WERBAS are `service_type`,
 `service_date`, `mechanic_id`, and `vehicle.license_plate`. Existing
 `field_status` values from extraction are preserved; `uncertain` and `invalid`
-set `review_required` but do not block sending on their own. The endpoint does
-not persist drafts, so a failed send can be retried by submitting the same
-draft again.
+set `review_required` but do not block sending on their own. The outbox is an
+audit/retry mechanism, not a general office inbox or WERBAS replacement. It
+stores the complete structured confirmed registration locally (not the raw
+transcript) and must therefore be placed on encrypted, access-controlled
+persistent storage in production.
 
 Configure SMTP in the deployment environment:
 
@@ -50,6 +65,7 @@ CARTECH_SMTP_PASSWORD=...
 CARTECH_SMTP_USE_TLS=true
 CARTECH_SMTP_USE_SSL=false
 CARTECH_SMTP_TIMEOUT_SECONDS=15
+CARTECH_DELIVERY_STORE_PATH=/var/lib/cartech/cartech-deliveries.sqlite3
 ```
 
 All mail configuration is read only from environment variables. An annotated,
@@ -61,7 +77,9 @@ set or both be omitted for SMTP servers without authentication.
 Set `CARTECH_SMTP_USE_SSL=true` for providers using implicit TLS (usually port
 465); in that case STARTTLS is not used. The default configuration uses
 STARTTLS on port 587. `CARTECH_SMTP_TIMEOUT_SECONDS` controls the connection
-and delivery timeout.
+and delivery timeout. `CARTECH_DELIVERY_STORE_PATH` is the SQLite outbox path.
+Mount its parent directory as persistent storage when running in Docker or on a
+VPS; deleting the file removes the retry history.
 
 ## Layout
 

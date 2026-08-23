@@ -187,10 +187,23 @@ class ValidationResponse(DomainModel):
     status: ServiceStatus = ServiceStatus.MECHANIC_REVIEW
 
 
-class SendResponse(DomainModel):
-    """Result of a successfully accepted email delivery."""
+class DeliveryStatusResponse(DomainModel):
+    """Durable delivery state for a confirmed registration."""
 
     registration_id: UUID
+    status: ServiceStatus
+    recipient: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    submitted_at: Optional[datetime] = None
+    last_attempt_at: Optional[datetime] = None
+    attempt_count: int = Field(ge=0)
+    last_error: Optional[str] = None
+
+
+class SendResponse(DeliveryStatusResponse):
+    """Result of a successfully accepted email delivery."""
+
     status: ServiceStatus = ServiceStatus.EMAIL_SENT
     submitted_at: datetime
     recipient: str
@@ -198,6 +211,7 @@ class SendResponse(DomainModel):
 
 __all__ = [
     "RegistrationDraft",
+    "DeliveryStatusResponse",
     "SendResponse",
     "ValidationIssue",
     "ValidationResponse",
