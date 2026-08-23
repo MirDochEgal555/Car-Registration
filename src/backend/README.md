@@ -48,10 +48,20 @@ CARTECH_SMTP_FROM=cartech@example.com
 CARTECH_SMTP_USERNAME=...
 CARTECH_SMTP_PASSWORD=...
 CARTECH_SMTP_USE_TLS=true
+CARTECH_SMTP_USE_SSL=false
+CARTECH_SMTP_TIMEOUT_SECONDS=15
 ```
 
-Set `CARTECH_SMTP_USE_SSL=true` for providers using implicit TLS; in that case
-STARTTLS is not used.
+All mail configuration is read only from environment variables. An annotated,
+secret-free template is available at [`.env.example`](.env.example). Do not
+commit a real `.env` file or SMTP credentials. `CARTECH_SMTP_HOST` and
+`CARTECH_SMTP_FROM` are required; username and password must either both be
+set or both be omitted for SMTP servers without authentication.
+
+Set `CARTECH_SMTP_USE_SSL=true` for providers using implicit TLS (usually port
+465); in that case STARTTLS is not used. The default configuration uses
+STARTTLS on port 587. `CARTECH_SMTP_TIMEOUT_SECONDS` controls the connection
+and delivery timeout.
 
 ## Layout
 

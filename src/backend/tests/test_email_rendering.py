@@ -58,7 +58,7 @@ class _RecordingSmtp:
     def __exit__(self, *_: object) -> None:
         return None
 
-    def starttls(self) -> None:
+    def starttls(self, **_: object) -> None:
         self.started_tls = True
 
     def login(self, _: str, __: str) -> None:
@@ -93,3 +93,29 @@ def test_smtp_sender_uses_multipart_alternative_for_html_email(monkeypatch: obje
     assert [part.get_content_type() for part in alternatives] == ["text/plain", "text/html"]
     assert alternatives[0].get_content().strip() == "Textalternative"
     assert alternatives[1].get_content().strip() == "<p>HTML-Alternative</p>"
+
+
+def test_smtp_sender_uses_implicit_tls_when_configured(monkeypatch: object) -> None:
+    from app.services import email as email_service
+
+    smtp_client = _RecordingSmtp()
+    monkeypatch.setattr(
+        email_service.smtplib, "SMTP_SSL", lambda *_args, **_kwargs: smtp_client
+    )
+    sender = SmtpEmailSender(
+        Settings(
+            smtp_host="smtp.example.com",
+            smtp_from="cartech@example.com",
+            smtp_use_ssl=True,
+        )
+    )
+
+    sender.send(
+        OutgoingEmail(
+            recipient="office@example.com",
+            subject="Protokoll",
+            body="Textalternative",
+        )
+    )
+
+    assert smtp_client.started_tls is False

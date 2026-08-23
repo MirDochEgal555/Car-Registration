@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import smtplib
+import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Protocol
@@ -49,9 +50,20 @@ class SmtpEmailSender:
 
     def send(self, email: OutgoingEmail) -> None:
         configuration = self._configuration
-        if not configuration.smtp_host or not configuration.smtp_from:
+        missing_configuration = []
+        if not configuration.smtp_host:
+            missing_configuration.append("CARTECH_SMTP_HOST")
+        if not configuration.smtp_from:
+            missing_configuration.append("CARTECH_SMTP_FROM")
+        if configuration.smtp_username and not configuration.smtp_password:
+            missing_configuration.append("CARTECH_SMTP_PASSWORD")
+        if configuration.smtp_password and not configuration.smtp_username:
+            missing_configuration.append("CARTECH_SMTP_USERNAME")
+        if missing_configuration:
             raise EmailConfigurationError(
-                "SMTP is not configured. Set CARTECH_SMTP_HOST and CARTECH_SMTP_FROM."
+                "SMTP is not configured. Set "
+                + ", ".join(missing_configuration)
+                + "."
             )
 
         message = EmailMessage()
@@ -63,22 +75,24 @@ class SmtpEmailSender:
             message.add_alternative(email.html_body, subtype="html")
 
         try:
+            tls_context = ssl.create_default_context()
             if configuration.smtp_use_ssl:
                 smtp_client: smtplib.SMTP = smtplib.SMTP_SSL(
                     configuration.smtp_host,
                     configuration.smtp_port,
-                    timeout=15,
+                    timeout=configuration.smtp_timeout_seconds,
+                    context=tls_context,
                 )
             else:
                 smtp_client = smtplib.SMTP(
                     configuration.smtp_host,
                     configuration.smtp_port,
-                    timeout=15,
+                    timeout=configuration.smtp_timeout_seconds,
                 )
 
             with smtp_client:
                 if configuration.smtp_use_tls and not configuration.smtp_use_ssl:
-                    smtp_client.starttls()
+                    smtp_client.starttls(context=tls_context)
                 if configuration.smtp_username:
                     smtp_client.login(
                         configuration.smtp_username,
