@@ -61,3 +61,25 @@ __all__ = [
     "VisualInspectionResult",
     "WheelBoltConfiguration",
 ]
+"""Public model exports."""
+
+from app.models.enums import (
+    FieldStatus,
+    ServiceType,
+    TirePosition,
+    VisualInspectionComponent,
+    VisualInspectionResult,
+)
+from app.models.schemas import ServiceRecord, Tire, Vehicle, VisualInspection
+
+__all__ = [
+    "FieldStatus",
+    "ServiceRecord",
+    "ServiceType",
+    "Tire",
+    "TirePosition",
+    "Vehicle",
+    "VisualInspection",
+    "VisualInspectionComponent",
+    "VisualInspectionResult",
+]
