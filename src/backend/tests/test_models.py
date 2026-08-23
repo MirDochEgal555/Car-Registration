@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date
 from uuid import uuid4
 
@@ -5,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.models import (
+    FieldStatus,
     ServiceRecord,
     ServiceType,
     Tire,
@@ -27,17 +30,64 @@ def test_vehicle_rejects_an_invalid_year_month() -> None:
         Vehicle(license_plate="CW-AB 123", first_registration_month="2024-13")
 
 
-def test_service_record_holds_extraction_audit_data() -> None:
+def test_service_record_derives_review_requirement_from_field_status() -> None:
     record = ServiceRecord(
         vehicle_id=uuid4(),
         created_by=uuid4(),
         service_type=ServiceType.TIRE_CHANGE,
         service_date=date(2026, 8, 23),
-        field_status={"model": "uncertain"},
-        review_required=True,
+        field_status={"model": FieldStatus.UNCERTAIN},
+        review_required=False,
     )
 
-    assert record.field_status == {"model": "uncertain"}
+    assert record.field_status == {"model": FieldStatus.UNCERTAIN}
+    assert record.review_required is True
+
+
+@pytest.mark.parametrize(
+    ("field_status", "review_required"),
+    [
+        (None, False),
+        ({"model": FieldStatus.VALID}, False),
+        ({"model": FieldStatus.MISSING}, False),
+        ({"model": FieldStatus.UNCERTAIN}, True),
+        ({"mileage_km": FieldStatus.INVALID}, True),
+        (
+            {
+                "model": FieldStatus.VALID,
+                "vin": FieldStatus.MISSING,
+                "mileage_km": FieldStatus.INVALID,
+            },
+            True,
+        ),
+    ],
+)
+def test_service_record_calculates_review_requirement_for_all_field_statuses(
+    field_status: dict[str, FieldStatus] | None, review_required: bool
+) -> None:
+    record = ServiceRecord(
+        vehicle_id=uuid4(),
+        created_by=uuid4(),
+        service_type=ServiceType.TIRE_CHANGE,
+        service_date=date(2026, 8, 23),
+        field_status=field_status,
+        review_required=not review_required,
+    )
+
+    assert record.review_required is review_required
+
+
+def test_service_record_recalculates_review_requirement_when_statuses_change() -> None:
+    record = ServiceRecord(
+        vehicle_id=uuid4(),
+        created_by=uuid4(),
+        service_type=ServiceType.TIRE_CHANGE,
+        service_date=date(2026, 8, 23),
+        field_status={"model": FieldStatus.VALID},
+    )
+
+    record.field_status = {"model": FieldStatus.UNCERTAIN}
+
     assert record.review_required is True
 
 

@@ -73,9 +73,10 @@ Erlaubte Werte für einen Feldstatus:
 missing
 uncertain
 invalid
+valid
 ```
 
-`invalid` kennzeichnet einen vorhandenen, aber fachlich oder plausibilitätsseitig unzulässigen Wert. `review_required` muss bei unsicheren oder unplausiblen Angaben `true` sein. Nicht genannte optionale Felder können entfallen oder mit `null` und `field_status: missing` ausgegeben werden.
+`valid` kennzeichnet einen geprüften, plausiblen Wert. `invalid` kennzeichnet einen vorhandenen, aber fachlich oder plausibilitätsseitig unzulässigen Wert. `review_required` wird zentral berechnet und ist bei mindestens einem Status `uncertain` oder `invalid` immer `true`; `missing` und `valid` setzen ihn nicht. Nicht genannte optionale Felder können entfallen oder mit `null` und `field_status: missing` ausgegeben werden.
 
 ## Keine erfundenen Informationen
 

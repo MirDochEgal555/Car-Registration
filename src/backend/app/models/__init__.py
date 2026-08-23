@@ -30,9 +30,11 @@ from app.models.schemas import (
     Vehicle,
     VisualInspection,
 )
+from app.models.review import calculate_review_required
 
 __all__ = [
     "BrakeDiscMeasurement",
+    "calculate_review_required",
     "Customer",
     "CustomerSignature",
     "FieldStatus",

@@ -33,6 +33,7 @@ class FieldStatus(StrEnum):
     MISSING = "missing"
     UNCERTAIN = "uncertain"
     INVALID = "invalid"
+    VALID = "valid"
 
 
 class WheelBoltConfiguration(StrEnum):

@@ -132,7 +132,7 @@ rejected
 
 `status` gehört zum optionalen Zieldatenmodell. Im MVP endet der temporäre Ablauf nach `email_sent`; die weitere Statusführung erfolgt in WERBAS. Bei einer späteren zentralen Büro-Oberfläche können zusätzlich die Status `new`, `in_review` und `completed` verwendet werden.
 
-`field_status` enthält beispielsweise `missing`, `uncertain` oder `invalid`; `review_required` markiert einen offenen Prüfbedarf. Im MVP werden diese Markierungen in den E-Mail-Abschnitt „Prüfhinweise“ übernommen. In einer späteren Büro-Oberfläche müssen sie direkt am jeweiligen Feld angezeigt werden.
+`field_status` enthält für jedes gekennzeichnete Feld einen der Werte `missing`, `uncertain`, `invalid` oder `valid`. `review_required` wird zentral aus diesen Feldstatus berechnet: Er ist genau dann `true`, wenn mindestens ein Feld `uncertain` oder `invalid` ist. `missing` (bei optionalen Angaben) und `valid` lösen allein keinen Prüfbedarf aus. Im MVP werden diese Markierungen in den E-Mail-Abschnitt „Prüfhinweise“ übernommen. In einer späteren Büro-Oberfläche müssen sie direkt am jeweiligen Feld angezeigt werden.
 
 Bei `tire_storage` und `tire_change` müssen für die Übernahme in WERBAS mindestens ein Fahrzeug mit Kennzeichen, das Protokolldatum und der Mechaniker vorhanden sein. Kundenanlage oder -zuordnung bleibt Aufgabe des Büros.
 

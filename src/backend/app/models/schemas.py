@@ -30,6 +30,7 @@ from app.models.enums import (
     VisualInspectionResult,
     WheelBoltConfiguration,
 )
+from app.models.review import calculate_review_required
 
 YearMonth = Annotated[
     str,
@@ -93,6 +94,8 @@ class Vehicle(TimestampedModel):
 class ServiceRecord(TimestampedModel):
     """A tire-change or tire-storage service record."""
 
+    model_config = ConfigDict(validate_assignment=True)
+
     vehicle_id: UUID
     service_type: ServiceType
     service_date: date
@@ -107,6 +110,17 @@ class ServiceRecord(TimestampedModel):
     submitted_at: Optional[datetime] = None
     office_reviewed_at: Optional[datetime] = None
     werbas_order_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def derive_review_required(self) -> "ServiceRecord":
+        """Keep the review marker consistent with every field status."""
+
+        object.__setattr__(
+            self,
+            "review_required",
+            calculate_review_required(self.field_status),
+        )
+        return self
 
 
 class CustomerSignature(IdentifiedModel):
