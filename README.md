@@ -24,6 +24,7 @@ tests/          Automatisierte Tests
 - [Projektziel und Leitprinzipien](documentation/PROJECT.md)
 - [Benutzerabläufe für Mechaniker und Büro](documentation/USER_FLOW.md)
 - [Datenmodell](documentation/DATA_MODEL.md)
+- [Backend-Dokumentation und Kohärenzbewertung](documentation/BACKEND.md)
 - [Regeln für die Sprach- und KI-Extraktion](documentation/EXTRACTION_RULES.md)
 - [Extraktions-Testfälle](documentation/TEST_CASES.md)
 - [Technologie-Stack und Kosten](documentation/TECH_STACK.md)

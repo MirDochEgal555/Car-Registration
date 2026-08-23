@@ -18,6 +18,8 @@ Das bedeutet:
 
 > Der 15.10.2026 ist nicht der Entwicklungsschluss, sondern der Termin, ab dem das System zuverlässig produktiv nutzbar sein soll.
 
+> **Planungsprinzip:** Entwicklungsblöcke sind auf höchstens vier Kalendertage begrenzt. Nach jedem wesentlichen Baustein ist eine eigene Review- und Abnahmephase eingeplant; erkannte kritische Abweichungen werden dort vor dem nächsten Entwicklungsblock geschlossen.
+
 ## Phase 1 – Spezifikation finalisieren
 
 ### 19.08.–22.08.
@@ -56,11 +58,11 @@ Büro
 
 Ein stabiler fachlicher Scope bildet die Grundlage der Implementierung.
 
-## Phase 2 – Backend und Datenmodell
+## Phase 2 – Backend und Datenmodell entwickeln
 
-### 23.08.–29.08.
+### 23.08.–26.08.
 
-Ziel: Das technische Fundament bereitstellen.
+Ziel: Das technische Fundament in einem klar begrenzten Entwicklungsblock bereitstellen.
 
 #### Aufgaben
 
@@ -77,9 +79,9 @@ Das [Datenmodell](DATA_MODEL.md) bleibt als Struktur für E-Mail-Ausgabe und ein
 
 Fahrzeug- und Reifeninformationen können vollständig strukturiert aufbereitet und als E-Mail an das Büro versendet werden.
 
-## Phase 3 – Mechaniker-Frontend
+## Phase 3 – Mechaniker-Frontend entwickeln
 
-### 30.08.–05.09.
+### 27.08.–30.08.
 
 Ziel: Der Kernworkflow funktioniert zunächst ohne KI vollständig.
 
@@ -108,11 +110,29 @@ Neue Erfassung
 
 Der vollständige Ablauf kann bereits manuell getestet werden.
 
-## Phase 4 – Strukturierte E-Mail-Ausgabe
+## Phase 4 – Review 1: manueller Kernablauf
 
-### 06.09.–12.09.
+### 31.08.–03.09.
 
-Ziel: Das Büro erhält nach jeder Mechanikerbestätigung ein vollständig strukturiertes Protokoll zur Übernahme in WERBAS.
+Ziel: Backend, Datenmodell und Mechaniker-Frontend gemeinsam prüfen, bevor weitere Funktionen darauf aufbauen.
+
+#### Reviewumfang
+
+- manuelle Erfassung eines Reifenwechsels und einer Einlagerung vollständig durchspielen
+- Pflichtfelder, Feldstatus und `review_required` gegen Datenmodell und Fachlichkeit prüfen
+- Eingabekorrekturen, Fehlerzustände und Bestätigung aus Sicht der Mechaniker prüfen
+- API-Verträge und Datenübergabe zwischen Frontend und Backend prüfen
+- offene Punkte priorisieren und kritische Abweichungen innerhalb der Review-Phase beheben
+
+#### Abnahmekriterium
+
+Der manuelle Kernablauf funktioniert für beide Vorgangstypen ohne Blocker. Erst dann beginnt die Anbindung von Sprache und E-Mail.
+
+## Phase 5 – Strukturierte E-Mail-Ausgabe und Speech-to-Text entwickeln
+
+### 04.09.–07.09.
+
+Ziel: E-Mail-Übergabe und Spracheingabe in einem kurzen, parallelen Entwicklungsblock umsetzen.
 
 #### Aufgaben
 
@@ -121,28 +141,10 @@ Ziel: Das Büro erhält nach jeder Mechanikerbestätigung ein vollständig struk
 - fehlende, unsichere und unplausible Felder als Prüfhinweise ausgeben
 - E-Mail-Versand nach der Mechanikerbestätigung testen
 - Versandfehler anzeigen und erneutes Absenden ermöglichen
-- manuelle Übernahme in WERBAS mit dem Büro testen
-
-#### Ergebnis
-
-Der durchgängige Ablauf von Mechaniker-Frontend über E-Mail bis zur Übernahme in WERBAS ist bereits ohne Spracheingabe testbar. Diese Phase läuft parallel zur Speech-to-Text-Anbindung.
-
-## Phase 5 – Speech-to-Text
-
-### 06.09.–12.09.
-
-Ziel: Der Mechaniker kann statt manueller Eingabe natürlich sprechen.
-
-#### Aufgaben
-
-- Audioaufnahme im Browser
-- `MediaRecorder`-API
-- Audio-Upload
-- Speech-to-Text anbinden
-- deutsches Werkstattvokabular testen
-- Zahlen und Kennzeichen testen
-- Fehlerbehandlung umsetzen
-- Transkript speichern und anzeigen
+- Audioaufnahme im Browser und `MediaRecorder`-API umsetzen
+- Audio-Upload und Speech-to-Text anbinden
+- deutsches Werkstattvokabular, Zahlen und Kennzeichen testen
+- Fehlerbehandlung umsetzen sowie Transkript speichern und anzeigen
 
 #### Testschwerpunkte
 
@@ -157,11 +159,29 @@ Ziel: Der Mechaniker kann statt manueller Eingabe natürlich sprechen.
 
 #### Ergebnis
 
-Gesprochene Werkstattsprache wird zuverlässig als Text erfasst.
+E-Mail-Übergabe und gesprochene Werkstattsprache stehen für die gemeinsame Review bereit.
 
-## Phase 6 – KI-Extraktion und Validierung
+## Phase 6 – Review 2: Übergabe und Spracheingabe
 
-### 13.09.–18.09.
+### 08.09.–11.09.
+
+Ziel: Den Ablauf vom gesprochenen Wort bis zur nachvollziehbaren E-Mail prüfen und fachlich abnehmen.
+
+#### Reviewumfang
+
+- Sprachaufnahme, Upload, Transkript und Fehlerbehandlung auf Smartphone und Tablet prüfen
+- Kennzeichen, Zahlen und Werkstattvokabular anhand repräsentativer Beispiele bewerten
+- E-Mail-Templates für beide Protokolltypen mit dem Büro auf Verständlichkeit und Vollständigkeit prüfen
+- Versandfehler, erneutes Absenden und Anzeige für Mechaniker durchspielen
+- Befunde dokumentieren, priorisieren und kritische Punkte vor dem nächsten Entwicklungsblock schließen
+
+#### Abnahmekriterium
+
+Die manuelle und sprachbasierte Erfassung liefern einen nachvollziehbaren Vorgang; das Büro kann die E-Mail ohne Informationsverlust prüfen.
+
+## Phase 7 – KI-Extraktion und Validierung entwickeln
+
+### 12.09.–15.09.
 
 Ziel: Sprache wird automatisch in das interne Datenmodell übersetzt.
 
@@ -202,15 +222,33 @@ Bei Unsicherheit:
 
 #### Ergebnis
 
-Die dokumentierten [Extraktions-Testfälle](TEST_CASES.md) laufen weitgehend automatisiert durch.
+Die dokumentierten [Extraktions-Testfälle](TEST_CASES.md) stehen zur fachlichen Abnahme bereit.
 
-## Phase 7 – E-Mail-Übergabe validieren
+## Phase 8 – Review 3: Extraktionsqualität und Validierung
 
-### 19.09.–24.09.
+### 16.09.–20.09.
 
-Ziel: Die E-Mail-Ausgabe ist für die verlässliche manuelle Übernahme in WERBAS vollständig und verständlich.
+Ziel: Die KI-Ausgabe fachlich absichern, bevor sie in den Werkstattprozess übernommen wird.
 
-#### Aufgaben
+#### Reviewumfang
+
+- alle dokumentierten Extraktions-Testfälle automatisiert ausführen und Fehlklassifikationen bewerten
+- mindestens 30 realistische Werkstattformulierungen einschließlich Dialekt, Versprecher und Selbstkorrekturen manuell prüfen
+- Unsicherheiten, fehlende und unplausible Werte gezielt auf korrektes Markieren statt Raten prüfen
+- Mechanikerkorrekturen gegen Transkript, KI-Ausgabe und Datenmodell nachvollziehen
+- kritische und häufige Fehler priorisieren sowie Korrekturen validieren
+
+#### Abnahmekriterium
+
+Keine unsichere Information wird als sicher ausgegeben. Die Muss-Felder aus den Testfällen sind entweder korrekt extrahiert oder eindeutig als fehlend beziehungsweise unsicher markiert.
+
+## Phase 9 – Review 4: E-Mail-Übergabe an WERBAS
+
+### 21.09.–24.09.
+
+Ziel: Die E-Mail-Ausgabe mit Büroanwendern für die verlässliche manuelle Übernahme in WERBAS abnehmen.
+
+#### Reviewumfang
 
 - E-Mail-Inhalt für beide Protokolltypen prüfen
 - Unsicherheiten, fehlende und unplausible Werte als Prüfhinweise hervorheben
@@ -231,11 +269,11 @@ Mechaniker
 → Übernahme und Finalisierung in WERBAS
 ```
 
-## Phase 8 – Interner Integrationstest
+## Phase 10 – Interner Integrations- und Abnahmetest
 
 ### 25.09.–30.09.
 
-Ziel: Alle Komponenten gemeinsam testen.
+Ziel: Alle abgenommenen Komponenten gemeinsam unter realitätsnahen Bedingungen testen.
 
 #### Aufgaben
 
@@ -266,7 +304,7 @@ Mindestens 30–50 realistische Werkstattformulierungen testen. Berücksichtigt 
 
 Im normalen Ablauf bestehen keine bekannten Blocker.
 
-## Phase 9 – Werkstatt-Pilot
+## Phase 11 – Werkstatt-Pilot
 
 ### 01.10.–05.10.
 
@@ -299,11 +337,11 @@ Idealerweise werden 10–20 echte Vorgänge erfasst. Der bestehende manuelle Pro
 
 Reale Schwachstellen sind bekannt und priorisiert.
 
-## Phase 10 – Stabilisierung
+## Phase 12 – Stabilisierung und Review
 
 ### 06.10.–10.10.
 
-Ziel: Keine neuen Features mehr hinzufügen.
+Ziel: Keine neuen Features mehr hinzufügen, Korrekturen umsetzen und den Release Candidate erneut prüfen.
 
 #### Fokus
 
@@ -319,15 +357,21 @@ Ziel: Keine neuen Features mehr hinzufügen.
 
 Ab **06.10.2026** werden keine neuen Features mehr umgesetzt. Ausnahme: Ein fehlendes Feature verhindert einen Kernprozess.
 
+#### Reviewabschluss
+
+- alle Korrekturen aus dem Werkstatt-Pilot per Regressionstest prüfen
+- kritische Kernabläufe auf Smartphone, Tablet und Büro-PC erneut durchspielen
+- nur Fehler mit Go-Live-Relevanz in den Release Candidate übernehmen
+
 #### Ergebnis
 
-Ein Release Candidate liegt vor.
+Ein geprüfter Release Candidate liegt vor.
 
-## Phase 11 – Go-Live-Prüfung und Puffer
+## Phase 13 – Go-Live-Review und Puffer
 
 ### 11.10.–14.10.
 
-Ziel: Den vollständigen Ablauf vor dem produktiven Start testen und verbleibende kritische Fehler beheben.
+Ziel: Den vollständigen Ablauf vor dem produktiven Start formell freigeben und verbleibende kritische Fehler beheben.
 
 #### Prüfen
 
@@ -356,11 +400,14 @@ Das System ist für den realen Werkstattbetrieb freigegeben. WERBAS bleibt das f
 | Datum | Meilenstein |
 | --- | --- |
 | 22.08. | Spezifikation abgeschlossen |
-| 29.08. | Backend und Datenmodell stehen |
-| 05.09. | Mechaniker-Frontend funktioniert |
-| 12.09. | strukturierte E-Mail-Ausgabe und Speech-to-Text funktionieren |
-| 18.09. | KI-Extraktion funktioniert |
-| 24.09. | E-Mail-Übergabe an WERBAS validiert |
+| 26.08. | Backend und Datenmodell entwickelt |
+| 30.08. | Mechaniker-Frontend entwickelt |
+| 03.09. | manueller Kernablauf abgenommen |
+| 07.09. | strukturierte E-Mail-Ausgabe und Speech-to-Text entwickelt |
+| 11.09. | Übergabe und Spracheingabe abgenommen |
+| 15.09. | KI-Extraktion entwickelt |
+| 20.09. | Extraktionsqualität und Validierung abgenommen |
+| 24.09. | E-Mail-Übergabe an WERBAS abgenommen |
 | 30.09. | Integrationstest abgeschlossen |
 | 05.10. | Werkstatt-Pilot abgeschlossen |
 | 06.10. | Feature Freeze |
