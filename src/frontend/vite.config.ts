@@ -2,7 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const basePath = process.env.VITE_BASE_PATH || '/'
+
 export default defineConfig({
+  base: basePath,
   server: {
     // The frontend can call the versioned API with the same relative URL in
     // development and production. In production, the reverse proxy forwards
@@ -23,8 +26,8 @@ export default defineConfig({
         short_name: 'CarTech',
         description: 'Werkstattanwendung für die Fahrzeug- und Reifenservice-Erfassung.',
         lang: 'de',
-        start_url: '/',
-        scope: '/',
+        start_url: basePath,
+        scope: basePath,
         display: 'standalone',
         theme_color: '#17241f',
         background_color: '#f4f7f4',
@@ -38,7 +41,7 @@ export default defineConfig({
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,ico,svg,webmanifest}'],
         skipWaiting: true,
-        navigateFallback: '/index.html',
+        navigateFallback: `${basePath}index.html`,
       },
     }),
   ],
