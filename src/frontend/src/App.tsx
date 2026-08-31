@@ -97,7 +97,10 @@ function App() {
     return (
       <main className="workshop-view">
         <AppHeader onHome={() => navigate('/')} />
-        <section className="workshop-view__content" aria-labelledby="page-title">
+        <section
+          className="workshop-view__content workshop-view__content--selection"
+          aria-labelledby="page-title"
+        >
           <p className="workshop-view__eyebrow">Neue Erfassung</p>
           <h1 id="page-title">Was wird gemacht?</h1>
           <p className="workshop-view__intro">
@@ -295,7 +298,10 @@ function App() {
     >
       <main className="workshop-view">
       <AppHeader onHome={() => navigate('/')} />
-      <section className="workshop-view__content" aria-labelledby="page-title">
+      <section
+        className="workshop-view__content workshop-view__content--capture"
+        aria-labelledby="page-title"
+      >
         <p className="workshop-view__eyebrow">Neue Erfassung</p>
         <div className="selection-confirmation" aria-hidden="true">
           {protocol.icon}
@@ -712,7 +718,10 @@ function ProcessOverviewPage({
         )}
 
         <div className="summary-stack">
-          <section className="summary-card" aria-labelledby="summary-service-title">
+          <section
+            className="summary-card summary-card--service"
+            aria-labelledby="summary-service-title"
+          >
             <div className="summary-card__heading">
               <div>
                 <p className="summary-card__label">Vorgangstyp</p>
