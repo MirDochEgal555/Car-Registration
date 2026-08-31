@@ -12,7 +12,6 @@ export function ProtocolCard({ protocol }: ProtocolCardProps) {
       </span>
       <div>
         <h2>{protocol.title}</h2>
-        <p>{protocol.description}</p>
       </div>
       <span className="protocol-card__status">Startfunktion folgt</span>
     </article>

@@ -1,37 +1,35 @@
-import { ProtocolCard } from '../components/ProtocolCard'
-import { serviceProtocols } from '../types/serviceProtocol'
+type MechanicStartPageProps = {
+  onStart: () => void
+}
 
-export function MechanicStartPage() {
+export function MechanicStartPage({ onStart }: MechanicStartPageProps) {
   return (
-    <main className="mechanic-start">
-      <section className="mechanic-start__hero" aria-labelledby="page-title">
-        <p className="eyebrow">CarTech · Mechanikeransicht</p>
-        <h1 id="page-title">Neue Erfassung</h1>
-        <p className="mechanic-start__intro">
-          Wähle den passenden Vorgang. Die Aufnahme und Prüfung werden in einem
-          folgenden Schritt ergänzt.
-        </p>
-      </section>
-
-      <section aria-labelledby="protocol-title">
-        <div className="section-heading">
-          <p className="eyebrow">Schritt 1</p>
-          <h2 id="protocol-title">Protokoll auswählen</h2>
+    <main className="workshop-view">
+      <header className="app-header">
+        <div className="app-header__brand" aria-label="CarTech">
+          <span className="app-header__mark" aria-hidden="true">
+            C
+          </span>
+          <span>CarTech</span>
         </div>
-        <div className="protocol-list">
-          {serviceProtocols.map((protocol) => (
-            <ProtocolCard key={protocol.id} protocol={protocol} />
-          ))}
-        </div>
-      </section>
+        <span className="app-header__context">Werkstatt</span>
+      </header>
 
-      <aside className="implementation-note" aria-label="Entwicklungsstand">
-        <span aria-hidden="true">i</span>
-        <p>
-          Frontend-Grundgerüst für Phase 3: Noch keine Aufnahme, Fachlogik oder
-          Verbindung zum Backend.
+      <section className="workshop-view__content" aria-labelledby="page-title">
+        <p className="workshop-view__eyebrow">Mechanikeransicht</p>
+        <h1 id="page-title">Bereit für die Werkstatt.</h1>
+        <p className="workshop-view__intro">
+          Starte einen neuen Vorgang mit wenigen Berührungen.
         </p>
-      </aside>
+
+        <button className="primary-action" onClick={onStart} type="button">
+          <span className="primary-action__icon" aria-hidden="true">
+            +
+          </span>
+          <span>Neue Erfassung</span>
+          <span className="primary-action__hint">Vorgang auswählen</span>
+        </button>
+      </section>
     </main>
   )
 }
