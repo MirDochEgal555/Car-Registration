@@ -242,6 +242,100 @@ h1 {
   text-align: center;
 }
 
+.capture-context {
+  display: inline-flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 999px;
+  background: #e2f0e6;
+  color: #1a6138;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.capture-context > span {
+  font-size: 1.2rem;
+}
+
+.license-plate-field {
+  display: block;
+}
+
+.license-plate-field__label {
+  display: block;
+  margin-bottom: 0.7rem;
+  color: #17281e;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.license-plate-field__input {
+  width: 100%;
+  min-height: clamp(5.5rem, 15vw, 7rem);
+  padding: 0.85rem 1.1rem;
+  border: 3px solid #90a99a;
+  border-radius: 1.15rem;
+  background: #ffffff;
+  color: #102119;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(2rem, 8vw, 3.35rem);
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.license-plate-field__input::placeholder {
+  color: #75877b;
+  font-size: 0.55em;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.license-plate-field__input:hover {
+  border-color: #4f775d;
+}
+
+.license-plate-field__input:focus {
+  border-color: #176b3d;
+  outline: 4px solid rgba(23, 107, 61, 0.18);
+  outline-offset: 2px;
+}
+
+.license-plate-field__input[aria-invalid='true'] {
+  border-color: #bd3326;
+  background: #fff8f7;
+}
+
+.license-plate-field__hint {
+  display: block;
+  margin-top: 0.7rem;
+  color: #5a6a60;
+  font-size: 0.93rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.field-message {
+  margin: 1rem 0 0;
+  padding: 0.9rem 1rem;
+  border-radius: 0.85rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.field-message--error {
+  background: #fce8e5;
+  color: #8c241d;
+}
+
+.field-message--success {
+  background: #e2f0e6;
+  color: #1a6138;
+}
+
 @media (min-width: 44rem) {
   .workshop-view__content {
     padding-top: 5rem;

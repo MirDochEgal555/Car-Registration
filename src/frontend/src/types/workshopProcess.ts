@@ -7,6 +7,8 @@
 export type WorkshopProcess = {
   serviceType: WorkshopProcessType
   status: WorkshopProcessStatus
+  /** Normalisiertes Kennzeichen, z. B. `CW-AB 123`. */
+  licensePlate: string
 }
 
 export type WorkshopProcessType = 'tire_change' | 'tire_storage'

@@ -5,6 +5,10 @@ import {
   serviceProtocols,
 } from './types/serviceProtocol'
 import type { WorkshopProcess } from './types/workshopProcess'
+import {
+  getLicensePlateError,
+  normalizeLicensePlate,
+} from './utils/licensePlate'
 
 type Route = 'start' | 'selection' | 'capture'
 
@@ -40,6 +44,7 @@ function App() {
     setWorkshopProcess({
       serviceType,
       status: 'draft',
+      licensePlate: '',
     })
     navigate('/erfassung')
   }
@@ -98,6 +103,21 @@ function App() {
     return <MechanicStartPage onStart={() => navigate('/neu')} />
   }
 
+  const licensePlateError = getLicensePlateError(workshopProcess.licensePlate)
+
+  const updateLicensePlate = (value: string) => {
+    setWorkshopProcess((currentProcess) => {
+      if (!currentProcess) {
+        return currentProcess
+      }
+
+      return {
+        ...currentProcess,
+        licensePlate: normalizeLicensePlate(value),
+      }
+    })
+  }
+
   return (
     <main className="workshop-view">
       <AppHeader onHome={() => navigate('/')} />
@@ -106,17 +126,52 @@ function App() {
         <div className="selection-confirmation" aria-hidden="true">
           {protocol.icon}
         </div>
-        <h1 id="page-title">{protocol.title}</h1>
+        <h1 id="page-title">Kennzeichen erfassen</h1>
         <p className="workshop-view__intro">
-          Der Vorgang wurde als Entwurf angelegt. Die Datenerfassung wird im
-          nächsten Schritt ergänzt.
+          Gib das Kennzeichen ein. Es wird direkt im lokalen Vorgang gespeichert.
         </p>
 
-        <button
-          className="secondary-button"
-          onClick={() => navigate('/neu')}
-          type="button"
-        >
+        <div className="capture-context" aria-label="Gewählter Vorgang">
+          <span aria-hidden="true">{protocol.icon}</span>
+          {protocol.title}
+        </div>
+
+        <label className="license-plate-field" htmlFor="license-plate">
+          <span className="license-plate-field__label">Kennzeichen</span>
+          <input
+            aria-describedby={
+              licensePlateError
+                ? 'license-plate-hint license-plate-error'
+                : 'license-plate-hint'
+            }
+            aria-invalid={licensePlateError ? true : undefined}
+            autoCapitalize="characters"
+            autoComplete="off"
+            className="license-plate-field__input"
+            id="license-plate"
+            inputMode="text"
+            onChange={(event) => updateLicensePlate(event.target.value)}
+            placeholder="z. B. CW-AB 123"
+            spellCheck={false}
+            type="text"
+            value={workshopProcess.licensePlate}
+          />
+          <span className="license-plate-field__hint" id="license-plate-hint">
+            Leerzeichen und Bindestriche werden automatisch vereinheitlicht.
+          </span>
+        </label>
+
+        {licensePlateError ? (
+          <p className="field-message field-message--error" id="license-plate-error" role="alert">
+            {licensePlateError}
+          </p>
+        ) : (
+          <p className="field-message field-message--success" role="status">
+            Kennzeichen ist im Vorgang gespeichert.
+          </p>
+        )}
+
+        <button className="text-button" onClick={() => navigate('/neu')} type="button">
           Andere Erfassung wählen
         </button>
       </section>
