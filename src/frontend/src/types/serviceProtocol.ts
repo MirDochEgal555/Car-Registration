@@ -1,23 +1,22 @@
-export type ServiceProtocolId = 'tire-change' | 'tire-storage'
+import type { WorkshopProcessType } from './workshopProcess'
+
+export type ServiceProtocolId = WorkshopProcessType
 
 export type ServiceProtocol = {
   id: ServiceProtocolId
   title: string
   icon: string
-  path: string
 }
 
 export const serviceProtocols: readonly ServiceProtocol[] = [
   {
-    id: 'tire-change',
+    id: 'tire_change',
     title: 'Reifenwechsel',
     icon: '↻',
-    path: '/neu/reifenwechsel',
   },
   {
-    id: 'tire-storage',
+    id: 'tire_storage',
     title: 'Einlagerung',
     icon: '▣',
-    path: '/neu/einlagerung',
   },
 ]

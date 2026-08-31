@@ -4,17 +4,16 @@ import {
   type ServiceProtocolId,
   serviceProtocols,
 } from './types/serviceProtocol'
+import type { WorkshopProcess } from './types/workshopProcess'
 
-type Route = 'start' | 'selection' | ServiceProtocolId
+type Route = 'start' | 'selection' | 'capture'
 
 function getRoute(): Route {
   switch (window.location.hash) {
     case '#/neu':
       return 'selection'
-    case '#/neu/reifenwechsel':
-      return 'tire-change'
-    case '#/neu/einlagerung':
-      return 'tire-storage'
+    case '#/erfassung':
+      return 'capture'
     default:
       return 'start'
   }
@@ -22,6 +21,9 @@ function getRoute(): Route {
 
 function App() {
   const [route, setRoute] = useState<Route>(getRoute)
+  const [workshopProcess, setWorkshopProcess] = useState<WorkshopProcess | null>(
+    null,
+  )
 
   useEffect(() => {
     const updateRoute = () => setRoute(getRoute())
@@ -32,6 +34,14 @@ function App() {
 
   const navigate = (path: string) => {
     window.location.hash = path
+  }
+
+  const startWorkshopProcess = (serviceType: ServiceProtocolId) => {
+    setWorkshopProcess({
+      serviceType,
+      status: 'draft',
+    })
+    navigate('/erfassung')
   }
 
   if (route === 'start') {
@@ -54,7 +64,7 @@ function App() {
               <button
                 className="service-selection__button"
                 key={protocol.id}
-                onClick={() => navigate(protocol.path)}
+                onClick={() => startWorkshopProcess(protocol.id)}
                 type="button"
               >
                 <span className="service-selection__icon" aria-hidden="true">
@@ -80,9 +90,11 @@ function App() {
     )
   }
 
-  const protocol = serviceProtocols.find((item) => item.id === route)
+  const protocol = serviceProtocols.find(
+    (item) => item.id === workshopProcess?.serviceType,
+  )
 
-  if (!protocol) {
+  if (route !== 'capture' || !workshopProcess || !protocol) {
     return <MechanicStartPage onStart={() => navigate('/neu')} />
   }
 
@@ -96,7 +108,8 @@ function App() {
         </div>
         <h1 id="page-title">{protocol.title}</h1>
         <p className="workshop-view__intro">
-          Die Datenerfassung wird im nächsten Schritt ergänzt.
+          Der Vorgang wurde als Entwurf angelegt. Die Datenerfassung wird im
+          nächsten Schritt ergänzt.
         </p>
 
         <button
