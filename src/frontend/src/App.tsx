@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { MechanicStartPage } from './pages/MechanicStartPage'
 import {
   type ServiceProtocolId,
@@ -205,35 +205,6 @@ function App() {
   const tireInspection = workshopProcess.tireInspections[0]
   const tireCondition = workshopProcess.conditions[0]
 
-  const updateServiceType = (serviceType: ServiceProtocolId) => {
-    setWorkshopProcess((currentProcess) => {
-      if (!currentProcess || currentProcess.serviceType === serviceType) {
-        return currentProcess
-      }
-
-      const previousRole = getInitialTireSetRole(currentProcess.serviceType)
-      const nextRole = getInitialTireSetRole(serviceType)
-
-      return {
-        ...currentProcess,
-        serviceType,
-        tireSets: currentProcess.tireSets.map((entry) =>
-          entry.role === previousRole ? { ...entry, role: nextRole } : entry,
-        ),
-        tireInspections: currentProcess.tireInspections.map((inspection) =>
-          inspection.tireSetRole === previousRole
-            ? { ...inspection, tireSetRole: nextRole }
-            : inspection,
-        ),
-        conditions: currentProcess.conditions.map((condition) =>
-          condition.tireSetRole === previousRole
-            ? { ...condition, tireSetRole: nextRole }
-            : condition,
-        ),
-      }
-    })
-  }
-
   if (route === 'overview') {
     return (
       <ProcessOverviewPage
@@ -241,7 +212,6 @@ function App() {
         onEditCapture={() => navigate('/erfassung')}
         onHome={() => navigate('/')}
         onUpdateLicensePlate={updateLicensePlate}
-        onUpdateServiceType={updateServiceType}
         onUpdateTireCondition={updateTireCondition}
         onUpdateTireInspection={updateTireInspection}
         onUpdateTireSet={updateTireSet}
@@ -554,7 +524,6 @@ type ProcessOverviewPageProps = {
   onEditCapture: () => void
   onHome: () => void
   onUpdateLicensePlate: (value: string) => void
-  onUpdateServiceType: (serviceType: ServiceProtocolId) => void
   onUpdateTireCondition: (changes: Partial<WorkshopTireCondition>) => void
   onUpdateTireInspection: (changes: Partial<WorkshopTireInspection>) => void
   onUpdateTireSet: (changes: Partial<TireSetDraft>) => void
@@ -570,7 +539,6 @@ function ProcessOverviewPage({
   onEditCapture,
   onHome,
   onUpdateLicensePlate,
-  onUpdateServiceType,
   onUpdateTireCondition,
   onUpdateTireInspection,
   onUpdateTireSet,
@@ -580,12 +548,24 @@ function ProcessOverviewPage({
   tireInspection,
   tireSet,
 }: ProcessOverviewPageProps) {
-  const [editingSection, setEditingSection] = useState<
-    'service' | 'plate' | 'tires' | null
-  >(null)
-  const isEditing = (section: 'service' | 'plate' | 'tires') =>
+  const [editingSection, setEditingSection] = useState<'plate' | 'tires' | null>(
+    null,
+  )
+  const isEditing = (section: 'plate' | 'tires') =>
     editingSection === section
   const closeEditor = () => setEditingSection(null)
+  const finishEditing = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (
+      !event.currentTarget.reportValidity() ||
+      (editingSection === 'plate' && licensePlateError)
+    ) {
+      return
+    }
+
+    closeEditor()
+  }
 
   return (
     <main className="workshop-view">
@@ -610,44 +590,7 @@ function ProcessOverviewPage({
                   <span aria-hidden="true">{protocol.icon}</span> {protocol.title}
                 </h2>
               </div>
-              <button
-                aria-expanded={isEditing('service')}
-                className="summary-card__edit"
-                onClick={() =>
-                  setEditingSection(isEditing('service') ? null : 'service')
-                }
-                type="button"
-              >
-                Bearbeiten
-              </button>
             </div>
-
-            {isEditing('service') && (
-              <div className="summary-editor" aria-label="Vorgangstyp bearbeiten">
-                <p className="summary-editor__hint">Vorgang auswählen</p>
-                <div className="service-type-options">
-                  {serviceProtocols.map((serviceProtocol) => (
-                    <button
-                      aria-pressed={process.serviceType === serviceProtocol.id}
-                      className={`service-type-option${
-                        process.serviceType === serviceProtocol.id
-                          ? ' service-type-option--selected'
-                          : ''
-                      }`}
-                      key={serviceProtocol.id}
-                      onClick={() => onUpdateServiceType(serviceProtocol.id)}
-                      type="button"
-                    >
-                      <span aria-hidden="true">{serviceProtocol.icon}</span>
-                      {serviceProtocol.title}
-                    </button>
-                  ))}
-                </div>
-                <button className="summary-editor__done" onClick={closeEditor} type="button">
-                  Fertig
-                </button>
-              </div>
-            )}
           </section>
 
           <section className="summary-card" aria-labelledby="summary-plate-title">
@@ -676,7 +619,7 @@ function ProcessOverviewPage({
             </div>
 
             {isEditing('plate') && (
-              <div className="summary-editor">
+              <form className="summary-editor" onSubmit={finishEditing}>
                 <label className="summary-editor__field" htmlFor="overview-license-plate">
                   <span>Kennzeichen</span>
                   <input
@@ -686,7 +629,9 @@ function ProcessOverviewPage({
                     autoComplete="off"
                     id="overview-license-plate"
                     onChange={(event) => onUpdateLicensePlate(event.target.value)}
+                    pattern="[A-ZÄÖÜ]{1,3}-[A-Z]{1,2}\\s\\d{1,4}[A-Z]?"
                     placeholder="z. B. CW-AB 123"
+                    required
                     spellCheck={false}
                     type="text"
                     value={process.licensePlate}
@@ -702,10 +647,10 @@ function ProcessOverviewPage({
                 >
                   {licensePlateError ?? 'Kennzeichen ist im Vorgang gespeichert.'}
                 </p>
-                <button className="summary-editor__done" onClick={closeEditor} type="button">
+                <button className="summary-editor__done" type="submit">
                   Fertig
                 </button>
-              </div>
+              </form>
             )}
           </section>
 
@@ -787,7 +732,11 @@ function ProcessOverviewPage({
             </dl>
 
             {isEditing('tires') && (
-              <div className="summary-editor" aria-label="Reifendaten bearbeiten">
+              <form
+                aria-label="Reifendaten bearbeiten"
+                className="summary-editor"
+                onSubmit={finishEditing}
+              >
                 <div className="summary-editor__grid">
                   <label className="summary-editor__field" htmlFor="overview-tire-type">
                     <span>Reifenart</span>
@@ -825,6 +774,8 @@ function ProcessOverviewPage({
                     <input
                       id="overview-tire-width"
                       inputMode="numeric"
+                      max="405"
+                      min="125"
                       onChange={(event) =>
                         onUpdateTireSet({ widthMm: numberOrUndefined(event.target.value) })
                       }
@@ -837,6 +788,8 @@ function ProcessOverviewPage({
                     <input
                       id="overview-tire-aspect-ratio"
                       inputMode="numeric"
+                      max="95"
+                      min="20"
                       onChange={(event) =>
                         onUpdateTireSet({
                           aspectRatio: numberOrUndefined(event.target.value),
@@ -851,6 +804,8 @@ function ProcessOverviewPage({
                     <input
                       id="overview-tire-rim-diameter"
                       inputMode="numeric"
+                      max="24"
+                      min="10"
                       onChange={(event) =>
                         onUpdateTireSet({
                           rimDiameterInch: numberOrUndefined(event.target.value),
@@ -889,6 +844,7 @@ function ProcessOverviewPage({
                     <input
                       id="overview-tread-front"
                       inputMode="decimal"
+                      max="20"
                       min="0"
                       onChange={(event) =>
                         onUpdateTireInspection({
@@ -905,6 +861,7 @@ function ProcessOverviewPage({
                     <input
                       id="overview-tread-rear"
                       inputMode="decimal"
+                      max="20"
                       min="0"
                       onChange={(event) =>
                         onUpdateTireInspection({
@@ -955,10 +912,10 @@ function ProcessOverviewPage({
                     />
                   </label>
                 </div>
-                <button className="summary-editor__done" onClick={closeEditor} type="button">
+                <button className="summary-editor__done" type="submit">
                   Fertig
                 </button>
-              </div>
+              </form>
             )}
           </section>
         </div>
