@@ -18,8 +18,12 @@ import {
   getLicensePlateError,
   normalizeLicensePlate,
 } from './utils/licensePlate'
+import {
+  getWorkshopProcessValidationIssues,
+  type WorkshopProcessValidationIssue,
+} from './utils/workshopProcessValidation'
 
-type Route = 'start' | 'selection' | 'capture' | 'overview'
+type Route = 'start' | 'selection' | 'capture' | 'overview' | 'success'
 
 function getRoute(): Route {
   switch (window.location.hash) {
@@ -29,6 +33,8 @@ function getRoute(): Route {
       return 'capture'
     case '#/uebersicht':
       return 'overview'
+    case '#/bestaetigt':
+      return 'success'
     default:
       return 'start'
   }
@@ -129,11 +135,16 @@ function App() {
     (item) => item.id === workshopProcess?.serviceType,
   )
 
-  if ((route !== 'capture' && route !== 'overview') || !workshopProcess || !protocol) {
+  if (
+    (route !== 'capture' && route !== 'overview' && route !== 'success') ||
+    !workshopProcess ||
+    !protocol
+  ) {
     return <MechanicStartPage onStart={() => navigate('/neu')} />
   }
 
   const licensePlateError = getLicensePlateError(workshopProcess.licensePlate)
+  const confirmationIssues = getWorkshopProcessValidationIssues(workshopProcess)
 
   const updateLicensePlate = (value: string) => {
     setWorkshopProcess((currentProcess) => {
@@ -205,10 +216,46 @@ function App() {
   const tireInspection = workshopProcess.tireInspections[0]
   const tireCondition = workshopProcess.conditions[0]
 
+  const confirmWorkshopProcess = () => {
+    if (confirmationIssues.length > 0 || workshopProcess.status === 'confirmed') {
+      return
+    }
+
+    setWorkshopProcess((currentProcess) => {
+      if (
+        !currentProcess ||
+        currentProcess.status === 'confirmed' ||
+        getWorkshopProcessValidationIssues(currentProcess).length > 0
+      ) {
+        return currentProcess
+      }
+
+      return { ...currentProcess, status: 'confirmed' }
+    })
+    navigate('/bestaetigt')
+  }
+
+  if (route === 'success') {
+    if (workshopProcess.status !== 'confirmed') {
+      return <MechanicStartPage onStart={() => navigate('/neu')} />
+    }
+
+    return (
+      <ProcessConfirmedPage
+        onHome={() => navigate('/')}
+        onStartNewProcess={() => navigate('/neu')}
+        process={workshopProcess}
+        protocol={protocol}
+      />
+    )
+  }
+
   if (route === 'overview') {
     return (
       <ProcessOverviewPage
+        confirmationIssues={confirmationIssues}
         licensePlateError={licensePlateError}
+        onConfirm={confirmWorkshopProcess}
         onEditCapture={() => navigate('/erfassung')}
         onHome={() => navigate('/')}
         onUpdateLicensePlate={updateLicensePlate}
@@ -520,7 +567,9 @@ function App() {
 }
 
 type ProcessOverviewPageProps = {
+  confirmationIssues: WorkshopProcessValidationIssue[]
   licensePlateError: string | null
+  onConfirm: () => void
   onEditCapture: () => void
   onHome: () => void
   onUpdateLicensePlate: (value: string) => void
@@ -535,7 +584,9 @@ type ProcessOverviewPageProps = {
 }
 
 function ProcessOverviewPage({
+  confirmationIssues,
   licensePlateError,
+  onConfirm,
   onEditCapture,
   onHome,
   onUpdateLicensePlate,
@@ -580,6 +631,26 @@ function ProcessOverviewPage({
           Alle erfassten Angaben auf einen Blick. Tippe auf „Bearbeiten“, um etwas
           direkt zu korrigieren.
         </p>
+
+        {confirmationIssues.length > 0 && (
+          <section
+            className="confirmation-errors"
+            aria-labelledby="confirmation-errors-title"
+            role="alert"
+          >
+            <h2 id="confirmation-errors-title">Vorgang noch nicht bestätigbar</h2>
+            <p>
+              Bitte korrigiere die folgenden fehlenden oder ungültigen Angaben.
+            </p>
+            <ul>
+              {confirmationIssues.map((issue) => (
+                <li key={`${issue.field}-${issue.message}`}>
+                  <strong>{issue.field}:</strong> {issue.message}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="summary-stack">
           <section className="summary-card" aria-labelledby="summary-service-title">
@@ -920,8 +991,63 @@ function ProcessOverviewPage({
           </section>
         </div>
 
+        <button
+          aria-describedby={
+            confirmationIssues.length > 0 ? 'confirmation-errors-title' : undefined
+          }
+          className="primary-action confirmation-action"
+          disabled={confirmationIssues.length > 0 || process.status === 'confirmed'}
+          onClick={onConfirm}
+          type="button"
+        >
+          <span className="primary-action__icon" aria-hidden="true">✓</span>
+          <span>Vorgang bestätigen</span>
+          <span className="primary-action__hint">
+            {confirmationIssues.length > 0
+              ? 'Erforderliche Angaben ergänzen oder korrigieren'
+              : 'Bestätigt den Vorgang lokal – es wird noch nichts übermittelt'}
+          </span>
+        </button>
+
         <button className="secondary-button overview-action" onClick={onEditCapture} type="button">
           Zur Erfassung zurück
+        </button>
+      </section>
+    </main>
+  )
+}
+
+type ProcessConfirmedPageProps = {
+  onHome: () => void
+  onStartNewProcess: () => void
+  process: WorkshopProcess
+  protocol: ServiceProtocol
+}
+
+function ProcessConfirmedPage({
+  onHome,
+  onStartNewProcess,
+  process,
+  protocol,
+}: ProcessConfirmedPageProps) {
+  return (
+    <main className="workshop-view">
+      <AppHeader onHome={onHome} />
+      <section className="workshop-view__content confirmation-success" aria-labelledby="page-title">
+        <div className="confirmation-success__icon" aria-hidden="true">✓</div>
+        <p className="workshop-view__eyebrow">Vorgang bestätigt</p>
+        <h1 id="page-title">Alles erledigt.</h1>
+        <p className="workshop-view__intro">
+          {protocol.title} für {process.licensePlate} wurde lokal als bestätigt
+          markiert.
+        </p>
+        <p className="confirmation-success__notice">
+          Es wurde noch keine Übermittlung an das Backend ausgelöst.
+        </p>
+        <button className="primary-action confirmation-action" onClick={onStartNewProcess} type="button">
+          <span className="primary-action__icon" aria-hidden="true">+</span>
+          <span>Neuen Vorgang erfassen</span>
+          <span className="primary-action__hint">Zur Auswahl der Vorgangsart</span>
         </button>
       </section>
     </main>

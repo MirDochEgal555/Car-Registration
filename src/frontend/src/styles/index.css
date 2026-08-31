@@ -26,6 +26,10 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+}
+
 button:focus-visible {
   outline: 3px solid #1e7a49;
   outline-offset: 3px;
@@ -140,6 +144,16 @@ h1 {
 .service-selection__button:active,
 .secondary-button:active {
   transform: translateY(0);
+}
+
+.primary-action:disabled {
+  background: #8a9b90;
+  box-shadow: none;
+  color: #eef3ef;
+}
+
+.primary-action:disabled:hover {
+  transform: none;
 }
 
 .primary-action {
@@ -381,9 +395,43 @@ h1 {
   font-size: clamp(2.8rem, 8vw, 4.5rem);
 }
 
+.confirmation-errors {
+  margin: 0 0 1.5rem;
+  padding: 1.15rem 1.2rem;
+  border: 1px solid #e6aaa3;
+  border-radius: 1rem;
+  background: #fff4f2;
+  color: #72251e;
+}
+
+.confirmation-errors h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.confirmation-errors p {
+  margin-bottom: 0.7rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.confirmation-errors ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.4;
+}
+
 .summary-stack {
   display: grid;
   gap: 1rem;
+}
+
+.confirmation-action {
+  margin-top: 1.5rem;
+  text-align: left;
 }
 
 .summary-card {
@@ -589,6 +637,31 @@ h1 {
 
 .summary-editor__done:hover {
   background: #125a32;
+}
+
+.confirmation-success__icon {
+  display: grid;
+  width: 5.25rem;
+  height: 5.25rem;
+  margin-bottom: 1.5rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #176b3d;
+  box-shadow: 0 0.8rem 2rem rgba(20, 78, 45, 0.2);
+  color: #ffffff;
+  font-size: 2.7rem;
+  font-weight: 900;
+}
+
+.confirmation-success__notice {
+  max-width: 34rem;
+  margin-bottom: 1.75rem;
+  padding: 0.95rem 1rem;
+  border-radius: 0.85rem;
+  background: #e2f0e6;
+  color: #1a6138;
+  font-weight: 750;
+  line-height: 1.4;
 }
 
 .tire-capture {

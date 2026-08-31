@@ -20,7 +20,11 @@ export type WorkshopProcess = {
 
 export type WorkshopProcessType = 'tire_change' | 'tire_storage'
 
-export type WorkshopProcessStatus = 'draft'
+/**
+ * `confirmed` bleibt zunächst ein rein lokaler Status. Eine Übermittlung wird
+ * bewusst erst in einem späteren Schritt ergänzt.
+ */
+export type WorkshopProcessStatus = 'draft' | 'confirmed'
 
 export type TireSetRole = 'installed' | 'removed' | 'stored'
 
