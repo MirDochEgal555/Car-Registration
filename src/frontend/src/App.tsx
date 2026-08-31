@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MechanicStartPage } from './pages/MechanicStartPage'
 import {
   type ServiceProtocolId,
+  type ServiceProtocol,
   serviceProtocols,
 } from './types/serviceProtocol'
 import type {
@@ -18,7 +19,7 @@ import {
   normalizeLicensePlate,
 } from './utils/licensePlate'
 
-type Route = 'start' | 'selection' | 'capture'
+type Route = 'start' | 'selection' | 'capture' | 'overview'
 
 function getRoute(): Route {
   switch (window.location.hash) {
@@ -26,6 +27,8 @@ function getRoute(): Route {
       return 'selection'
     case '#/erfassung':
       return 'capture'
+    case '#/uebersicht':
+      return 'overview'
     default:
       return 'start'
   }
@@ -126,7 +129,7 @@ function App() {
     (item) => item.id === workshopProcess?.serviceType,
   )
 
-  if (route !== 'capture' || !workshopProcess || !protocol) {
+  if ((route !== 'capture' && route !== 'overview') || !workshopProcess || !protocol) {
     return <MechanicStartPage onStart={() => navigate('/neu')} />
   }
 
@@ -201,6 +204,55 @@ function App() {
   const tireSet = workshopProcess.tireSets[0]?.tireSet
   const tireInspection = workshopProcess.tireInspections[0]
   const tireCondition = workshopProcess.conditions[0]
+
+  const updateServiceType = (serviceType: ServiceProtocolId) => {
+    setWorkshopProcess((currentProcess) => {
+      if (!currentProcess || currentProcess.serviceType === serviceType) {
+        return currentProcess
+      }
+
+      const previousRole = getInitialTireSetRole(currentProcess.serviceType)
+      const nextRole = getInitialTireSetRole(serviceType)
+
+      return {
+        ...currentProcess,
+        serviceType,
+        tireSets: currentProcess.tireSets.map((entry) =>
+          entry.role === previousRole ? { ...entry, role: nextRole } : entry,
+        ),
+        tireInspections: currentProcess.tireInspections.map((inspection) =>
+          inspection.tireSetRole === previousRole
+            ? { ...inspection, tireSetRole: nextRole }
+            : inspection,
+        ),
+        conditions: currentProcess.conditions.map((condition) =>
+          condition.tireSetRole === previousRole
+            ? { ...condition, tireSetRole: nextRole }
+            : condition,
+        ),
+      }
+    })
+  }
+
+  if (route === 'overview') {
+    return (
+      <ProcessOverviewPage
+        licensePlateError={licensePlateError}
+        onEditCapture={() => navigate('/erfassung')}
+        onHome={() => navigate('/')}
+        onUpdateLicensePlate={updateLicensePlate}
+        onUpdateServiceType={updateServiceType}
+        onUpdateTireCondition={updateTireCondition}
+        onUpdateTireInspection={updateTireInspection}
+        onUpdateTireSet={updateTireSet}
+        process={workshopProcess}
+        protocol={protocol}
+        tireCondition={tireCondition}
+        tireInspection={tireInspection}
+        tireSet={tireSet}
+      />
+    )
+  }
 
   return (
     <main className="workshop-view">
@@ -481,12 +533,522 @@ function App() {
           Reifendaten werden direkt im lokalen Vorgang gespeichert.
         </p>
 
+        <button
+          className="secondary-button overview-action"
+          onClick={() => navigate('/uebersicht')}
+          type="button"
+        >
+          Aktuellen Vorgang ansehen
+        </button>
+
         <button className="text-button" onClick={() => navigate('/neu')} type="button">
           Andere Erfassung wählen
         </button>
       </section>
     </main>
   )
+}
+
+type ProcessOverviewPageProps = {
+  licensePlateError: string | null
+  onEditCapture: () => void
+  onHome: () => void
+  onUpdateLicensePlate: (value: string) => void
+  onUpdateServiceType: (serviceType: ServiceProtocolId) => void
+  onUpdateTireCondition: (changes: Partial<WorkshopTireCondition>) => void
+  onUpdateTireInspection: (changes: Partial<WorkshopTireInspection>) => void
+  onUpdateTireSet: (changes: Partial<TireSetDraft>) => void
+  process: WorkshopProcess
+  protocol: ServiceProtocol
+  tireCondition: WorkshopTireCondition | undefined
+  tireInspection: WorkshopTireInspection | undefined
+  tireSet: TireSetDraft | undefined
+}
+
+function ProcessOverviewPage({
+  licensePlateError,
+  onEditCapture,
+  onHome,
+  onUpdateLicensePlate,
+  onUpdateServiceType,
+  onUpdateTireCondition,
+  onUpdateTireInspection,
+  onUpdateTireSet,
+  process,
+  protocol,
+  tireCondition,
+  tireInspection,
+  tireSet,
+}: ProcessOverviewPageProps) {
+  const [editingSection, setEditingSection] = useState<
+    'service' | 'plate' | 'tires' | null
+  >(null)
+  const isEditing = (section: 'service' | 'plate' | 'tires') =>
+    editingSection === section
+  const closeEditor = () => setEditingSection(null)
+
+  return (
+    <main className="workshop-view">
+      <AppHeader onHome={onHome} />
+      <section
+        className="workshop-view__content workshop-view__content--overview"
+        aria-labelledby="page-title"
+      >
+        <p className="workshop-view__eyebrow">Aktueller Vorgang</p>
+        <h1 id="page-title">Übersicht</h1>
+        <p className="workshop-view__intro">
+          Alle erfassten Angaben auf einen Blick. Tippe auf „Bearbeiten“, um etwas
+          direkt zu korrigieren.
+        </p>
+
+        <div className="summary-stack">
+          <section className="summary-card" aria-labelledby="summary-service-title">
+            <div className="summary-card__heading">
+              <div>
+                <p className="summary-card__label">Vorgangstyp</p>
+                <h2 id="summary-service-title">
+                  <span aria-hidden="true">{protocol.icon}</span> {protocol.title}
+                </h2>
+              </div>
+              <button
+                aria-expanded={isEditing('service')}
+                className="summary-card__edit"
+                onClick={() =>
+                  setEditingSection(isEditing('service') ? null : 'service')
+                }
+                type="button"
+              >
+                Bearbeiten
+              </button>
+            </div>
+
+            {isEditing('service') && (
+              <div className="summary-editor" aria-label="Vorgangstyp bearbeiten">
+                <p className="summary-editor__hint">Vorgang auswählen</p>
+                <div className="service-type-options">
+                  {serviceProtocols.map((serviceProtocol) => (
+                    <button
+                      aria-pressed={process.serviceType === serviceProtocol.id}
+                      className={`service-type-option${
+                        process.serviceType === serviceProtocol.id
+                          ? ' service-type-option--selected'
+                          : ''
+                      }`}
+                      key={serviceProtocol.id}
+                      onClick={() => onUpdateServiceType(serviceProtocol.id)}
+                      type="button"
+                    >
+                      <span aria-hidden="true">{serviceProtocol.icon}</span>
+                      {serviceProtocol.title}
+                    </button>
+                  ))}
+                </div>
+                <button className="summary-editor__done" onClick={closeEditor} type="button">
+                  Fertig
+                </button>
+              </div>
+            )}
+          </section>
+
+          <section className="summary-card" aria-labelledby="summary-plate-title">
+            <div className="summary-card__heading">
+              <div>
+                <p className="summary-card__label">Kennzeichen</p>
+                <h2
+                  className={`summary-card__plate${
+                    process.licensePlate ? '' : ' summary-card__value--missing'
+                  }`}
+                  id="summary-plate-title"
+                >
+                  {process.licensePlate || 'Nicht erfasst'}
+                </h2>
+              </div>
+              <button
+                aria-expanded={isEditing('plate')}
+                className="summary-card__edit"
+                onClick={() =>
+                  setEditingSection(isEditing('plate') ? null : 'plate')
+                }
+                type="button"
+              >
+                Bearbeiten
+              </button>
+            </div>
+
+            {isEditing('plate') && (
+              <div className="summary-editor">
+                <label className="summary-editor__field" htmlFor="overview-license-plate">
+                  <span>Kennzeichen</span>
+                  <input
+                    aria-describedby="overview-license-plate-hint"
+                    aria-invalid={licensePlateError ? true : undefined}
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    id="overview-license-plate"
+                    onChange={(event) => onUpdateLicensePlate(event.target.value)}
+                    placeholder="z. B. CW-AB 123"
+                    spellCheck={false}
+                    type="text"
+                    value={process.licensePlate}
+                  />
+                </label>
+                <p
+                  className={
+                    licensePlateError
+                      ? 'summary-editor__message summary-editor__message--error'
+                      : 'summary-editor__message'
+                  }
+                  id="overview-license-plate-hint"
+                >
+                  {licensePlateError ?? 'Kennzeichen ist im Vorgang gespeichert.'}
+                </p>
+                <button className="summary-editor__done" onClick={closeEditor} type="button">
+                  Fertig
+                </button>
+              </div>
+            )}
+          </section>
+
+          <section className="summary-card" aria-labelledby="summary-tires-title">
+            <div className="summary-card__heading">
+              <div>
+                <p className="summary-card__label">Reifendaten</p>
+                <h2 id="summary-tires-title">
+                  {tireSetRoleLabel(process.tireSets[0]?.role)}
+                </h2>
+              </div>
+              <button
+                aria-expanded={isEditing('tires')}
+                className="summary-card__edit"
+                onClick={() =>
+                  setEditingSection(isEditing('tires') ? null : 'tires')
+                }
+                type="button"
+              >
+                Bearbeiten
+              </button>
+            </div>
+
+            <dl className="summary-data-grid">
+              <SummaryItem
+                label="Reifenart"
+                missing={!tireSet?.tireType}
+                value={tireTypeLabel(tireSet?.tireType)}
+              />
+              <SummaryItem
+                label="Reifengröße"
+                missing={
+                  tireSet?.widthMm === undefined &&
+                  tireSet?.aspectRatio === undefined &&
+                  tireSet?.rimDiameterInch === undefined
+                }
+                value={formatTireSize(tireSet)}
+              />
+              <SummaryItem
+                label="Hersteller"
+                missing={!tireSet?.manufacturer}
+                value={tireSet?.manufacturer || 'Nicht erfasst'}
+              />
+              <SummaryItem
+                label="Modell"
+                missing={!tireSet?.model}
+                value={tireSet?.model || 'Nicht erfasst'}
+              />
+              <SummaryItem
+                label="Menge"
+                missing={tireSet?.quantity === undefined}
+                value={
+                  tireSet?.quantity === undefined
+                    ? 'Nicht erfasst'
+                    : `${tireSet.quantity} Reifen`
+                }
+              />
+              <SummaryItem
+                label="Profiltiefe vorne"
+                missing={tireInspection?.treadFrontMm === undefined}
+                value={formatMillimeters(tireInspection?.treadFrontMm)}
+              />
+              <SummaryItem
+                label="Profiltiefe hinten"
+                missing={tireInspection?.treadRearMm === undefined}
+                value={formatMillimeters(tireInspection?.treadRearMm)}
+              />
+              <SummaryItem
+                label="Zustand"
+                missing={!tireCondition?.condition}
+                value={tireConditionLabel(tireCondition?.condition)}
+              />
+              <SummaryItem
+                fullWidth
+                label="Notizen"
+                missing={!tireSet?.notes}
+                value={tireSet?.notes || 'Nicht erfasst'}
+              />
+            </dl>
+
+            {isEditing('tires') && (
+              <div className="summary-editor" aria-label="Reifendaten bearbeiten">
+                <div className="summary-editor__grid">
+                  <label className="summary-editor__field" htmlFor="overview-tire-type">
+                    <span>Reifenart</span>
+                    <select
+                      id="overview-tire-type"
+                      onChange={(event) =>
+                        onUpdateTireSet({
+                          tireType: valueOrUndefined<TireType>(event.target.value),
+                        })
+                      }
+                      value={tireSet?.tireType ?? ''}
+                    >
+                      <option value="">Nicht erfasst</option>
+                      <option value="summer">Sommerreifen</option>
+                      <option value="winter">Winterreifen</option>
+                      <option value="all_season">Ganzjahresreifen</option>
+                      <option value="unknown">Nicht bekannt</option>
+                    </select>
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tire-quantity">
+                    <span>Menge</span>
+                    <input
+                      id="overview-tire-quantity"
+                      inputMode="numeric"
+                      min="1"
+                      onChange={(event) =>
+                        onUpdateTireSet({ quantity: numberOrUndefined(event.target.value) })
+                      }
+                      type="number"
+                      value={tireSet?.quantity ?? ''}
+                    />
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tire-width">
+                    <span>Breite (mm)</span>
+                    <input
+                      id="overview-tire-width"
+                      inputMode="numeric"
+                      onChange={(event) =>
+                        onUpdateTireSet({ widthMm: numberOrUndefined(event.target.value) })
+                      }
+                      type="number"
+                      value={tireSet?.widthMm ?? ''}
+                    />
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tire-aspect-ratio">
+                    <span>Querschnitt</span>
+                    <input
+                      id="overview-tire-aspect-ratio"
+                      inputMode="numeric"
+                      onChange={(event) =>
+                        onUpdateTireSet({
+                          aspectRatio: numberOrUndefined(event.target.value),
+                        })
+                      }
+                      type="number"
+                      value={tireSet?.aspectRatio ?? ''}
+                    />
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tire-rim-diameter">
+                    <span>Felge (Zoll)</span>
+                    <input
+                      id="overview-tire-rim-diameter"
+                      inputMode="numeric"
+                      onChange={(event) =>
+                        onUpdateTireSet({
+                          rimDiameterInch: numberOrUndefined(event.target.value),
+                        })
+                      }
+                      type="number"
+                      value={tireSet?.rimDiameterInch ?? ''}
+                    />
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tire-manufacturer">
+                    <span>Hersteller</span>
+                    <input
+                      autoComplete="off"
+                      id="overview-tire-manufacturer"
+                      onChange={(event) =>
+                        onUpdateTireSet({ manufacturer: event.target.value || undefined })
+                      }
+                      type="text"
+                      value={tireSet?.manufacturer ?? ''}
+                    />
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tire-model">
+                    <span>Modell</span>
+                    <input
+                      autoComplete="off"
+                      id="overview-tire-model"
+                      onChange={(event) =>
+                        onUpdateTireSet({ model: event.target.value || undefined })
+                      }
+                      type="text"
+                      value={tireSet?.model ?? ''}
+                    />
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tread-front">
+                    <span>Profil vorne (mm)</span>
+                    <input
+                      id="overview-tread-front"
+                      inputMode="decimal"
+                      min="0"
+                      onChange={(event) =>
+                        onUpdateTireInspection({
+                          treadFrontMm: numberOrUndefined(event.target.value),
+                        })
+                      }
+                      step="0.1"
+                      type="number"
+                      value={tireInspection?.treadFrontMm ?? ''}
+                    />
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tread-rear">
+                    <span>Profil hinten (mm)</span>
+                    <input
+                      id="overview-tread-rear"
+                      inputMode="decimal"
+                      min="0"
+                      onChange={(event) =>
+                        onUpdateTireInspection({
+                          treadRearMm: numberOrUndefined(event.target.value),
+                        })
+                      }
+                      step="0.1"
+                      type="number"
+                      value={tireInspection?.treadRearMm ?? ''}
+                    />
+                  </label>
+                  <label className="summary-editor__field" htmlFor="overview-tire-condition">
+                    <span>Zustand</span>
+                    <select
+                      id="overview-tire-condition"
+                      onChange={(event) =>
+                        onUpdateTireCondition({
+                          condition: valueOrUndefined<TireConditionType>(event.target.value),
+                        })
+                      }
+                      value={tireCondition?.condition ?? ''}
+                    >
+                      <option value="">Nicht erfasst</option>
+                      <option value="ok">Ohne Beanstandung</option>
+                      <option value="worn">Abgefahren</option>
+                      <option value="uneven_wear">Ungleichmäßig abgefahren</option>
+                      <option value="inner_wear">Innen abgefahren</option>
+                      <option value="outer_wear">Außen abgefahren</option>
+                      <option value="damaged">Beschädigt</option>
+                      <option value="cracked">Rissig</option>
+                      <option value="foreign_object">Fremdkörper</option>
+                      <option value="low_tread">Profil zu niedrig</option>
+                      <option value="unknown">Nicht beurteilbar</option>
+                    </select>
+                  </label>
+                  <label
+                    className="summary-editor__field summary-editor__field--full"
+                    htmlFor="overview-tire-notes"
+                  >
+                    <span>Notizen</span>
+                    <textarea
+                      id="overview-tire-notes"
+                      onChange={(event) =>
+                        onUpdateTireSet({ notes: event.target.value || undefined })
+                      }
+                      rows={3}
+                      value={tireSet?.notes ?? ''}
+                    />
+                  </label>
+                </div>
+                <button className="summary-editor__done" onClick={closeEditor} type="button">
+                  Fertig
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+
+        <button className="secondary-button overview-action" onClick={onEditCapture} type="button">
+          Zur Erfassung zurück
+        </button>
+      </section>
+    </main>
+  )
+}
+
+type SummaryItemProps = {
+  fullWidth?: boolean
+  label: string
+  missing: boolean
+  value: string
+}
+
+function SummaryItem({ fullWidth = false, label, missing, value }: SummaryItemProps) {
+  return (
+    <div className={fullWidth ? 'summary-data-grid__item summary-data-grid__item--full' : 'summary-data-grid__item'}>
+      <dt>{label}</dt>
+      <dd className={missing ? 'summary-card__value--missing' : undefined}>{value}</dd>
+    </div>
+  )
+}
+
+function tireSetRoleLabel(role: TireSetRole | undefined): string {
+  if (role === 'installed') {
+    return 'Montierter Reifensatz'
+  }
+
+  if (role === 'stored') {
+    return 'Einzulagernder Reifensatz'
+  }
+
+  if (role === 'removed') {
+    return 'Demontierter Reifensatz'
+  }
+
+  return 'Reifensatz'
+}
+
+function tireTypeLabel(tireType: TireType | undefined): string {
+  const labels: Record<TireType, string> = {
+    summer: 'Sommerreifen',
+    winter: 'Winterreifen',
+    all_season: 'Ganzjahresreifen',
+    unknown: 'Nicht bekannt',
+  }
+
+  return tireType ? labels[tireType] : 'Nicht erfasst'
+}
+
+function tireConditionLabel(condition: TireConditionType | undefined): string {
+  const labels: Record<TireConditionType, string> = {
+    ok: 'Ohne Beanstandung',
+    worn: 'Abgefahren',
+    uneven_wear: 'Ungleichmäßig abgefahren',
+    inner_wear: 'Innen abgefahren',
+    outer_wear: 'Außen abgefahren',
+    damaged: 'Beschädigt',
+    cracked: 'Rissig',
+    foreign_object: 'Fremdkörper',
+    low_tread: 'Profil zu niedrig',
+    unknown: 'Nicht beurteilbar',
+  }
+
+  return condition ? labels[condition] : 'Nicht erfasst'
+}
+
+function formatTireSize(tireSet: TireSetDraft | undefined): string {
+  if (
+    tireSet?.widthMm === undefined &&
+    tireSet?.aspectRatio === undefined &&
+    tireSet?.rimDiameterInch === undefined
+  ) {
+    return 'Nicht erfasst'
+  }
+
+  const width = tireSet.widthMm ?? '–'
+  const aspectRatio = tireSet.aspectRatio ?? '–'
+  const diameter = tireSet.rimDiameterInch ?? '–'
+
+  return `${width} / ${aspectRatio} R${diameter}`
+}
+
+function formatMillimeters(value: number | undefined): string {
+  return value === undefined ? 'Nicht erfasst' : `${value.toLocaleString('de-DE')} mm`
 }
 
 function getInitialTireSetRole(serviceType: ServiceProtocolId): TireSetRole {
