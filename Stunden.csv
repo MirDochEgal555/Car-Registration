@@ -2,4 +2,4 @@ Tag,Stunden,Tätigkeit
 17.08.2026,0.5,Erste Brainstorming-Session (Projekt Outline)
 19.08.2026,1.0,Research Tech Stack; Kostenanalyse; Timeline; Dokumentation; Meilensteinplan
 23.08.2026,2.0,Erstes Aufsetzen des Backends; Datenbankstruktur entwerfen; API Endpoints definieren
-31.08.2026,2.0,Frontend-Design; UI/UX Überlegungen
+31.08.2026,2.0,Frontend-Design; UI/UX Überlegungen; GitHub Deployment; CI/CD Pipeline einrichten
