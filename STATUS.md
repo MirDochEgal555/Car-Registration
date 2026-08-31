@@ -1,34 +1,49 @@
 # Projektstatus
 
+**Stand: 31.08.2026**
+
+## Repositoryzustand
+
+- Branch: `main` auf Commit `340f8b7` (`Backend-Frontend Integration`)
+- Überprüfter Ausgangszustand: Arbeitsbaum sauber; `main` entsprach `origin/main`
+- Backend-Qualitätsprüfung: **62 Tests erfolgreich** (`python3 -m pytest`)
+- Frontend-Qualitätsprüfung: **10 Tests erfolgreich**, ESLint und Produktions-Build erfolgreich (`npm test`, `npm run lint`, `npm run build`)
+
 ## Fertig
-- MVP-Scope und grundlegender Ablauf definiert
-- Zeitplan bis zum Werkstatttest erstellt
-- Tech-Stack festgelegt
-- Backend-MVP mit Validierungs-API, E-Mail-Versand und persistenter Versand-Outbox umgesetzt und getestet
-- Deutsche Backend-Dokumentation mit Architektur- und Kohärenzbewertung erstellt
+
+- MVP-Scope, Benutzerabläufe, Datenmodell, Extraktionsregeln, Testfälle und Zeitplan dokumentiert
+- FastAPI-Backend mit versionierter API, Health-Endpoint und zentralen Datenmodellen umgesetzt
+- Validierung vollständiger Vorgangsentwürfe inklusive Feldstatus (`missing`, `uncertain`, `invalid`) und `review_required` umgesetzt
+- Kennzeichen-Normalisierung und Plausibilitäts-/Pflichtfeldprüfung umgesetzt
+- E-Mail-Übergabe an das Büro implementiert: HTML- und Textformat, explizite Mechaniker-Bestätigung sowie SMTP-Konfiguration über Umgebungsvariablen
+- Persistente SQLite-Outbox für Versandstatus, fehlgeschlagene Zustellungen, Neustartsicherheit und erneutes Senden umgesetzt
+- Frontend als React-/TypeScript-PWA umgesetzt: Start-, Übersichts-, Erfassungs-, Korrektur-, Bestätigungs- und Fehleransichten für Reifenwechsel und Reifeneinlagerung
+- Frontend und Backend über den gemeinsamen `RegistrationDraft`-Vertrag integriert; Backend-Validierung, Versandstatus und Wiederholungsversand werden in der Mechanikeransicht angezeigt
+- Anonymisierte End-to-End-Testfälle für typische Werkstattformulierungen als Regressionsvertrag abgedeckt
 
 ## In Arbeit
-- Fachliches Datenmodell für Fahrzeug-, Reifen- und Vorgangsdaten mit der Werkstatt abstimmen
-- Pflichtfelder, Statusmodell und Verantwortlichkeiten verbindlich konkretisieren
-- Formularangaben den tatsächlichen Werkstatt-, Hersteller- und gegebenenfalls rechtlichen Vorgaben zuordnen
+
+- Review 1 des manuellen Kernablaufs: Reifenwechsel und Reifeneinlagerung müssen gemeinsam mit der Werkstatt vollständig durchgespielt und fachlich abgenommen werden
+- Verbindliche Abstimmung des Datenmodells mit der Werkstatt: Pflichtfelder, bedingte Angaben, Statusmodell und Verantwortlichkeiten
+- Vorbereitung der realen Betriebsumgebung: SMTP-Zugang, Empfängeradresse und dauerhaftes, zugriffsgeschütztes Speicherziel für die Outbox konfigurieren und testen
 
 ## Als Nächstes
-- Frontend für die Mechaniker-Erfassung auf Basis der vorhandenen Formularangaben und des bestehenden API-Vertrags aufsetzen
-- Benutzerabläufe für Mechaniker und Büro finalisieren
-- Regeln für Spracheingabe und strukturierte Extraktion definieren
-- Repräsentative Testfälle für typische Werkstattformulierungen erstellen
-- Bestätigungsansicht für Mechaniker und Prüfungsansicht für das Büro umsetzen
-- Anschließend Rücksprache mit der Werkstatt zu den vorhandenen Formularen durchführen: Welche Angaben sind zwingend, optional oder nur bei einem bestimmten Befund erforderlich?
-- Gesetzliche, Hersteller- und betriebliche Vorgaben für Reifenwechsel und Reifeneinlagerung klären
-- Die bestätigten Vorgaben als fachliche Regeln, Pflichtfeldprüfungen und Frontend-Hinweise in Backend und Oberfläche übernehmen
-- Testbetrieb in der Werkstatt vorbereiten und durchführen
 
-## Aktuell offene Fragen
-- Die Angaben der vorhandenen Reifenformulare liegen als vorläufige Grundlage vor. Sie sind jedoch noch nicht durch Rücksprache mit der Werkstatt als verbindlich bestätigt.
-- Welche Felder sind je Vorgangstyp zwingend, welche optional und welche nur bei bestimmten Befunden erforderlich?
-- Welche Angaben müssen aufgrund gesetzlicher, Hersteller- oder interner Werkstattvorgaben erfasst, geprüft oder aufbewahrt werden?
-- Wer bestätigt die fachlichen Regeln und hält spätere Änderungen der Formulare oder Vorschriften nach?
+1. Manuellen Ablauf für beide Vorgangstypen inklusive Korrekturen, Validierungsfehlern, Bestätigung und E-Mail-Übergabe im Werkstattkontext testen.
+2. Offene fachliche Punkte priorisieren und die bestätigten Regeln in Datenmodell, Validierung, Oberfläche und Tests übernehmen.
+3. Audioaufnahme im Browser, Audio-Upload sowie Speech-to-Text anbinden und auf Smartphone/Tablet prüfen.
+4. KI-Extraktion nach den vorhandenen Extraktionsregeln integrieren; Unsicherheiten weiterhin markieren statt Werte zu erraten.
+5. Strukturierte E-Mail-Ausgabe mit dem Büro anhand realitätsnaher, anonymisierter Vorgänge abnehmen und die Retry-Strecke testen.
 
-## Wichtiger Hinweis zum Backend
+## Aktuell offene Fragen und Abgrenzungen
 
-Die aktuellen Backend-Modelle und Validierungsregeln bilden die verfügbaren Formularangaben ab. Das als Nächstes geplante Frontend verwendet diese Angaben bewusst als vorläufigen Vertrag. Erst danach werden die Regeln mit der Werkstatt abgestimmt, dokumentiert und als verbindliche Vorgaben im Backend, im Frontend und in den Tests umgesetzt. Sie stellen bis dahin keine bestätigte oder rechtlich geprüfte Umsetzung von Werkstattvorschriften dar.
+- Die fachlichen Formularangaben bilden den implementierten vorläufigen Vertrag, sind aber noch nicht durch die Werkstatt verbindlich bestätigt oder rechtlich geprüft.
+- Es ist zu klären, welche Felder je Vorgangstyp zwingend, optional oder nur bei bestimmten Befunden erforderlich sind und wer spätere Regeländerungen verantwortet.
+- Speech-to-Text, KI-Extraktion und die Verarbeitung echter Audiodaten sind noch nicht implementiert; die vorhandenen Testfälle testen den Übergabevertrag, nicht externe KI- oder Sprachdienste.
+- Eine produktive SMTP-Zustellung wurde noch nicht mit den realen Zugangsdaten und dem Büroempfänger verifiziert.
+- Die vorläufige Mechaniker-ID muss vor Produktivbetrieb durch eine authentifizierte Identität ersetzt werden.
+- WERBAS bleibt im MVP führendes System. Eine direkte WERBAS-Anbindung, zentrale Büro-Inbox und zentrale Fachspeicherung gehören weiterhin nicht zum MVP.
+
+## Wichtiger Hinweis
+
+Die aktuelle Implementierung bildet die verfügbaren Formularangaben technisch ab. Sie ersetzt keine bestätigten Werkstatt-, Hersteller- oder Rechtsvorgaben. Erst nach der fachlichen Abstimmung dürfen daraus verbindliche Pflichtfeldprüfungen und Arbeitsanweisungen abgeleitet werden.
