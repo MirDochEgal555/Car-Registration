@@ -4,8 +4,9 @@
 
 ## Repositoryzustand
 
-- Branch: `main` auf Commit `340f8b7` (`Backend-Frontend Integration`)
-- Überprüfter Ausgangszustand: Arbeitsbaum sauber; `main` entsprach `origin/main`
+- Branch: `main`; der GitHub-Pages-Workflow wird bei jedem Push auf `main` ausgeführt
+- Live-Demo für die Werkstatt: [mirdochegal555.github.io/Car-Registration](https://mirdochegal555.github.io/Car-Registration/)
+- GitHub Pages ist für das Repository aktiviert; der erfolgreiche Erst-Deploy lief über `.github/workflows/deploy-pages.yml`
 - Backend-Qualitätsprüfung: **62 Tests erfolgreich** (`python3 -m pytest`)
 - Frontend-Qualitätsprüfung: **10 Tests erfolgreich**, ESLint und Produktions-Build erfolgreich (`npm test`, `npm run lint`, `npm run build`)
 
@@ -20,12 +21,14 @@
 - Frontend als React-/TypeScript-PWA umgesetzt: Start-, Übersichts-, Erfassungs-, Korrektur-, Bestätigungs- und Fehleransichten für Reifenwechsel und Reifeneinlagerung
 - Frontend und Backend über den gemeinsamen `RegistrationDraft`-Vertrag integriert; Backend-Validierung, Versandstatus und Wiederholungsversand werden in der Mechanikeransicht angezeigt
 - Anonymisierte End-to-End-Testfälle für typische Werkstattformulierungen als Regressionsvertrag abgedeckt
+- GitHub-Pages-Deployment für die Frontend-Design-Abnahme eingerichtet und erfolgreich veröffentlicht
 
 ## In Arbeit
 
 - Review 1 des manuellen Kernablaufs: Reifenwechsel und Reifeneinlagerung müssen gemeinsam mit der Werkstatt vollständig durchgespielt und fachlich abgenommen werden
 - Verbindliche Abstimmung des Datenmodells mit der Werkstatt: Pflichtfelder, bedingte Angaben, Statusmodell und Verantwortlichkeiten
 - Vorbereitung der realen Betriebsumgebung: SMTP-Zugang, Empfängeradresse und dauerhaftes, zugriffsgeschütztes Speicherziel für die Outbox konfigurieren und testen
+- Erreichbares HTTPS-Backend für die Live-Demo bereitstellen und dessen URL als `VITE_API_BASE_URL` im Pages-Build hinterlegen
 
 ## Als Nächstes
 
@@ -41,6 +44,7 @@
 - Es ist zu klären, welche Felder je Vorgangstyp zwingend, optional oder nur bei bestimmten Befunden erforderlich sind und wer spätere Regeländerungen verantwortet.
 - Speech-to-Text, KI-Extraktion und die Verarbeitung echter Audiodaten sind noch nicht implementiert; die vorhandenen Testfälle testen den Übergabevertrag, nicht externe KI- oder Sprachdienste.
 - Eine produktive SMTP-Zustellung wurde noch nicht mit den realen Zugangsdaten und dem Büroempfänger verifiziert.
+- GitHub Pages liefert nur das statische Frontend aus. Ohne separat bereitgestelltes Backend sind Validierung, Versand, Versandstatus und Wiederholung in der Live-Demo nicht verfügbar.
 - Die vorläufige Mechaniker-ID muss vor Produktivbetrieb durch eine authentifizierte Identität ersetzt werden.
 - WERBAS bleibt im MVP führendes System. Eine direkte WERBAS-Anbindung, zentrale Büro-Inbox und zentrale Fachspeicherung gehören weiterhin nicht zum MVP.
 

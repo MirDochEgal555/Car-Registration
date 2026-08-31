@@ -4,6 +4,12 @@ Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowi
 
 **Aktueller Stand: [Projektstatus](STATUS.md)**
 
+## Live-Demo für die Werkstatt
+
+Die aktuelle Frontend-Ansicht ist unter [mirdochegal555.github.io/Car-Registration](https://mirdochegal555.github.io/Car-Registration/) erreichbar. Sie wird bei jedem Push auf `main` automatisch über GitHub Pages aktualisiert.
+
+GitHub Pages stellt ausschließlich das statische Frontend bereit. Für Validierung, Versand und Statusabfragen muss das FastAPI-Backend separat öffentlich erreichbar sein und seine Basis-URL beim Build über `VITE_API_BASE_URL` hinterlegt werden.
+
 ## Projektstruktur
 
 ```text

@@ -133,6 +133,18 @@ Optionale Confidence-Werte können im strukturierten Entwurf zusammen mit ihrer 
 
 ## Bereitstellung
 
+### Design-Demo für die Werkstatt
+
+Das Frontend wird als statische Vorschau über GitHub Pages bereitgestellt:
+
+- Live-URL: [mirdochegal555.github.io/Car-Registration](https://mirdochegal555.github.io/Car-Registration/)
+- Workflow: [`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml)
+- Auslöser: jeder Push auf `main` sowie ein manueller Workflow-Start
+
+Der Pages-Build verwendet den Repository-Pfad als Vite-Basis und erzeugt eine unter `/Car-Registration/` funktionierende PWA. Diese Bereitstellung ist für die Design-Abnahme gedacht; GitHub Pages kann das FastAPI-Backend, die SQLite-Outbox oder den SMTP-Versand nicht betreiben. Soll die Demo den vollständigen Ablauf nutzen, muss ein HTTPS-erreichbares Backend als `VITE_API_BASE_URL` konfiguriert werden.
+
+### Produktivbetrieb
+
 - Docker
 - kleiner VPS
 - Caddy oder Nginx als Reverse Proxy
@@ -173,7 +185,8 @@ Diese Technologien erhöhen die Komplexität, ohne für den MVP notwendig zu sei
 
 | Kostenpunkt | Erwartete Kosten |
 | --- | --- |
-| VPS / Hosting | ca. 5–15 € pro Monat |
+| GitHub Pages für die Design-Demo | 0 € |
+| VPS / Hosting für das Backend | ca. 5–15 € pro Monat |
 | E-Mail-Versand | je nach SMTP- oder E-Mail-Dienst, meist wenige Euro pro Monat |
 | Domain | ca. 10–20 € pro Jahr |
 | HTTPS / SSL | 0 € |
