@@ -973,6 +973,74 @@ h1 {
   margin-top: 1rem;
 }
 
+.wheel-change-field {
+  margin: 1rem 0 0;
+  padding: 1.05rem;
+  border: 2px solid #cbd8cf;
+  border-radius: 0.95rem;
+  background: #f5f9f6;
+}
+
+.wheel-change-field legend,
+.summary-editor__wheel-change legend {
+  color: #17281e;
+  font-weight: 800;
+}
+
+.wheel-change-field > p {
+  margin: 0.55rem 0 0.8rem;
+  color: #43594b;
+  font-weight: 650;
+}
+
+.wheel-change-field__options,
+.summary-editor__wheel-change {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.wheel-change-field__options label,
+.summary-editor__wheel-change label {
+  display: inline-flex;
+  min-height: 3.1rem;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem 0.9rem;
+  border: 2px solid #92af9d;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: #123f27;
+  font-weight: 800;
+}
+
+.wheel-change-field__options input,
+.summary-editor__wheel-change input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.summary-editor__wheel-change {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.summary-editor__wheel-change legend {
+  width: 100%;
+  margin-bottom: 0.1rem;
+}
+
+.delivery-error-detail {
+  margin-top: 0.75rem !important;
+}
+
+.frontend-error-state__retry {
+  width: 100%;
+  margin-top: 1rem;
+}
+
 .workshop-view__content--capture > .field-message--saved {
   display: none;
 }

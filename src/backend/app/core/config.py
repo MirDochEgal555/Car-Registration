@@ -63,6 +63,15 @@ def _environment_timeout(name: str, default: float) -> float:
     return timeout
 
 
+def _environment_origins(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    """Read an explicit comma-separated allow-list for browser origins."""
+
+    value = _environment_value(name)
+    if value is None:
+        return default
+    return tuple(origin.strip() for origin in value.split(",") if origin.strip())
+
+
 @dataclass(frozen=True)
 class Settings:
     """Settings needed by the HTTP API and SMTP delivery adapter."""
@@ -102,6 +111,12 @@ class Settings:
     delivery_store_path: str = field(
         default_factory=lambda: _environment_value("CARTECH_DELIVERY_STORE_PATH")
         or "data/processed/cartech-deliveries.sqlite3"
+    )
+    cors_origins: tuple[str, ...] = field(
+        default_factory=lambda: _environment_origins(
+            "CARTECH_CORS_ORIGINS",
+            ("http://localhost:5173", "http://127.0.0.1:5173"),
+        )
     )
 
 

@@ -18,6 +18,17 @@ import type {
   WorkshopTireCondition,
   WorkshopTireInspection,
 } from './types/workshopProcess'
+import type {
+  ApiDeliveryStatus,
+  ApiValidationIssue,
+} from './types/registrationApi'
+import {
+  RegistrationApiError,
+  retryRegistrationDelivery,
+  sendRegistration,
+  validateRegistration,
+} from './services/registrationApi'
+import { mapWorkshopProcessToRegistration } from './services/registrationMapper'
 import {
   getLicensePlateValidationError,
   normalizeLicensePlate,
@@ -28,6 +39,19 @@ import {
 } from './utils/workshopProcessValidation'
 
 type Route = 'start' | 'selection' | 'capture' | 'overview' | 'success'
+
+type SubmissionState =
+  | { kind: 'idle' }
+  | { kind: 'validating' }
+  | { kind: 'sending' }
+  | {
+      kind: 'error'
+      message: string
+      retryable: boolean
+      delivery?: ApiDeliveryStatus
+    }
+
+const initialSubmissionState: SubmissionState = { kind: 'idle' }
 
 function getRoute(): Route {
   switch (window.location.hash) {
@@ -49,6 +73,12 @@ function App() {
   const [workshopProcess, setWorkshopProcess] = useState<WorkshopProcess | null>(
     null,
   )
+  const [submissionState, setSubmissionState] =
+    useState<SubmissionState>(initialSubmissionState)
+  const [backendIssues, setBackendIssues] = useState<ApiValidationIssue[]>([])
+  const [deliveryResult, setDeliveryResult] = useState<ApiDeliveryStatus | null>(
+    null,
+  )
 
   useEffect(() => {
     const updateRoute = () => setRoute(getRoute())
@@ -65,6 +95,7 @@ function App() {
     const tireSetRole = getInitialTireSetRole(serviceType)
 
     setWorkshopProcess({
+      id: createRegistrationId(),
       serviceType,
       status: 'draft',
       licensePlate: '',
@@ -85,7 +116,11 @@ function App() {
           position: 'all',
         },
       ],
+      ...(serviceType === 'tire_change' ? { tireChangeDetails: {} } : {}),
     })
+    setSubmissionState(initialSubmissionState)
+    setBackendIssues([])
+    setDeliveryResult(null)
     navigate('/erfassung')
   }
 
@@ -162,6 +197,7 @@ function App() {
   )
 
   const updateLicensePlate = (value: string) => {
+    clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
         return currentProcess
@@ -175,6 +211,7 @@ function App() {
   }
 
   const updateTireSet = (changes: Partial<TireSetDraft>) => {
+    clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
         return currentProcess
@@ -198,6 +235,7 @@ function App() {
   }
 
   const updateTireInspection = (changes: Partial<WorkshopTireInspection>) => {
+    clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
         return currentProcess
@@ -213,6 +251,7 @@ function App() {
   }
 
   const updateTireCondition = (changes: Partial<WorkshopTireCondition>) => {
+    clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
         return currentProcess
@@ -227,27 +266,131 @@ function App() {
     })
   }
 
+  const updateWheelChangePerformed = (wheelChangePerformed: boolean) => {
+    clearSubmissionFeedback()
+    setWorkshopProcess((currentProcess) => {
+      if (!currentProcess) {
+        return currentProcess
+      }
+
+      return {
+        ...currentProcess,
+        tireChangeDetails: {
+          ...currentProcess.tireChangeDetails,
+          wheelChangePerformed,
+        },
+      }
+    })
+  }
+
+  function clearSubmissionFeedback() {
+    setSubmissionState(initialSubmissionState)
+    setBackendIssues([])
+  }
+
   const tireSet = workshopProcess.tireSets[0]?.tireSet
   const tireInspection = workshopProcess.tireInspections[0]
   const tireCondition = workshopProcess.conditions[0]
 
-  const confirmWorkshopProcess = () => {
-    if (confirmationIssues.length > 0 || workshopProcess.status === 'confirmed') {
+  const confirmWorkshopProcess = async () => {
+    if (
+      confirmationIssues.length > 0 ||
+      workshopProcess.status === 'confirmed' ||
+      submissionState.kind === 'validating' ||
+      submissionState.kind === 'sending'
+    ) {
       return
     }
 
-    setWorkshopProcess((currentProcess) => {
-      if (
-        !currentProcess ||
-        currentProcess.status === 'confirmed' ||
-        getWorkshopProcessValidationIssues(currentProcess).length > 0
-      ) {
-        return currentProcess
+    setBackendIssues([])
+    setSubmissionState({ kind: 'validating' })
+    try {
+      const validation = await validateRegistration(
+        mapWorkshopProcessToRegistration(workshopProcess),
+      )
+      setBackendIssues(validation.issues)
+      if (!validation.valid) {
+        setSubmissionState({
+          kind: 'error',
+          message: 'Das Backend hat Angaben markiert. Bitte korrigieren und erneut prüfen.',
+          retryable: false,
+        })
+        return
       }
 
-      return { ...currentProcess, status: 'confirmed' }
+      if (validation.registration.vehicle.license_plate !== workshopProcess.licensePlate) {
+        setWorkshopProcess((currentProcess) =>
+          currentProcess
+            ? {
+                ...currentProcess,
+                licensePlate: validation.registration.vehicle.license_plate,
+              }
+            : currentProcess,
+        )
+      }
+
+      setSubmissionState({ kind: 'sending' })
+      const delivery = await sendRegistration(
+        mapWorkshopProcessToRegistration(workshopProcess, true),
+      )
+      setDeliveryResult(delivery)
+      setWorkshopProcess((currentProcess) =>
+        currentProcess ? { ...currentProcess, status: 'confirmed' } : currentProcess,
+      )
+      navigate('/bestaetigt')
+    } catch (error) {
+      showSubmissionError(error)
+    }
+  }
+
+  const retryDelivery = async () => {
+    if (
+      submissionState.kind !== 'error' ||
+      !submissionState.retryable ||
+      submissionState.delivery?.status !== 'email_failed'
+    ) {
+      return
+    }
+
+    setSubmissionState({ kind: 'sending' })
+    try {
+      const delivery = await retryRegistrationDelivery(workshopProcess.id)
+      setDeliveryResult(delivery)
+      setWorkshopProcess((currentProcess) =>
+        currentProcess ? { ...currentProcess, status: 'confirmed' } : currentProcess,
+      )
+      navigate('/bestaetigt')
+    } catch (error) {
+      showSubmissionError(error)
+    }
+  }
+
+  function showSubmissionError(error: unknown) {
+    const apiError = error instanceof RegistrationApiError ? error : null
+    const detail = apiError?.detail
+    const errorBody = isObject(detail) ? detail : null
+    const detailObject = errorBody && isObject(errorBody.detail)
+      ? errorBody.detail
+      : errorBody
+    const validation = detailObject && isObject(detailObject.validation)
+      ? detailObject.validation
+      : null
+    const issues = validation && Array.isArray(validation.issues)
+      ? validation.issues.filter(isApiValidationIssue)
+      : []
+    const delivery = detailObject && isApiDeliveryStatus(detailObject.delivery)
+      ? detailObject.delivery
+      : undefined
+
+    setBackendIssues(issues)
+    setSubmissionState({
+      kind: 'error',
+      message:
+        apiError?.message ||
+        'Beim Senden ist ein unerwarteter Fehler aufgetreten. Bitte erneut versuchen.',
+      retryable: delivery?.status === 'email_failed',
+      delivery,
     })
-    navigate('/bestaetigt')
   }
 
   if (route === 'success') {
@@ -261,6 +404,7 @@ function App() {
         onStartNewProcess={() => navigate('/neu')}
         process={workshopProcess}
         protocol={protocol}
+        delivery={deliveryResult}
       />
     )
   }
@@ -275,17 +419,21 @@ function App() {
           confirmationIssues={confirmationIssues}
           licensePlateError={licensePlateError}
           onConfirm={confirmWorkshopProcess}
+          onRetryDelivery={retryDelivery}
           onEditCapture={() => navigate('/erfassung')}
           onHome={() => navigate('/')}
           onUpdateLicensePlate={updateLicensePlate}
           onUpdateTireCondition={updateTireCondition}
           onUpdateTireInspection={updateTireInspection}
           onUpdateTireSet={updateTireSet}
+          onUpdateWheelChangePerformed={updateWheelChangePerformed}
           process={workshopProcess}
           protocol={protocol}
           tireCondition={tireCondition}
           tireInspection={tireInspection}
           tireSet={tireSet}
+          backendIssues={backendIssues}
+          submissionState={submissionState}
         />
       </FrontendErrorBoundary>
     )
@@ -592,6 +740,44 @@ function App() {
               />
             </label>
           </div>
+
+          {workshopProcess.serviceType === 'tire_change' && (
+            <fieldset className="wheel-change-field">
+              <legend>
+                Räderwechsel <span className="field-status field-status--required">Pflicht</span>
+              </legend>
+              <p>Wurde ein Räderwechsel durchgeführt?</p>
+              <div className="wheel-change-field__options">
+                <label>
+                  <input
+                    checked={workshopProcess.tireChangeDetails?.wheelChangePerformed === true}
+                    name="wheel-change-performed"
+                    onChange={() => updateWheelChangePerformed(true)}
+                    type="radio"
+                    value="yes"
+                  />
+                  Ja
+                </label>
+                <label>
+                  <input
+                    checked={workshopProcess.tireChangeDetails?.wheelChangePerformed === false}
+                    name="wheel-change-performed"
+                    onChange={() => updateWheelChangePerformed(false)}
+                    type="radio"
+                    value="no"
+                  />
+                  Nein
+                </label>
+              </div>
+              {getValidationIssue('Räderwechsel') && (
+                <FrontendErrorState
+                  compact
+                  kind="required"
+                  message="Bitte eine Auswahl treffen."
+                />
+              )}
+            </fieldset>
+          )}
         </section>
 
         {tireValidationIssues.length > 0 && (
@@ -632,37 +818,45 @@ function App() {
 }
 
 type ProcessOverviewPageProps = {
+  backendIssues: ApiValidationIssue[]
   confirmationIssues: WorkshopProcessValidationIssue[]
   licensePlateError: string | null
   onConfirm: () => void
+  onRetryDelivery: () => void
   onEditCapture: () => void
   onHome: () => void
   onUpdateLicensePlate: (value: string) => void
   onUpdateTireCondition: (changes: Partial<WorkshopTireCondition>) => void
   onUpdateTireInspection: (changes: Partial<WorkshopTireInspection>) => void
   onUpdateTireSet: (changes: Partial<TireSetDraft>) => void
+  onUpdateWheelChangePerformed: (wheelChangePerformed: boolean) => void
   process: WorkshopProcess
   protocol: ServiceProtocol
   tireCondition: WorkshopTireCondition | undefined
   tireInspection: WorkshopTireInspection | undefined
   tireSet: TireSetDraft | undefined
+  submissionState: SubmissionState
 }
 
 function ProcessOverviewPage({
+  backendIssues,
   confirmationIssues,
   licensePlateError,
   onConfirm,
+  onRetryDelivery,
   onEditCapture,
   onHome,
   onUpdateLicensePlate,
   onUpdateTireCondition,
   onUpdateTireInspection,
   onUpdateTireSet,
+  onUpdateWheelChangePerformed,
   process,
   protocol,
   tireCondition,
   tireInspection,
   tireSet,
+  submissionState,
 }: ProcessOverviewPageProps) {
   const [editingSection, setEditingSection] = useState<'plate' | 'tires' | null>(
     null,
@@ -717,6 +911,45 @@ function ProcessOverviewPage({
           </FrontendErrorState>
         )}
 
+        {backendIssues.length > 0 && (
+          <FrontendErrorState
+            kind="confirmation"
+            message="Das Backend hat diese Angaben geprüft."
+            title="Backend-Validierung"
+          >
+            <ul className="frontend-error-state__list">
+              {backendIssues.map((issue) => (
+                <li key={`${issue.field}-${issue.code}`}>
+                  <strong>{backendIssueFieldLabel(issue.field)}:</strong> {issue.message}
+                </li>
+              ))}
+            </ul>
+          </FrontendErrorState>
+        )}
+
+        {submissionState.kind === 'error' && (
+          <FrontendErrorState
+            kind="unexpected"
+            message={submissionState.message}
+            title={submissionState.retryable ? 'Versand fehlgeschlagen' : undefined}
+          >
+            {submissionState.delivery?.last_error && (
+              <p className="delivery-error-detail">
+                Letzter Versandfehler: {submissionState.delivery.last_error}
+              </p>
+            )}
+            {submissionState.retryable && (
+              <button
+                className="secondary-button frontend-error-state__retry"
+                onClick={onRetryDelivery}
+                type="button"
+              >
+                Versand erneut versuchen
+              </button>
+            )}
+          </FrontendErrorState>
+        )}
+
         <div className="summary-stack">
           <section
             className="summary-card summary-card--service"
@@ -730,6 +963,22 @@ function ProcessOverviewPage({
                 </h2>
               </div>
             </div>
+            {process.serviceType === 'tire_change' && (
+              <dl className="summary-data-grid">
+                <SummaryItem
+                  fullWidth
+                  label="Räderwechsel durchgeführt"
+                  missing={process.tireChangeDetails?.wheelChangePerformed === undefined}
+                  value={
+                    process.tireChangeDetails?.wheelChangePerformed === undefined
+                      ? 'Nicht erfasst'
+                      : process.tireChangeDetails.wheelChangePerformed
+                        ? 'Ja'
+                        : 'Nein'
+                  }
+                />
+              </dl>
+            )}
           </section>
 
           <section className="summary-card" aria-labelledby="summary-plate-title">
@@ -1108,6 +1357,29 @@ function ProcessOverviewPage({
                       value={tireSet?.notes ?? ''}
                     />
                   </label>
+                  {process.serviceType === 'tire_change' && (
+                    <fieldset className="summary-editor__wheel-change">
+                      <legend>Räderwechsel durchgeführt</legend>
+                      <label>
+                        <input
+                          checked={process.tireChangeDetails?.wheelChangePerformed === true}
+                          name="overview-wheel-change-performed"
+                          onChange={() => onUpdateWheelChangePerformed(true)}
+                          type="radio"
+                        />
+                        Ja
+                      </label>
+                      <label>
+                        <input
+                          checked={process.tireChangeDetails?.wheelChangePerformed === false}
+                          name="overview-wheel-change-performed"
+                          onChange={() => onUpdateWheelChangePerformed(false)}
+                          type="radio"
+                        />
+                        Nein
+                      </label>
+                    </fieldset>
+                  )}
                 </div>
                 <button className="summary-editor__done" type="submit">
                   Fertig
@@ -1122,16 +1394,31 @@ function ProcessOverviewPage({
             confirmationIssues.length > 0 ? 'confirmation-errors-title' : undefined
           }
           className="primary-action confirmation-action"
-          disabled={confirmationIssues.length > 0 || process.status === 'confirmed'}
+          disabled={
+            confirmationIssues.length > 0 ||
+            process.status === 'confirmed' ||
+            submissionState.kind === 'validating' ||
+            submissionState.kind === 'sending'
+          }
           onClick={onConfirm}
           type="button"
         >
           <span className="primary-action__icon" aria-hidden="true">✓</span>
-          <span>Vorgang bestätigen</span>
+          <span>
+            {submissionState.kind === 'validating'
+              ? 'Backend prüft …'
+              : submissionState.kind === 'sending'
+                ? 'E-Mail wird versendet …'
+                : 'Vorgang bestätigen & senden'}
+          </span>
           <span className="primary-action__hint">
             {confirmationIssues.length > 0
               ? 'Erforderliche Angaben ergänzen oder korrigieren'
-              : 'Bestätigt den Vorgang lokal – es wird noch nichts übermittelt'}
+              : submissionState.kind === 'validating'
+                ? 'Der Vorgang wird gegen den Backend-Vertrag geprüft'
+                : submissionState.kind === 'sending'
+                  ? 'Der Vorgang ist in der Versand-Outbox gesichert'
+                  : 'Bestätigt den Vorgang und sendet ihn an das Büro'}
           </span>
         </button>
 
@@ -1144,6 +1431,7 @@ function ProcessOverviewPage({
 }
 
 type ProcessConfirmedPageProps = {
+  delivery: ApiDeliveryStatus | null
   onHome: () => void
   onStartNewProcess: () => void
   process: WorkshopProcess
@@ -1151,6 +1439,7 @@ type ProcessConfirmedPageProps = {
 }
 
 function ProcessConfirmedPage({
+  delivery,
   onHome,
   onStartNewProcess,
   process,
@@ -1164,11 +1453,15 @@ function ProcessConfirmedPage({
         <p className="workshop-view__eyebrow">Vorgang bestätigt</p>
         <h1 id="page-title">Alles erledigt.</h1>
         <p className="workshop-view__intro">
-          {protocol.title} für {process.licensePlate} wurde lokal als bestätigt
-          markiert.
+          {protocol.title} für {process.licensePlate} wurde an das Büro versendet.
         </p>
         <p className="confirmation-success__notice">
-          Es wurde noch keine Übermittlung an das Backend ausgelöst.
+          {delivery?.recipient
+            ? `Die E-Mail wurde an ${delivery.recipient} übergeben.`
+            : 'Die E-Mail wurde an das Büro übergeben.'}
+          {delivery && delivery.attempt_count > 1
+            ? ` Versand nach ${delivery.attempt_count} Versuchen erfolgreich.`
+            : ''}
         </p>
         <button className="primary-action confirmation-action" onClick={onStartNewProcess} type="button">
           <span className="primary-action__icon" aria-hidden="true">+</span>
@@ -1275,6 +1568,55 @@ function numberOrUndefined(value: string): number | undefined {
 
 function valueOrUndefined<T extends string>(value: string): T | undefined {
   return value === '' ? undefined : (value as T)
+}
+
+function createRegistrationId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
+    const value = Math.floor(Math.random() * 16)
+    const digit = character === 'x' ? value : (value & 0x3) | 0x8
+    return digit.toString(16)
+  })
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isApiValidationIssue(value: unknown): value is ApiValidationIssue {
+  return (
+    isObject(value) &&
+    typeof value.field === 'string' &&
+    typeof value.code === 'string' &&
+    typeof value.message === 'string' &&
+    typeof value.status === 'string'
+  )
+}
+
+function isApiDeliveryStatus(value: unknown): value is ApiDeliveryStatus {
+  return (
+    isObject(value) &&
+    typeof value.registration_id === 'string' &&
+    typeof value.status === 'string' &&
+    typeof value.attempt_count === 'number'
+  )
+}
+
+function backendIssueFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    service_type: 'Vorgangstyp',
+    service_date: 'Protokolldatum',
+    mechanic_id: 'Mechaniker',
+    'vehicle.license_plate': 'Kennzeichen',
+    'tire_change_details.wheel_change_performed': 'Räderwechsel',
+    'tire_sets.0.tire_set.quantity': 'Reifenmenge',
+    'tire_sets.0.tire_set.width_mm': 'Reifenbreite',
+    'tire_sets.0.tire_set.aspect_ratio': 'Reifenquerschnitt',
+    'tire_sets.0.tire_set.rim_diameter_inch': 'Felgendurchmesser',
+    'tire_inspections.0.tread_front_mm': 'Profiltiefe vorne',
+    'tire_inspections.0.tread_rear_mm': 'Profiltiefe hinten',
+  }
+
+  return labels[field] || field
 }
 
 type AppHeaderProps = {

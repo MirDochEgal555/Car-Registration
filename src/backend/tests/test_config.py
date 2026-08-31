@@ -19,6 +19,9 @@ def test_settings_reads_smtp_values_from_environment(monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("CARTECH_SMTP_USE_SSL", "true")
     monkeypatch.setenv("CARTECH_SMTP_TIMEOUT_SECONDS", "9.5")
     monkeypatch.setenv("CARTECH_DELIVERY_STORE_PATH", "/var/lib/cartech/outbox.sqlite3")
+    monkeypatch.setenv(
+        "CARTECH_CORS_ORIGINS", "https://mechanic.example, https://office.example"
+    )
 
     configuration = Settings()
 
@@ -32,6 +35,10 @@ def test_settings_reads_smtp_values_from_environment(monkeypatch: pytest.MonkeyP
     assert configuration.smtp_use_ssl is True
     assert configuration.smtp_timeout_seconds == 9.5
     assert configuration.delivery_store_path == "/var/lib/cartech/outbox.sqlite3"
+    assert configuration.cors_origins == (
+        "https://mechanic.example",
+        "https://office.example",
+    )
 
 
 @pytest.mark.parametrize(

@@ -5,6 +5,8 @@
  * diesem Typ ergänzt werden, ohne den Startvorgang zu verändern.
  */
 export type WorkshopProcess = {
+  /** Stabile UUID als idempotenter Schlüssel für die Versand-Outbox. */
+  id: string
   serviceType: WorkshopProcessType
   status: WorkshopProcessStatus
   /** Normalisiertes Kennzeichen, z. B. `CW-AB 123`. */
@@ -16,15 +18,21 @@ export type WorkshopProcess = {
   tireSets: WorkshopTireSet[]
   tireInspections: WorkshopTireInspection[]
   conditions: WorkshopTireCondition[]
+  /** Pflichtangabe des Backend-Vertrags für einen Reifenwechsel. */
+  tireChangeDetails?: WorkshopTireChangeDetails
 }
 
 export type WorkshopProcessType = 'tire_change' | 'tire_storage'
 
 /**
- * `confirmed` bleibt zunächst ein rein lokaler Status. Eine Übermittlung wird
- * bewusst erst in einem späteren Schritt ergänzt.
+ * `confirmed` bedeutet, dass die API den Versand an das Büro erfolgreich
+ * bestätigt hat.
  */
 export type WorkshopProcessStatus = 'draft' | 'confirmed'
+
+export type WorkshopTireChangeDetails = {
+  wheelChangePerformed?: boolean
+}
 
 export type TireSetRole = 'installed' | 'removed' | 'stored'
 

@@ -4,6 +4,7 @@ import { getWorkshopProcessValidationIssues } from './workshopProcessValidation'
 
 function createProcess(): WorkshopProcess {
   return {
+    id: '0d5a1322-0574-4cef-a024-f89b567e4321',
     serviceType: 'tire_storage',
     status: 'draft',
     licensePlate: 'CW-AB 123',
@@ -48,5 +49,31 @@ describe('Vorgangsvalidierung', () => {
         expect.objectContaining({ field: 'Reifenmenge' }),
       ]),
     )
+  })
+
+  it('verlangt beim Reifenwechsel die vom Backend benötigte Wechselbestätigung', () => {
+    const process = createProcess()
+    process.serviceType = 'tire_change'
+    process.tireSets[0] = { ...process.tireSets[0], role: 'installed' }
+    process.tireInspections[0] = {
+      ...process.tireInspections[0],
+      tireSetRole: 'installed',
+    }
+    process.conditions[0] = {
+      ...process.conditions[0],
+      tireSetRole: 'installed',
+    }
+
+    expect(getWorkshopProcessValidationIssues(process)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'Räderwechsel',
+          kind: 'required',
+        }),
+      ]),
+    )
+
+    process.tireChangeDetails = { wheelChangePerformed: false }
+    expect(getWorkshopProcessValidationIssues(process)).toEqual([])
   })
 })

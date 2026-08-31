@@ -9,7 +9,7 @@ export type WorkshopProcessValidationIssue = {
   field: string
   kind: Extract<FrontendErrorKind, 'required' | 'invalid'>
   message: string
-  section: 'plate' | 'tires'
+  section: 'plate' | 'tires' | 'service'
 }
 
 /**
@@ -111,6 +111,18 @@ export function getWorkshopProcessValidationIssues(
       kind: 'invalid',
       message: 'Der Zustand ist keinem passenden Reifensatz zugeordnet.',
       section: 'tires',
+    })
+  }
+
+  if (
+    process.serviceType === 'tire_change' &&
+    process.tireChangeDetails?.wheelChangePerformed === undefined
+  ) {
+    issues.push({
+      field: 'Räderwechsel',
+      kind: 'required',
+      message: 'Bitte angeben, ob ein Räderwechsel durchgeführt wurde.',
+      section: 'service',
     })
   }
 
