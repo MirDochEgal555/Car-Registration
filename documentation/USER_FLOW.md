@@ -312,6 +312,26 @@ Sprechen > Tippen
 - wichtigste Aktion immer sichtbar
 - Fehler direkt und verständlich anzeigen
 
+### Phase-3-Beispiele
+
+Die folgenden Screenshots zeigen die beiden zentralen Zustände der manuellen
+Einlagerungserfassung. Sie verwenden ausschließlich anonymisierte Testdaten.
+
+#### Fehlerzustand
+
+Bei fehlenden oder unplausiblen Angaben fasst die Übersicht alle Prüfhinweise
+zusammen, markiert die Bestätigung als nicht verfügbar und führt zur Korrektur
+über die jeweilige Bearbeiten-Aktion.
+
+![Einlagerung mit Validierungsfehlern](assets/phase-3/einlagerung-fehlerzustand.png)
+
+#### Erfolgreiche Bestätigung
+
+Nach der Korrektur bestätigt die Mechanikeransicht den Vorgang lokal. Eine
+Backend-Übermittlung ist in Phase 3 noch nicht Teil dieses Schritts.
+
+![Lokal bestätigte Einlagerung](assets/phase-3/einlagerung-bestaetigt.png)
+
 ### Büroansicht
 
 Priorität:
