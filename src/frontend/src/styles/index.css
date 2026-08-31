@@ -380,6 +380,85 @@ h1 {
   color: #395748;
 }
 
+.frontend-error-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  margin: 1rem 0 0;
+  padding: 1rem;
+  border: 1px solid #dd8f87;
+  border-left: 0.45rem solid #bd3326;
+  border-radius: 0.95rem;
+  background: #fff4f2;
+  color: #72251e;
+}
+
+.frontend-error-state--confirmation,
+.frontend-error-state--unexpected {
+  margin-bottom: 1.5rem;
+  padding: 1.15rem 1.2rem;
+}
+
+.frontend-error-state--compact {
+  gap: 0.65rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.frontend-error-state__icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 0.6rem;
+  background: #bd3326;
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.frontend-error-state--compact .frontend-error-state__icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+}
+
+.frontend-error-state__content {
+  min-width: 0;
+}
+
+.frontend-error-state h2,
+.frontend-error-state p {
+  margin: 0;
+}
+
+.frontend-error-state h2 {
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.frontend-error-state p {
+  margin-top: 0.25rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.frontend-error-state__list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.frontend-error-state__action {
+  margin-top: 1.5rem;
+}
+
 .overview-action {
   margin-top: 1.5rem;
 }
@@ -621,6 +700,15 @@ h1 {
 }
 
 .summary-editor__field input[aria-invalid='true'] {
+  border-color: #bd3326;
+  background: #fff8f7;
+}
+
+.workshop-field input[aria-invalid='true'],
+.workshop-field select[aria-invalid='true'],
+.workshop-field textarea[aria-invalid='true'],
+.tire-size-field input[aria-invalid='true'],
+.tread-depth-field input[aria-invalid='true'] {
   border-color: #bd3326;
   background: #fff8f7;
 }

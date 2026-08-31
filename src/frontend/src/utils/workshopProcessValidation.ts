@@ -2,10 +2,12 @@ import type {
   TireSetRole,
   WorkshopProcess,
 } from '../types/workshopProcess'
-import { getLicensePlateError } from './licensePlate'
+import type { FrontendErrorKind } from '../types/frontendError'
+import { getLicensePlateValidationError } from './licensePlate'
 
 export type WorkshopProcessValidationIssue = {
   field: string
+  kind: Extract<FrontendErrorKind, 'required' | 'invalid'>
   message: string
   section: 'plate' | 'tires'
 }
@@ -21,12 +23,13 @@ export function getWorkshopProcessValidationIssues(
   process: WorkshopProcess,
 ): WorkshopProcessValidationIssue[] {
   const issues: WorkshopProcessValidationIssue[] = []
-  const licensePlateError = getLicensePlateError(process.licensePlate)
+  const licensePlateError = getLicensePlateValidationError(process.licensePlate)
 
   if (licensePlateError) {
     issues.push({
       field: 'Kennzeichen',
-      message: licensePlateError,
+      kind: licensePlateError.kind,
+      message: licensePlateError.message,
       section: 'plate',
     })
   }
@@ -38,6 +41,7 @@ export function getWorkshopProcessValidationIssues(
   if (!tireSetEntry) {
     issues.push({
       field: 'Reifensatz',
+      kind: 'invalid',
       message: 'Zum gewählten Vorgang fehlt ein Reifensatz.',
       section: 'tires',
     })
@@ -47,6 +51,7 @@ export function getWorkshopProcessValidationIssues(
   if (tireSetEntry.role !== expectedTireSetRole) {
     issues.push({
       field: 'Reifensatz',
+      kind: 'invalid',
       message: 'Der Reifensatz passt nicht zum gewählten Vorgang.',
       section: 'tires',
     })
@@ -94,6 +99,7 @@ export function getWorkshopProcessValidationIssues(
   if (tireInspection?.tireSetRole !== expectedTireSetRole) {
     issues.push({
       field: 'Profiltiefe',
+      kind: 'invalid',
       message: 'Die Profiltiefe ist keinem passenden Reifensatz zugeordnet.',
       section: 'tires',
     })
@@ -102,6 +108,7 @@ export function getWorkshopProcessValidationIssues(
   if (tireCondition?.tireSetRole !== expectedTireSetRole) {
     issues.push({
       field: 'Zustand',
+      kind: 'invalid',
       message: 'Der Zustand ist keinem passenden Reifensatz zugeordnet.',
       section: 'tires',
     })
@@ -128,7 +135,8 @@ function addRangeIssue(
   const range = maximum === undefined ? `mindestens ${minimum}` : `${minimum}–${maximum}`
   issues.push({
     field,
-    message: `${field} muss ${range}${unit ? ` ${unit}` : ''} betragen.`,
+    kind: 'invalid',
+    message: `Wert muss ${range}${unit ? ` ${unit}` : ''} sein.`,
     section: 'tires',
   })
 }

@@ -1,4 +1,11 @@
+import type { FrontendErrorKind } from '../types/frontendError'
+
 const LICENSE_PLATE_PATTERN = /^[A-ZÄÖÜ]{1,3}-[A-Z]{1,2}\s\d{1,4}[A-Z]?$/
+
+export type LicensePlateValidationError = {
+  kind: Extract<FrontendErrorKind, 'required' | 'invalid'>
+  message: string
+}
 
 /**
  * Bringt explizit eingegebene deutsche Kennzeichen in eine einheitliche Form,
@@ -23,12 +30,24 @@ export function normalizeLicensePlate(value: string): string {
 }
 
 export function getLicensePlateError(value: string): string | null {
+  return getLicensePlateValidationError(value)?.message ?? null
+}
+
+export function getLicensePlateValidationError(
+  value: string,
+): LicensePlateValidationError | null {
   if (!value) {
-    return 'Bitte ein Kennzeichen eingeben.'
+    return {
+      kind: 'required',
+      message: 'Kennzeichen eingeben.',
+    }
   }
 
   if (!LICENSE_PLATE_PATTERN.test(value)) {
-    return 'Bitte ein plausibles Kennzeichen eingeben, z. B. CW-AB 123.'
+    return {
+      kind: 'invalid',
+      message: 'Kennzeichen prüfen, z. B. CW-AB 123.',
+    }
   }
 
   return null

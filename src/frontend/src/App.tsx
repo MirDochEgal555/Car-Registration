@@ -1,4 +1,8 @@
 import { type FormEvent, useEffect, useState } from 'react'
+import {
+  FrontendErrorBoundary,
+  FrontendErrorState,
+} from './components/FrontendErrorState'
 import { MechanicStartPage } from './pages/MechanicStartPage'
 import {
   type ServiceProtocolId,
@@ -15,7 +19,7 @@ import type {
   WorkshopTireInspection,
 } from './types/workshopProcess'
 import {
-  getLicensePlateError,
+  getLicensePlateValidationError,
   normalizeLicensePlate,
 } from './utils/licensePlate'
 import {
@@ -143,8 +147,16 @@ function App() {
     return <MechanicStartPage onStart={() => navigate('/neu')} />
   }
 
-  const licensePlateError = getLicensePlateError(workshopProcess.licensePlate)
+  const licensePlateValidationError = getLicensePlateValidationError(
+    workshopProcess.licensePlate,
+  )
+  const licensePlateError = licensePlateValidationError?.message ?? null
   const confirmationIssues = getWorkshopProcessValidationIssues(workshopProcess)
+  const getValidationIssue = (field: string) =>
+    confirmationIssues.find((issue) => issue.field === field)
+  const tireValidationIssues = confirmationIssues.filter(
+    (issue) => issue.section === 'tires',
+  )
 
   const updateLicensePlate = (value: string) => {
     setWorkshopProcess((currentProcess) => {
@@ -252,27 +264,36 @@ function App() {
 
   if (route === 'overview') {
     return (
-      <ProcessOverviewPage
-        confirmationIssues={confirmationIssues}
-        licensePlateError={licensePlateError}
-        onConfirm={confirmWorkshopProcess}
-        onEditCapture={() => navigate('/erfassung')}
+      <FrontendErrorBoundary
         onHome={() => navigate('/')}
-        onUpdateLicensePlate={updateLicensePlate}
-        onUpdateTireCondition={updateTireCondition}
-        onUpdateTireInspection={updateTireInspection}
-        onUpdateTireSet={updateTireSet}
-        process={workshopProcess}
-        protocol={protocol}
-        tireCondition={tireCondition}
-        tireInspection={tireInspection}
-        tireSet={tireSet}
-      />
+        onResume={() => navigate('/erfassung')}
+      >
+        <ProcessOverviewPage
+          confirmationIssues={confirmationIssues}
+          licensePlateError={licensePlateError}
+          onConfirm={confirmWorkshopProcess}
+          onEditCapture={() => navigate('/erfassung')}
+          onHome={() => navigate('/')}
+          onUpdateLicensePlate={updateLicensePlate}
+          onUpdateTireCondition={updateTireCondition}
+          onUpdateTireInspection={updateTireInspection}
+          onUpdateTireSet={updateTireSet}
+          process={workshopProcess}
+          protocol={protocol}
+          tireCondition={tireCondition}
+          tireInspection={tireInspection}
+          tireSet={tireSet}
+        />
+      </FrontendErrorBoundary>
     )
   }
 
   return (
-    <main className="workshop-view">
+    <FrontendErrorBoundary
+      onHome={() => navigate('/')}
+      onResume={() => navigate('/erfassung')}
+    >
+      <main className="workshop-view">
       <AppHeader onHome={() => navigate('/')} />
       <section className="workshop-view__content" aria-labelledby="page-title">
         <p className="workshop-view__eyebrow">Neue Erfassung</p>
@@ -317,10 +338,13 @@ function App() {
           </span>
         </label>
 
-        {licensePlateError ? (
-          <p className="field-message field-message--error" id="license-plate-error" role="alert">
-            {licensePlateError}
-          </p>
+        {licensePlateValidationError ? (
+          <FrontendErrorState
+            compact
+            id="license-plate-error"
+            kind={licensePlateValidationError.kind}
+            message={licensePlateValidationError.message}
+          />
         ) : (
           <p className="field-message field-message--success" role="status">
             Kennzeichen ist im Vorgang gespeichert.
@@ -366,6 +390,9 @@ function App() {
                 <label htmlFor="tire-width">
                   <span>Breite</span>
                   <input
+                    aria-invalid={
+                      getValidationIssue('Reifenbreite') ? true : undefined
+                    }
                     id="tire-width"
                     inputMode="numeric"
                     max="405"
@@ -382,6 +409,9 @@ function App() {
                 <label htmlFor="tire-aspect-ratio">
                   <span>Querschnitt</span>
                   <input
+                    aria-invalid={
+                      getValidationIssue('Reifenquerschnitt') ? true : undefined
+                    }
                     id="tire-aspect-ratio"
                     inputMode="numeric"
                     max="95"
@@ -400,6 +430,9 @@ function App() {
                 <label htmlFor="tire-rim-diameter">
                   <span>Felge in Zoll</span>
                   <input
+                    aria-invalid={
+                      getValidationIssue('Felgendurchmesser') ? true : undefined
+                    }
                     id="tire-rim-diameter"
                     inputMode="numeric"
                     max="24"
@@ -444,6 +477,9 @@ function App() {
             <label className="workshop-field" htmlFor="tire-quantity">
               <span>Menge <span className="field-status field-status--optional">Optional</span></span>
               <input
+                aria-invalid={
+                  getValidationIssue('Reifenmenge') ? true : undefined
+                }
                 id="tire-quantity"
                 inputMode="numeric"
                 min="1"
@@ -466,6 +502,9 @@ function App() {
                 <span>Vorne</span>
                 <div className="input-with-unit">
                   <input
+                    aria-invalid={
+                      getValidationIssue('Profiltiefe vorne') ? true : undefined
+                    }
                     id="tread-front"
                     inputMode="decimal"
                     max="20"
@@ -487,6 +526,9 @@ function App() {
                 <span>Hinten</span>
                 <div className="input-with-unit">
                   <input
+                    aria-invalid={
+                      getValidationIssue('Profiltiefe hinten') ? true : undefined
+                    }
                     id="tread-rear"
                     inputMode="decimal"
                     max="20"
@@ -546,6 +588,22 @@ function App() {
           </div>
         </section>
 
+        {tireValidationIssues.length > 0 && (
+          <FrontendErrorState
+            compact
+            kind="invalid"
+            message="Die markierten Reifendaten prüfen."
+          >
+            <ul className="frontend-error-state__list">
+              {tireValidationIssues.map((issue) => (
+                <li key={`${issue.field}-${issue.message}`}>
+                  <strong>{issue.field}:</strong> {issue.message}
+                </li>
+              ))}
+            </ul>
+          </FrontendErrorState>
+        )}
+
         <p className="field-message field-message--saved" role="status">
           Reifendaten werden direkt im lokalen Vorgang gespeichert.
         </p>
@@ -563,6 +621,7 @@ function App() {
         </button>
       </section>
     </main>
+    </FrontendErrorBoundary>
   )
 }
 
@@ -605,13 +664,17 @@ function ProcessOverviewPage({
   const isEditing = (section: 'plate' | 'tires') =>
     editingSection === section
   const closeEditor = () => setEditingSection(null)
+  const tireValidationIssues = confirmationIssues.filter(
+    (issue) => issue.section === 'tires',
+  )
   const finishEditing = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (
-      !event.currentTarget.reportValidity() ||
-      (editingSection === 'plate' && licensePlateError)
-    ) {
+    const hasValidationError =
+      (editingSection === 'plate' && Boolean(licensePlateError)) ||
+      (editingSection === 'tires' && tireValidationIssues.length > 0)
+
+    if (hasValidationError) {
       return
     }
 
@@ -633,23 +696,19 @@ function ProcessOverviewPage({
         </p>
 
         {confirmationIssues.length > 0 && (
-          <section
-            className="confirmation-errors"
-            aria-labelledby="confirmation-errors-title"
-            role="alert"
+          <FrontendErrorState
+            id="confirmation-errors-title"
+            kind="confirmation"
+            message="Prüfe die fehlenden oder markierten Angaben."
           >
-            <h2 id="confirmation-errors-title">Vorgang noch nicht bestätigbar</h2>
-            <p>
-              Bitte korrigiere die folgenden fehlenden oder ungültigen Angaben.
-            </p>
-            <ul>
+            <ul className="frontend-error-state__list">
               {confirmationIssues.map((issue) => (
                 <li key={`${issue.field}-${issue.message}`}>
                   <strong>{issue.field}:</strong> {issue.message}
                 </li>
               ))}
             </ul>
-          </section>
+          </FrontendErrorState>
         )}
 
         <div className="summary-stack">
@@ -690,7 +749,7 @@ function ProcessOverviewPage({
             </div>
 
             {isEditing('plate') && (
-              <form className="summary-editor" onSubmit={finishEditing}>
+              <form className="summary-editor" noValidate onSubmit={finishEditing}>
                 <label className="summary-editor__field" htmlFor="overview-license-plate">
                   <span>Kennzeichen</span>
                   <input
@@ -700,24 +759,24 @@ function ProcessOverviewPage({
                     autoComplete="off"
                     id="overview-license-plate"
                     onChange={(event) => onUpdateLicensePlate(event.target.value)}
-                    pattern="[A-ZÄÖÜ]{1,3}-[A-Z]{1,2}\\s\\d{1,4}[A-Z]?"
                     placeholder="z. B. CW-AB 123"
-                    required
                     spellCheck={false}
                     type="text"
                     value={process.licensePlate}
                   />
                 </label>
-                <p
-                  className={
-                    licensePlateError
-                      ? 'summary-editor__message summary-editor__message--error'
-                      : 'summary-editor__message'
-                  }
-                  id="overview-license-plate-hint"
-                >
-                  {licensePlateError ?? 'Kennzeichen ist im Vorgang gespeichert.'}
-                </p>
+                {licensePlateError ? (
+                  <FrontendErrorState
+                    compact
+                    id="overview-license-plate-hint"
+                    kind={process.licensePlate ? 'invalid' : 'required'}
+                    message={licensePlateError}
+                  />
+                ) : (
+                  <p className="summary-editor__message" id="overview-license-plate-hint">
+                    Kennzeichen ist im Vorgang gespeichert.
+                  </p>
+                )}
                 <button className="summary-editor__done" type="submit">
                   Fertig
                 </button>
@@ -806,8 +865,24 @@ function ProcessOverviewPage({
               <form
                 aria-label="Reifendaten bearbeiten"
                 className="summary-editor"
+                noValidate
                 onSubmit={finishEditing}
               >
+                {tireValidationIssues.length > 0 && (
+                  <FrontendErrorState
+                    compact
+                    kind="invalid"
+                    message="Die markierten Reifendaten prüfen."
+                  >
+                    <ul className="frontend-error-state__list">
+                      {tireValidationIssues.map((issue) => (
+                        <li key={`${issue.field}-${issue.message}`}>
+                          <strong>{issue.field}:</strong> {issue.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </FrontendErrorState>
+                )}
                 <div className="summary-editor__grid">
                   <label className="summary-editor__field" htmlFor="overview-tire-type">
                     <span>Reifenart</span>
@@ -830,6 +905,13 @@ function ProcessOverviewPage({
                   <label className="summary-editor__field" htmlFor="overview-tire-quantity">
                     <span>Menge</span>
                     <input
+                      aria-invalid={
+                        confirmationIssues.some(
+                          (issue) => issue.field === 'Reifenmenge',
+                        )
+                          ? true
+                          : undefined
+                      }
                       id="overview-tire-quantity"
                       inputMode="numeric"
                       min="1"
@@ -843,6 +925,13 @@ function ProcessOverviewPage({
                   <label className="summary-editor__field" htmlFor="overview-tire-width">
                     <span>Breite (mm)</span>
                     <input
+                      aria-invalid={
+                        confirmationIssues.some(
+                          (issue) => issue.field === 'Reifenbreite',
+                        )
+                          ? true
+                          : undefined
+                      }
                       id="overview-tire-width"
                       inputMode="numeric"
                       max="405"
@@ -857,6 +946,13 @@ function ProcessOverviewPage({
                   <label className="summary-editor__field" htmlFor="overview-tire-aspect-ratio">
                     <span>Querschnitt</span>
                     <input
+                      aria-invalid={
+                        confirmationIssues.some(
+                          (issue) => issue.field === 'Reifenquerschnitt',
+                        )
+                          ? true
+                          : undefined
+                      }
                       id="overview-tire-aspect-ratio"
                       inputMode="numeric"
                       max="95"
@@ -873,6 +969,13 @@ function ProcessOverviewPage({
                   <label className="summary-editor__field" htmlFor="overview-tire-rim-diameter">
                     <span>Felge (Zoll)</span>
                     <input
+                      aria-invalid={
+                        confirmationIssues.some(
+                          (issue) => issue.field === 'Felgendurchmesser',
+                        )
+                          ? true
+                          : undefined
+                      }
                       id="overview-tire-rim-diameter"
                       inputMode="numeric"
                       max="24"
@@ -913,6 +1016,13 @@ function ProcessOverviewPage({
                   <label className="summary-editor__field" htmlFor="overview-tread-front">
                     <span>Profil vorne (mm)</span>
                     <input
+                      aria-invalid={
+                        confirmationIssues.some(
+                          (issue) => issue.field === 'Profiltiefe vorne',
+                        )
+                          ? true
+                          : undefined
+                      }
                       id="overview-tread-front"
                       inputMode="decimal"
                       max="20"
@@ -930,6 +1040,13 @@ function ProcessOverviewPage({
                   <label className="summary-editor__field" htmlFor="overview-tread-rear">
                     <span>Profil hinten (mm)</span>
                     <input
+                      aria-invalid={
+                        confirmationIssues.some(
+                          (issue) => issue.field === 'Profiltiefe hinten',
+                        )
+                          ? true
+                          : undefined
+                      }
                       id="overview-tread-rear"
                       inputMode="decimal"
                       max="20"
