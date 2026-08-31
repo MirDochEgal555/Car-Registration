@@ -271,6 +271,31 @@ h1 {
   font-weight: 800;
 }
 
+.field-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.4rem;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.field-status--required {
+  background: #fce8e5;
+  color: #8c241d;
+}
+
+.field-status--optional {
+  background: #e7ece8;
+  color: #536158;
+}
+
 .license-plate-field__input {
   width: 100%;
   min-height: clamp(5.5rem, 15vw, 7rem);
@@ -336,6 +361,197 @@ h1 {
   color: #1a6138;
 }
 
+.field-message--saved {
+  background: #edf3ee;
+  color: #395748;
+}
+
+.tire-capture {
+  margin-top: 2.5rem;
+  padding: clamp(1.25rem, 4vw, 1.8rem);
+  border: 1px solid #d6e0d8;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  box-shadow: 0 0.45rem 1.1rem rgba(30, 58, 40, 0.06);
+}
+
+.tire-capture__heading {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.tire-capture__heading h2 {
+  margin: 0 0 0.35rem;
+  color: #102119;
+  font-size: clamp(1.55rem, 5vw, 2rem);
+  letter-spacing: -0.045em;
+}
+
+.tire-capture__heading p {
+  max-width: 30rem;
+  margin: 0;
+  color: #5a6a60;
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.tire-capture__heading > .field-status {
+  flex: 0 0 auto;
+  margin: 0.2rem 0 0;
+}
+
+.tire-capture__grid {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.workshop-field,
+.tire-size-field,
+.tread-depth-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.workshop-field > span,
+.tire-size-field > legend,
+.tread-depth-field > legend {
+  display: block;
+  margin-bottom: 0.6rem;
+  color: #17281e;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.workshop-field input,
+.workshop-field select,
+.workshop-field textarea,
+.tire-size-field input,
+.tread-depth-field input {
+  width: 100%;
+  min-height: 4.2rem;
+  padding: 0.8rem 0.95rem;
+  border: 2px solid #90a99a;
+  border-radius: 0.9rem;
+  background: #ffffff;
+  color: #102119;
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.workshop-field textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.workshop-field select {
+  appearance: auto;
+}
+
+.workshop-field input::placeholder,
+.workshop-field textarea::placeholder,
+.tire-size-field input::placeholder,
+.tread-depth-field input::placeholder {
+  color: #75877b;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.workshop-field input:hover,
+.workshop-field select:hover,
+.workshop-field textarea:hover,
+.tire-size-field input:hover,
+.tread-depth-field input:hover {
+  border-color: #4f775d;
+}
+
+.workshop-field input:focus,
+.workshop-field select:focus,
+.workshop-field textarea:focus,
+.tire-size-field input:focus,
+.tread-depth-field input:focus {
+  border-color: #176b3d;
+  outline: 4px solid rgba(23, 107, 61, 0.18);
+  outline-offset: 2px;
+}
+
+.tire-size-field,
+.tread-depth-field {
+  padding: 1.1rem;
+  border: 1px solid #d6e0d8;
+  border-radius: 1rem;
+  background: #f8faf8;
+}
+
+.tire-size-field__inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: end;
+}
+
+.tire-size-field label,
+.tread-depth-field label {
+  min-width: 0;
+}
+
+.tire-size-field label > span,
+.tread-depth-field label > span {
+  display: block;
+  min-height: 2.15rem;
+  margin-bottom: 0.35rem;
+  color: #526258;
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.tire-size-field__separator,
+.tire-size-field__r {
+  padding-bottom: 0.95rem;
+  color: #395748;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.tread-depth-field {
+  margin-top: 1.15rem;
+}
+
+.tread-depth-field__inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.input-with-unit {
+  position: relative;
+}
+
+.input-with-unit input {
+  padding-right: 3.25rem;
+}
+
+.input-with-unit > span {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  color: #526258;
+  font-size: 1rem;
+  font-weight: 800;
+  transform: translateY(-50%);
+}
+
+.tire-capture__grid--final {
+  margin-top: 1.15rem;
+}
+
 @media (min-width: 44rem) {
   .workshop-view__content {
     padding-top: 5rem;
@@ -368,6 +584,15 @@ h1 {
     grid-column: 2;
     grid-row: 2;
     align-self: end;
+  }
+
+  .tire-capture__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tire-capture__grid .tire-size-field,
+  .workshop-field--full {
+    grid-column: 1 / -1;
   }
 }
 
