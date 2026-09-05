@@ -21,6 +21,7 @@ import type {
 import type {
   ApiDeliveryStatus,
   ApiValidationIssue,
+  ApiValidationResponse,
 } from './types/registrationApi'
 import {
   RegistrationApiError,
@@ -46,6 +47,7 @@ type SubmissionState =
   | { kind: 'sending' }
   | {
       kind: 'error'
+      phase: 'validation' | 'delivery'
       message: string
       retryable: boolean
       delivery?: ApiDeliveryStatus
@@ -197,6 +199,9 @@ function App() {
   )
 
   const updateLicensePlate = (value: string) => {
+    if (isSubmissionInProgress()) {
+      return
+    }
     clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
@@ -211,6 +216,9 @@ function App() {
   }
 
   const updateTireSet = (changes: Partial<TireSetDraft>) => {
+    if (isSubmissionInProgress()) {
+      return
+    }
     clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
@@ -235,6 +243,9 @@ function App() {
   }
 
   const updateTireInspection = (changes: Partial<WorkshopTireInspection>) => {
+    if (isSubmissionInProgress()) {
+      return
+    }
     clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
@@ -251,6 +262,9 @@ function App() {
   }
 
   const updateTireCondition = (changes: Partial<WorkshopTireCondition>) => {
+    if (isSubmissionInProgress()) {
+      return
+    }
     clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
@@ -267,6 +281,9 @@ function App() {
   }
 
   const updateWheelChangePerformed = (wheelChangePerformed: boolean) => {
+    if (isSubmissionInProgress()) {
+      return
+    }
     clearSubmissionFeedback()
     setWorkshopProcess((currentProcess) => {
       if (!currentProcess) {
@@ -288,6 +305,12 @@ function App() {
     setBackendIssues([])
   }
 
+  function isSubmissionInProgress() {
+    return (
+      submissionState.kind === 'validating' || submissionState.kind === 'sending'
+    )
+  }
+
   const tireSet = workshopProcess.tireSets[0]?.tireSet
   const tireInspection = workshopProcess.tireInspections[0]
   const tireCondition = workshopProcess.conditions[0]
@@ -304,32 +327,41 @@ function App() {
 
     setBackendIssues([])
     setSubmissionState({ kind: 'validating' })
+    let validation: ApiValidationResponse
     try {
-      const validation = await validateRegistration(
+      validation = await validateRegistration(
         mapWorkshopProcessToRegistration(workshopProcess),
       )
-      setBackendIssues(validation.issues)
-      if (!validation.valid) {
-        setSubmissionState({
-          kind: 'error',
-          message: 'Das Backend hat Angaben markiert. Bitte korrigieren und erneut prüfen.',
-          retryable: false,
-        })
-        return
-      }
+    } catch (error) {
+      showSubmissionError(error, 'validation')
+      return
+    }
 
-      if (validation.registration.vehicle.license_plate !== workshopProcess.licensePlate) {
-        setWorkshopProcess((currentProcess) =>
-          currentProcess
-            ? {
-                ...currentProcess,
-                licensePlate: validation.registration.vehicle.license_plate,
-              }
-            : currentProcess,
-        )
-      }
+    setBackendIssues(validation.issues)
+    if (!validation.valid) {
+      setSubmissionState({
+        kind: 'error',
+        phase: 'validation',
+        message: 'Das Backend hat Angaben markiert. Bitte korrigieren und erneut prüfen.',
+        retryable: false,
+      })
+      return
+    }
 
-      setSubmissionState({ kind: 'sending' })
+    if (validation.registration.vehicle.license_plate !== workshopProcess.licensePlate) {
+      setWorkshopProcess((currentProcess) =>
+        currentProcess
+          ? {
+              ...currentProcess,
+              licensePlate: validation.registration.vehicle.license_plate,
+            }
+          : currentProcess,
+      )
+    }
+
+    // The confirmation flag is set only on this post-confirmation send request.
+    setSubmissionState({ kind: 'sending' })
+    try {
       const delivery = await sendRegistration(
         mapWorkshopProcessToRegistration(workshopProcess, true),
       )
@@ -339,7 +371,7 @@ function App() {
       )
       navigate('/bestaetigt')
     } catch (error) {
-      showSubmissionError(error)
+      showSubmissionError(error, 'delivery')
     }
   }
 
@@ -361,11 +393,14 @@ function App() {
       )
       navigate('/bestaetigt')
     } catch (error) {
-      showSubmissionError(error)
+      showSubmissionError(error, 'delivery')
     }
   }
 
-  function showSubmissionError(error: unknown) {
+  function showSubmissionError(
+    error: unknown,
+    phase: 'validation' | 'delivery',
+  ) {
     const apiError = error instanceof RegistrationApiError ? error : null
     const detail = apiError?.detail
     const errorBody = isObject(detail) ? detail : null
@@ -385,10 +420,13 @@ function App() {
     setBackendIssues(issues)
     setSubmissionState({
       kind: 'error',
+      phase,
       message:
         apiError?.message ||
-        'Beim Senden ist ein unerwarteter Fehler aufgetreten. Bitte erneut versuchen.',
-      retryable: delivery?.status === 'email_failed',
+        (phase === 'delivery'
+          ? 'Beim Senden ist ein unerwarteter Fehler aufgetreten. Bitte erneut versuchen.'
+          : 'Das Backend ist nicht erreichbar. Bitte Verbindung prüfen und erneut versuchen.'),
+      retryable: phase === 'delivery' && delivery?.status === 'email_failed',
       delivery,
     })
   }
@@ -817,6 +855,34 @@ function App() {
   )
 }
 
+type DeliveryProgressNoticeProps = {
+  stage: 'validating' | 'sending'
+}
+
+function DeliveryProgressNotice({ stage }: DeliveryProgressNoticeProps) {
+  const isSending = stage === 'sending'
+
+  return (
+    <section
+      aria-live="polite"
+      className="delivery-progress"
+      role="status"
+    >
+      <span className="delivery-progress__icon" aria-hidden="true">
+        {isSending ? '↗' : '…'}
+      </span>
+      <div>
+        <h2>{isSending ? 'E-Mail wird versendet' : 'Vorgang wird geprüft'}</h2>
+        <p>
+          {isSending
+            ? 'Der bestätigte Vorgang wird sicher an das Büro übergeben.'
+            : 'Die Angaben werden gegen den Backend-Vertrag geprüft.'}
+        </p>
+      </div>
+    </section>
+  )
+}
+
 type ProcessOverviewPageProps = {
   backendIssues: ApiValidationIssue[]
   confirmationIssues: WorkshopProcessValidationIssue[]
@@ -861,6 +927,8 @@ function ProcessOverviewPage({
   const [editingSection, setEditingSection] = useState<'plate' | 'tires' | null>(
     null,
   )
+  const isSubmitting =
+    submissionState.kind === 'validating' || submissionState.kind === 'sending'
   const isEditing = (section: 'plate' | 'tires') =>
     editingSection === section
   const closeEditor = () => setEditingSection(null)
@@ -894,6 +962,11 @@ function ProcessOverviewPage({
           Alle erfassten Angaben auf einen Blick. Tippe auf „Bearbeiten“, um etwas
           direkt zu korrigieren.
         </p>
+
+        {(submissionState.kind === 'validating' ||
+          submissionState.kind === 'sending') && (
+          <DeliveryProgressNotice stage={submissionState.kind} />
+        )}
 
         {confirmationIssues.length > 0 && (
           <FrontendErrorState
@@ -929,9 +1002,15 @@ function ProcessOverviewPage({
 
         {submissionState.kind === 'error' && (
           <FrontendErrorState
-            kind="unexpected"
+            kind={
+              submissionState.phase === 'delivery' ? 'unexpected' : 'confirmation'
+            }
             message={submissionState.message}
-            title={submissionState.retryable ? 'Versand fehlgeschlagen' : undefined}
+            title={
+              submissionState.phase === 'delivery'
+                ? 'Versand fehlgeschlagen'
+                : 'Backend-Validierung fehlgeschlagen'
+            }
           >
             {submissionState.delivery?.last_error && (
               <p className="delivery-error-detail">
@@ -997,6 +1076,7 @@ function ProcessOverviewPage({
               <button
                 aria-expanded={isEditing('plate')}
                 className="summary-card__edit"
+                disabled={isSubmitting}
                 onClick={() =>
                   setEditingSection(isEditing('plate') ? null : 'plate')
                 }
@@ -1053,6 +1133,7 @@ function ProcessOverviewPage({
               <button
                 aria-expanded={isEditing('tires')}
                 className="summary-card__edit"
+                disabled={isSubmitting}
                 onClick={() =>
                   setEditingSection(isEditing('tires') ? null : 'tires')
                 }
@@ -1422,7 +1503,12 @@ function ProcessOverviewPage({
           </span>
         </button>
 
-        <button className="secondary-button overview-action" onClick={onEditCapture} type="button">
+        <button
+          className="secondary-button overview-action"
+          disabled={isSubmitting}
+          onClick={onEditCapture}
+          type="button"
+        >
           Zur Erfassung zurück
         </button>
       </section>
@@ -1450,7 +1536,7 @@ function ProcessConfirmedPage({
       <AppHeader onHome={onHome} />
       <section className="workshop-view__content confirmation-success" aria-labelledby="page-title">
         <div className="confirmation-success__icon" aria-hidden="true">✓</div>
-        <p className="workshop-view__eyebrow">Vorgang bestätigt</p>
+        <p className="workshop-view__eyebrow">E-Mail erfolgreich versendet</p>
         <h1 id="page-title">Alles erledigt.</h1>
         <p className="workshop-view__intro">
           {protocol.title} für {process.licensePlate} wurde an das Büro versendet.

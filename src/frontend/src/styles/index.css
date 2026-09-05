@@ -494,6 +494,50 @@ h1 {
   margin-top: 1.5rem;
 }
 
+.delivery-progress {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  margin: 1rem 0 1.5rem;
+  padding: 1.15rem 1.2rem;
+  border: 2px solid #78a4d0;
+  border-left: 0.45rem solid #075bc2;
+  border-radius: 0.95rem;
+  background: #eef7ff;
+  color: #123f67;
+}
+
+.delivery-progress__icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 0.6rem;
+  background: #075bc2;
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.delivery-progress h2,
+.delivery-progress p {
+  margin: 0;
+}
+
+.delivery-progress h2 {
+  font-size: 1.1rem;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.delivery-progress p {
+  margin-top: 0.25rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .overview-action {
   margin-top: 1.5rem;
 }

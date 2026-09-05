@@ -24,6 +24,15 @@ function response(body: unknown, status = 200) {
   })
 }
 
+function deferred<T>() {
+  let resolve: (value: T | PromiseLike<T>) => void = () => undefined
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+
+  return { promise, resolve }
+}
+
 function validRegistration(licensePlate: string) {
   return {
     valid: true,
@@ -74,6 +83,7 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
       screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
     )
 
+    expect(fetchMock).not.toHaveBeenCalled()
     await user.click(
       screen.getByRole('button', { name: /vorgang bestätigen.*senden/i }),
     )
@@ -81,6 +91,7 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(
       await screen.findByRole('heading', { name: 'Alles erledigt.' }),
     ).toBeVisible()
+    expect(screen.getByText('E-Mail erfolgreich versendet')).toBeVisible()
     expect(screen.getByText(/e-mail wurde an office@example.com übergeben/i)).toBeVisible()
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(fetchMock.mock.calls[0]?.[0]).toContain('/api/v1/registrations/validate')
@@ -96,6 +107,46 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
       tire_sets: [{ role: 'installed', tire_set: { manufacturer: 'Continental' } }],
       tire_change_details: { wheel_change_performed: true },
     })
+  })
+
+  it('zeigt den Versandstatus, während die bestätigte E-Mail übergeben wird', async () => {
+    const emailRequest = deferred<Response>()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(validRegistration('CW-AB 123')))
+      .mockReturnValueOnce(emailRequest.promise)
+    vi.stubGlobal('fetch', fetchMock)
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Reifenwechsel' }))
+    fireEvent.change(screen.getByLabelText(/Kennzeichen/), {
+      target: { value: 'cw ab 123' },
+    })
+    fireEvent.change(screen.getByLabelText(/Hersteller/), {
+      target: { value: 'Continental' },
+    })
+    await user.click(screen.getByLabelText('Ja'))
+    await user.click(
+      screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: /vorgang bestätigen.*senden/i }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'E-Mail wird versendet' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: /e-mail wird versendet/i }),
+    ).toBeDisabled()
+
+    emailRequest.resolve(response(emailSent()))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Alles erledigt.' }),
+    ).toBeVisible()
+    expect(screen.getByText('E-Mail erfolgreich versendet')).toBeVisible()
   })
 
   it('zeigt Backend-Validierung an, ohne einen ungültigen Vorgang zu versenden', async () => {
@@ -174,6 +225,9 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
 
     expect(
       await screen.findByRole('button', { name: 'Versand erneut versuchen' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Versand fehlgeschlagen' }),
     ).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Versand erneut versuchen' }))
 
