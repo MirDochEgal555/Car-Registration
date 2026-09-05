@@ -39,12 +39,101 @@ def test_registration_email_renders_text_and_html_from_the_same_document() -> No
     )
 
     assert email.html_body is not None
-    for value in ("Reifeneinlagerung", "CW-AB 123", "Winterreifen", "Unsicher"):
+    for value in (
+        "Reifeneinlagerung",
+        "CW-AB 123",
+        "Winterreifen",
+        "Vorgang",
+        "Fahrzeugdaten",
+        "Reifendaten",
+        "Notizen & Service",
+        "Unsicher",
+    ):
         assert value in email.body
-        assert value in email.html_body
+        assert value.replace("&", "&amp;") in email.html_body
     assert "Bitte <prüfen> & Rückmeldung geben" in email.body
     assert "Bitte &lt;prüfen&gt; &amp; Rückmeldung geben" in email.html_body
     assert "Bitte <prüfen> & Rückmeldung geben" not in email.html_body
+
+
+def test_registration_email_groups_complete_tire_change_data() -> None:
+    draft = RegistrationDraft.model_validate(
+        {
+            "service_type": "tire_change",
+            "service_date": "2026-08-20",
+            "mechanic_id": "c2feb07e-4854-4ef8-9e8a-14d8468df624",
+            "vehicle": {
+                "license_plate": "cw ab 123",
+                "mileage_km": 73400,
+            },
+            "notes": "Kundin wegen Termin anrufen",
+            "tire_sets": [
+                {
+                    "role": "installed",
+                    "tire_set": {
+                        "tire_type": "winter",
+                        "width_mm": 205,
+                        "aspect_ratio": 55,
+                        "rim_diameter_inch": 16,
+                        "manufacturer": "Continental",
+                        "model": "WinterContact TS 870",
+                        "quantity": 4,
+                    },
+                }
+            ],
+            "tire_inspections": [
+                {
+                    "tire_set_role": "installed",
+                    "tread_front_left_mm": "6.5",
+                    "tread_front_right_mm": "6.0",
+                    "tread_rear_left_mm": "5.5",
+                    "tread_rear_right_mm": "5.0",
+                }
+            ],
+            "conditions": [
+                {
+                    "tire_set_role": "installed",
+                    "condition": "cracked",
+                    "position": "rear_right",
+                }
+            ],
+            "tire_change_details": {"wheel_change_performed": True},
+        }
+    )
+    email = render_registration_email(
+        validate_registration(draft),
+        "office@example.com",
+        datetime(2026, 8, 20, 10, 42, tzinfo=timezone.utc),
+    )
+
+    assert email.html_body is not None
+    for value in (
+        "Vorgangstyp",
+        "Reifenwechsel",
+        "Zeitstempel",
+        "Fahrzeugdaten",
+        "Kennzeichen",
+        "CW-AB 123",
+        "Kilometerstand",
+        "73400 km",
+        "Reifendaten",
+        "Winterreifen",
+        "Reifengröße",
+        "205/55 R16",
+        "Hersteller / Modell",
+        "Continental / WinterContact TS 870",
+        "Anzahl",
+        "Profiltiefe vorne links",
+        "Profiltiefe vorne rechts",
+        "Profiltiefe hinten links",
+        "Profiltiefe hinten rechts",
+        "Rissig",
+        "Notizen & Service",
+        "Kundin wegen Termin anrufen",
+        "Räder gewechselt",
+    ):
+        assert value in email.body
+        assert value.replace("&", "&amp;") in email.html_body
 
 
 class _RecordingSmtp:

@@ -21,8 +21,8 @@ from app.services.registration_validation import normalize_license_plate
 
 
 _LABELS = {
-    "service_type": "Protokolltyp",
-    "service_date": "Protokolldatum",
+    "service_type": "Vorgangstyp",
+    "service_date": "Servicedatum",
     "mechanic_id": "Mechaniker",
     "vehicle": "Fahrzeug",
     "license_plate": "Kennzeichen",
@@ -55,6 +55,8 @@ _LABELS = {
     "dot": "DOT",
     "load_index": "Lastindex",
     "speed_index": "Geschwindigkeitsindex",
+    "tire_size": "Reifengröße",
+    "manufacturer_model": "Hersteller / Modell",
     "position": "Position",
     "profile": "Profil",
     "tread_depth_mm": "Profiltiefe",
@@ -99,6 +101,12 @@ _LABELS = {
 _SERVICE_NAMES = {
     ServiceType.TIRE_CHANGE: "Reifenwechsel",
     ServiceType.TIRE_STORAGE: "Reifeneinlagerung",
+}
+_TIRE_SET_ROLE_NAMES = {
+    "original": "Originaler Reifensatz",
+    "installed": "Montierter Reifensatz",
+    "removed": "Demontierter Reifensatz",
+    "stored": "Eingelagerter Reifensatz",
 }
 _SINGULAR_LABELS = {
     "tire_sets": "Reifensatz",
@@ -181,13 +189,21 @@ class EmailField:
 
 
 @dataclass(frozen=True)
+class EmailSection:
+    """A visibly separate group in the office protocol."""
+
+    label: str
+    fields: tuple[EmailField, ...]
+
+
+@dataclass(frozen=True)
 class RegistrationEmailDocument:
     """Presentation model shared by the text and HTML email renderers."""
 
     service_name: str
     license_plate: str
     submitted_at: str
-    fields: tuple[EmailField, ...]
+    sections: tuple[EmailSection, ...]
     review_entries: tuple[str, ...]
 
 
@@ -232,16 +248,34 @@ def build_registration_email_document(
         mode="python",
         exclude={"id", "field_status", "raw_transcript", "mechanic_confirmed"},
     )
-    fields = tuple(
+    vehicle = data.get("vehicle", {})
+    vehicle_fields = [EmailField(_LABELS["license_plate"], license_plate)]
+    vehicle_fields.extend(
         field
-        for key, value in data.items()
+        for key, value in vehicle.items()
+        if key != "license_plate"
         if (field := _to_email_field(key, value)) is not None
+    )
+    workflow_fields = tuple(
+        field
+        for field in (
+            EmailField(_LABELS["service_type"], service_name),
+            _to_email_field("service_date", data.get("service_date")),
+            EmailField("Zeitstempel", submitted_at),
+            _to_email_field("mechanic_id", data.get("mechanic_id")),
+        )
+        if field is not None
     )
     return RegistrationEmailDocument(
         service_name=service_name,
         license_plate=license_plate,
         submitted_at=submitted_at,
-        fields=fields,
+        sections=(
+            EmailSection("Vorgang", workflow_fields),
+            EmailSection("Fahrzeugdaten", tuple(vehicle_fields)),
+            EmailSection("Reifendaten", _build_tire_fields(data)),
+            EmailSection("Notizen & Service", _build_notes_and_service_fields(data)),
+        ),
         review_entries=tuple(_review_entries(validation)),
     )
 
@@ -249,15 +283,13 @@ def build_registration_email_document(
 def render_registration_email_text(document: RegistrationEmailDocument) -> str:
     """Render the shared document for text-only mail clients."""
 
-    lines = [
-        "CarTech Werkstattprotokoll",
-        f"{document.service_name} · abgesendet am {document.submitted_at}",
-        f"Kennzeichen: {document.license_plate}",
-        "",
-        "Erfasste Daten",
-    ]
-    for field in document.fields:
-        _append_text_field(lines, field)
+    lines = ["CarTech Werkstattprotokoll", ""]
+    for index, section in enumerate(document.sections):
+        lines.extend([section.label, "-" * len(section.label)])
+        for field in section.fields:
+            _append_text_field(lines, field)
+        if index < len(document.sections) - 1:
+            lines.append("")
     lines.extend(["", "Prüfhinweise"])
     if document.review_entries:
         lines.extend(f"- {entry}" for entry in document.review_entries)
@@ -269,7 +301,7 @@ def render_registration_email_text(document: RegistrationEmailDocument) -> str:
 def render_registration_email_html(document: RegistrationEmailDocument) -> str:
     """Render the shared document as a conservative, email-client-safe HTML mail."""
 
-    field_rows = "".join(_render_html_field(field) for field in document.fields)
+    sections_html = "".join(_render_html_section(section) for section in document.sections)
     review_rows = (
         "".join(f"<li>{escape(entry)}</li>" for entry in document.review_entries)
         if document.review_entries
@@ -292,15 +324,7 @@ def render_registration_email_html(document: RegistrationEmailDocument) -> str:
             <div style="margin-top:8px;font-size:25px;font-weight:700;line-height:1.25;">{escape(document.service_name)}</div>
             <div style="margin-top:6px;font-size:16px;line-height:1.4;">Kennzeichen: <strong>{escape(document.license_plate)}</strong></div>
           </td></tr>
-          <tr><td style="padding:20px 28px 8px;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf5ff;border:1px solid #c9dff5;border-radius:8px;">
-              <tr><td style="padding:12px 14px;font-size:14px;line-height:1.45;"><strong>Abgesendet:</strong> {escape(document.submitted_at)}</td></tr>
-            </table>
-          </td></tr>
-          <tr><td style="padding:20px 28px 8px;font-size:19px;font-weight:700;">Erfasste Daten</td></tr>
-          <tr><td style="padding:0 28px 20px;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #dbe3ef;border-radius:8px;overflow:hidden;">{field_rows}</table>
-          </td></tr>
+          {sections_html}
           <tr><td style="padding:4px 28px 8px;font-size:19px;font-weight:700;">Prüfhinweise</td></tr>
           <tr><td style="padding:0 28px 28px;">
             <div style="padding:12px 16px;border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:{review_style};font-size:14px;line-height:1.5;">
@@ -312,6 +336,167 @@ def render_registration_email_html(document: RegistrationEmailDocument) -> str:
     </table>
   </body>
 </html>"""
+
+
+def _build_tire_fields(data: dict[str, Any]) -> tuple[EmailField, ...]:
+    """Build tire-specific groups without mixing them into vehicle/service data."""
+
+    fields: list[EmailField] = []
+    tire_sets = data.get("tire_sets", [])
+    for index, registration_tire_set in enumerate(tire_sets, start=1):
+        tire_set = registration_tire_set.get("tire_set", {})
+        role = registration_tire_set.get("role")
+        role_name = _TIRE_SET_ROLE_NAMES.get(_enum_value(role), _display(role))
+        details = _build_tire_set_fields(tire_set)
+        if details:
+            fields.append(
+                EmailField(
+                    f"Reifensatz {index} · {role_name}",
+                    children=tuple(details),
+                )
+            )
+
+    for key in ("tire_inspections", "conditions", "visual_inspections"):
+        entries_without_notes = [
+            {
+                entry_key: value
+                for entry_key, value in entry.items()
+                if entry_key != "notes"
+            }
+            for entry in data.get(key, [])
+        ]
+        if (field := _to_email_field(key, entries_without_notes)) is not None:
+            fields.append(field)
+
+    if not fields:
+        fields.append(EmailField("Hinweis", "Keine Reifendaten erfasst."))
+    return tuple(fields)
+
+
+def _build_tire_set_fields(tire_set: dict[str, Any]) -> list[EmailField]:
+    """Present tire attributes in the compact form expected by office staff."""
+
+    fields: list[EmailField] = []
+    if (field := _to_email_field("tire_type", tire_set.get("tire_type"))) is not None:
+        fields.append(field)
+    if tire_size := _format_tire_size(tire_set):
+        fields.append(EmailField(_LABELS["tire_size"], tire_size))
+    if manufacturer_model := _format_manufacturer_model(tire_set):
+        fields.append(EmailField(_LABELS["manufacturer_model"], manufacturer_model))
+    if (field := _to_email_field("quantity", tire_set.get("quantity"))) is not None:
+        fields.append(field)
+
+    excluded_keys = {
+        "tire_type",
+        "width_mm",
+        "aspect_ratio",
+        "rim_diameter_inch",
+        "manufacturer",
+        "model",
+        "quantity",
+        "notes",
+        "tires",
+    }
+    fields.extend(
+        field
+        for key, value in tire_set.items()
+        if key not in excluded_keys
+        if (field := _to_email_field(key, value)) is not None
+    )
+
+    for index, tire in enumerate(tire_set.get("tires", []), start=1):
+        position = tire.get("position")
+        position_name = _display(position) if position is not None else "Position offen"
+        tire_fields = tuple(
+            field
+            for key, value in tire.items()
+            if key not in {"position", "damage_notes"}
+            if (field := _to_email_field(key, value)) is not None
+        )
+        if tire_fields:
+            fields.append(
+                EmailField(
+                    f"Einzelreifen {index} · {position_name}",
+                    children=tire_fields,
+                )
+            )
+    return fields
+
+
+def _format_tire_size(tire_set: dict[str, Any]) -> str | None:
+    """Format known dimensions as the familiar ``205/55 R16`` notation."""
+
+    width = tire_set.get("width_mm")
+    aspect_ratio = tire_set.get("aspect_ratio")
+    rim_diameter = tire_set.get("rim_diameter_inch")
+    if width is not None and aspect_ratio is not None and rim_diameter is not None:
+        return f"{width}/{aspect_ratio} R{rim_diameter}"
+
+    parts = []
+    if width is not None:
+        parts.append(f"Breite {_display(width, key='width_mm')}")
+    if aspect_ratio is not None:
+        parts.append(f"Querschnitt {aspect_ratio}")
+    if rim_diameter is not None:
+        parts.append(f"Felge {_display(rim_diameter, key='rim_diameter_inch')}")
+    return " · ".join(parts) or None
+
+
+def _format_manufacturer_model(tire_set: dict[str, Any]) -> str | None:
+    values = [tire_set.get("manufacturer"), tire_set.get("model")]
+    return " / ".join(str(value) for value in values if value) or None
+
+
+def _build_notes_and_service_fields(data: dict[str, Any]) -> tuple[EmailField, ...]:
+    """Keep free text and service work in their own, auditable mail section."""
+
+    fields: list[EmailField] = []
+    if (field := _to_email_field("notes", data.get("notes"))) is not None:
+        fields.append(field)
+    fields.extend(_collect_detail_notes(data))
+
+    service_fields = [
+        field
+        for key in ("tire_change_details", "customer_signature_present")
+        if (field := _to_email_field(key, data.get(key))) is not None
+    ]
+    if service_fields:
+        fields.append(EmailField("Serviceangaben", children=tuple(service_fields)))
+    if not fields:
+        fields.append(
+            EmailField("Hinweis", "Keine Notizen oder zusätzlichen Serviceangaben erfasst.")
+        )
+    return tuple(fields)
+
+
+def _collect_detail_notes(data: dict[str, Any]) -> list[EmailField]:
+    """Retain every note while making its tire/service context explicit."""
+
+    notes: list[EmailField] = []
+    for index, registration_tire_set in enumerate(data.get("tire_sets", []), start=1):
+        tire_set = registration_tire_set.get("tire_set", {})
+        if note := tire_set.get("notes"):
+            notes.append(EmailField(f"Notiz zu Reifensatz {index}", _display(note)))
+        for tire in tire_set.get("tires", []):
+            if note := tire.get("damage_notes"):
+                position = tire.get("position")
+                suffix = f" · {_display(position)}" if position is not None else ""
+                notes.append(
+                    EmailField(
+                        f"Schadensnotiz Reifensatz {index}{suffix}", _display(note)
+                    )
+                )
+
+    note_collections = (
+        ("tire_inspections", "Notiz zur Profilprüfung"),
+        ("conditions", "Notiz zum Reifenzustand"),
+        ("visual_inspections", "Notiz zur Sichtprüfung"),
+    )
+    for key, label in note_collections:
+        for index, entry in enumerate(data.get(key, []), start=1):
+            if note := entry.get("notes"):
+                notes.append(EmailField(f"{label} {index}", _display(note)))
+    return notes
 
 
 def _to_email_field(key: str, value: Any, *, label: str | None = None) -> EmailField | None:
@@ -355,6 +540,20 @@ def _append_text_field(
             _append_text_field(lines, child, indent + 1)
     elif field.value is not None:
         lines.append(f"{prefix}{field.label}: {field.value}")
+
+
+def _render_html_section(section: EmailSection) -> str:
+    """Render one visibly independent section in the HTML alternative."""
+
+    field_rows = "".join(_render_html_field(field) for field in section.fields)
+    return (
+        '<tr><td style="padding:20px 28px 8px;font-size:19px;font-weight:700;">'
+        f"{escape(section.label)}</td></tr>"
+        '<tr><td style="padding:0 28px 12px;">'
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" '
+        'border="0" style="border:1px solid #dbe3ef;border-radius:8px;overflow:hidden;">'
+        f"{field_rows}</table></td></tr>"
+    )
 
 
 def _render_html_field(field: EmailField, depth: int = 0) -> str:
@@ -415,3 +614,9 @@ def _display(value: Any, *, key: str | None = None) -> str:
     if isinstance(value, date):
         return value.strftime("%d.%m.%Y")
     return f"{value}{_UNITS.get(key, '')}"
+
+
+def _enum_value(value: Any) -> str:
+    """Return a stable enum value for dictionary lookups in presentation code."""
+
+    return value.value if isinstance(value, Enum) else str(value)
