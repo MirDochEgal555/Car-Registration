@@ -201,9 +201,10 @@ class RegistrationEmailDocument:
     """Presentation model shared by the text and HTML email renderers."""
 
     service_name: str
-    license_plate: str
+    license_plate: str | None
     submitted_at: str
     sections: tuple[EmailSection, ...]
+    review_required: bool
     review_entries: tuple[str, ...]
 
 
@@ -216,10 +217,15 @@ def render_registration_email(
 
     registration = validation.registration
     service_name = _SERVICE_NAMES.get(registration.service_type, "Werkstattprotokoll")
-    plate = registration.vehicle.license_plate or "Kennzeichen fehlt"
-    if registration.vehicle.license_plate:
-        plate = normalize_license_plate(registration.vehicle.license_plate)
-    subject = f"CarTech {service_name} · {plate} · {registration.service_date or 'Datum fehlt'}"
+    plate = registration.vehicle.license_plate
+    if plate:
+        plate = normalize_license_plate(plate)
+    subject_parts = [f"CarTech {service_name}"]
+    if plate:
+        subject_parts.append(plate)
+    if registration.service_date:
+        subject_parts.append(str(registration.service_date))
+    subject = " · ".join(subject_parts)
     timestamp = submitted_at.astimezone().strftime("%d.%m.%Y, %H:%M %Z")
     document = build_registration_email_document(
         validation,
@@ -239,7 +245,7 @@ def build_registration_email_document(
     validation: ValidationResponse,
     *,
     service_name: str,
-    license_plate: str,
+    license_plate: str | None,
     submitted_at: str,
 ) -> RegistrationEmailDocument:
     """Create the one semantic mail document used for both alternatives."""
@@ -249,7 +255,9 @@ def build_registration_email_document(
         exclude={"id", "field_status", "raw_transcript", "mechanic_confirmed"},
     )
     vehicle = data.get("vehicle", {})
-    vehicle_fields = [EmailField(_LABELS["license_plate"], license_plate)]
+    vehicle_fields: list[EmailField] = []
+    if license_plate:
+        vehicle_fields.append(EmailField(_LABELS["license_plate"], license_plate))
     vehicle_fields.extend(
         field
         for key, value in vehicle.items()
@@ -259,7 +267,7 @@ def build_registration_email_document(
     workflow_fields = tuple(
         field
         for field in (
-            EmailField(_LABELS["service_type"], service_name),
+            _to_email_field("service_type", data.get("service_type")),
             _to_email_field("service_date", data.get("service_date")),
             EmailField("Zeitstempel", submitted_at),
             _to_email_field("mechanic_id", data.get("mechanic_id")),
@@ -276,6 +284,7 @@ def build_registration_email_document(
             EmailSection("Reifendaten", _build_tire_fields(data)),
             EmailSection("Notizen & Service", _build_notes_and_service_fields(data)),
         ),
+        review_required=validation.review_required,
         review_entries=tuple(_review_entries(validation)),
     )
 
@@ -290,7 +299,14 @@ def render_registration_email_text(document: RegistrationEmailDocument) -> str:
             _append_text_field(lines, field)
         if index < len(document.sections) - 1:
             lines.append("")
-    lines.extend(["", "Prüfhinweise"])
+    lines.extend(
+        [
+            "",
+            "Prüfhinweise",
+            "-------------",
+            f"Prüfung erforderlich (review_required): {_display(document.review_required)}",
+        ]
+    )
     if document.review_entries:
         lines.extend(f"- {entry}" for entry in document.review_entries)
     else:
@@ -302,6 +318,12 @@ def render_registration_email_html(document: RegistrationEmailDocument) -> str:
     """Render the shared document as a conservative, email-client-safe HTML mail."""
 
     sections_html = "".join(_render_html_section(section) for section in document.sections)
+    plate_html = (
+        '<div style="margin-top:6px;font-size:16px;line-height:1.4;">'
+        f"Kennzeichen: <strong>{escape(document.license_plate)}</strong></div>"
+        if document.license_plate
+        else ""
+    )
     review_rows = (
         "".join(f"<li>{escape(entry)}</li>" for entry in document.review_entries)
         if document.review_entries
@@ -322,12 +344,13 @@ def render_registration_email_html(document: RegistrationEmailDocument) -> str:
           <tr><td style="padding:24px 28px;background:#123b64;color:#ffffff;">
             <div style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">CarTech</div>
             <div style="margin-top:8px;font-size:25px;font-weight:700;line-height:1.25;">{escape(document.service_name)}</div>
-            <div style="margin-top:6px;font-size:16px;line-height:1.4;">Kennzeichen: <strong>{escape(document.license_plate)}</strong></div>
+            {plate_html}
           </td></tr>
           {sections_html}
           <tr><td style="padding:4px 28px 8px;font-size:19px;font-weight:700;">Prüfhinweise</td></tr>
           <tr><td style="padding:0 28px 28px;">
             <div style="padding:12px 16px;border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:{review_style};font-size:14px;line-height:1.5;">
+              <div style="margin:0 0 8px;"><strong>Prüfung erforderlich (review_required):</strong> {_display(document.review_required)}</div>
               <ul style="margin:0;padding-left:20px;">{review_rows}</ul>
             </div>
           </td></tr>
@@ -583,11 +606,40 @@ def _render_html_field(field: EmailField, depth: int = 0) -> str:
 
 
 def _review_entries(validation: ValidationResponse) -> list[str]:
-    entries = [issue.message for issue in validation.issues]
-    reported_fields = {issue.field for issue in validation.issues}
+    """List every non-valid backend field status with its field context.
+
+    The validation response is the source of truth here: a missing value is
+    reported as missing instead of receiving an email-only placeholder, and
+    uncertain or invalid values are left exactly as captured in their regular
+    sections.
+    """
+
+    issue_messages: dict[str, list[str]] = {}
+    for issue in validation.issues:
+        issue_messages.setdefault(issue.field, []).append(issue.message)
+
+    entries: list[str] = []
+    reported_fields: set[str] = set()
     for field, status in validation.field_status.items():
-        if field not in reported_fields and status is not FieldStatus.VALID:
-            entries.append(f"{_display_field_path(field)}: {_display(status)}")
+        if status is FieldStatus.VALID:
+            continue
+        message_suffix = ""
+        if messages := issue_messages.get(field):
+            message_suffix = f" — {' '.join(messages)}"
+        entries.append(
+            f"{_display_field_path(field)}: Status {_display_status(status)}"
+            f"{message_suffix}"
+        )
+        reported_fields.add(field)
+
+    # A custom ValidationResponse may contain an issue without a corresponding
+    # field-status entry. Keep it visible rather than discarding a warning.
+    for issue in validation.issues:
+        if issue.field not in reported_fields:
+            entries.append(
+                f"{_display_field_path(issue.field)}: "
+                f"Status {_display_status(issue.status)} — {issue.message}"
+            )
     return entries
 
 
@@ -614,6 +666,12 @@ def _display(value: Any, *, key: str | None = None) -> str:
     if isinstance(value, date):
         return value.strftime("%d.%m.%Y")
     return f"{value}{_UNITS.get(key, '')}"
+
+
+def _display_status(status: FieldStatus) -> str:
+    """Show the user-facing status alongside the stable backend status code."""
+
+    return f"{_display(status)} ({status.value})"
 
 
 def _enum_value(value: Any) -> str:

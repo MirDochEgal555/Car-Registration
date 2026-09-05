@@ -51,6 +51,8 @@ def test_registration_email_renders_text_and_html_from_the_same_document() -> No
     ):
         assert value in email.body
         assert value.replace("&", "&amp;") in email.html_body
+    assert "Prüfung erforderlich (review_required): Ja" in email.body
+    assert "review_required):</strong> Ja" in email.html_body
     assert "Bitte <prüfen> & Rückmeldung geben" in email.body
     assert "Bitte &lt;prüfen&gt; &amp; Rückmeldung geben" in email.html_body
     assert "Bitte <prüfen> & Rückmeldung geben" not in email.html_body
@@ -134,6 +136,79 @@ def test_registration_email_groups_complete_tire_change_data() -> None:
     ):
         assert value in email.body
         assert value.replace("&", "&amp;") in email.html_body
+    assert "Prüfung erforderlich (review_required): Nein" in email.body
+    assert "review_required):</strong> Nein" in email.html_body
+
+
+def test_registration_email_lists_all_non_valid_field_statuses_in_review_hints() -> None:
+    draft = RegistrationDraft.model_validate(
+        {
+            "service_type": "tire_storage",
+            "service_date": "2026-08-20",
+            "mechanic_id": "c2feb07e-4854-4ef8-9e8a-14d8468df624",
+            "vehicle": {"license_plate": "cw ab 123", "mileage_km": 73400},
+            "notes": "Angabe bitte prüfen",
+            "tire_sets": [
+                {
+                    "role": "stored",
+                    "tire_set": {
+                        "tire_type": "winter",
+                        "manufacturer": "Continental",
+                        "quantity": 4,
+                        "width_mm": 500,
+                        "aspect_ratio": 55,
+                        "rim_diameter_inch": 16,
+                    },
+                }
+            ],
+            "field_status": {
+                "tire_sets.0.tire_set.model": "missing",
+                "notes": "uncertain",
+            },
+        }
+    )
+    validation = validate_registration(draft)
+    email = render_registration_email(
+        validation,
+        "office@example.com",
+        datetime(2026, 8, 20, 10, 42, tzinfo=timezone.utc),
+    )
+
+    assert validation.review_required is True
+    assert email.html_body is not None
+    assert "Prüfung erforderlich (review_required): Ja" in email.body
+    assert "review_required):</strong> Ja" in email.html_body
+    for value in (
+        "Reifensätze 1 · Reifensatz · Modell: Status Fehlt (missing)",
+        "Notizen: Status Unsicher (uncertain)",
+        "Reifensätze 1 · Reifensatz · Reifenbreite: Status Unplausibel (invalid)",
+        "Die Reifenbreite ist unplausibel.",
+    ):
+        assert value in email.body
+        assert value in email.html_body
+
+
+def test_registration_email_does_not_substitute_a_missing_field_value() -> None:
+    draft = RegistrationDraft.model_validate(
+        {
+            "service_type": "tire_storage",
+            "service_date": "2026-08-20",
+            "mechanic_id": "c2feb07e-4854-4ef8-9e8a-14d8468df624",
+            "tire_sets": [{"role": "stored", "tire_set": {"quantity": 4}}],
+        }
+    )
+    email = render_registration_email(
+        validate_registration(draft),
+        "office@example.com",
+        datetime(2026, 8, 20, 10, 42, tzinfo=timezone.utc),
+    )
+
+    assert email.html_body is not None
+    assert "Kennzeichen fehlt" not in email.subject
+    assert "Kennzeichen: Kennzeichen fehlt" not in email.body
+    assert "Kennzeichen: <strong>Kennzeichen fehlt" not in email.html_body
+    assert "Fahrzeug · Kennzeichen: Status Fehlt (missing)" in email.body
+    assert "Fahrzeug · Kennzeichen: Status Fehlt (missing)" in email.html_body
 
 
 class _RecordingSmtp:
