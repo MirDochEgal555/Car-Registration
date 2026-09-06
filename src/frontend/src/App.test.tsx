@@ -187,7 +187,7 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('bietet nach einem gespeicherten Versandfehler einen Retry an', async () => {
+  it('behält Fahrzeug- und Reifendaten nach einem Versandfehler und bietet einen Retry an', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response(validRegistration('CW-AB 987')))
       .mockResolvedValueOnce(
@@ -216,6 +216,9 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     fireEvent.change(screen.getByLabelText(/Kennzeichen/), {
       target: { value: 'cw ab 987' },
     })
+    fireEvent.change(screen.getByLabelText(/Hersteller/), {
+      target: { value: 'Goodyear' },
+    })
     await user.click(
       screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
     )
@@ -224,17 +227,63 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     )
 
     expect(
-      await screen.findByRole('button', { name: 'Versand erneut versuchen' }),
+      await screen.findByRole('button', { name: 'Erneut senden' }),
     ).toBeVisible()
     expect(
       screen.getByRole('heading', { name: 'Versand fehlgeschlagen' }),
     ).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Versand erneut versuchen' }))
+    expect(
+      screen.getByText(/alle erfassten fahrzeug- und reifendaten bleiben erhalten/i),
+    ).toBeVisible()
+    expect(screen.getByText('CW-AB 987')).toBeVisible()
+    expect(screen.getByText('Goodyear')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Erneut senden' })).toHaveClass(
+      'primary-action',
+    )
+    await user.click(screen.getByRole('button', { name: 'Erneut senden' }))
 
     expect(
       await screen.findByText(/versand nach 2 versuchen erfolgreich/i),
     ).toBeVisible()
     expect(fetchMock.mock.calls[2]?.[0]).toMatch(/\/registrations\/[\w-]+\/retry$/)
+  })
+
+  it('startet bei schnellen Mehrfachklicks nur einen Versand', async () => {
+    const emailRequest = deferred<Response>()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(validRegistration('CW-AB 123')))
+      .mockReturnValueOnce(emailRequest.promise)
+    vi.stubGlobal('fetch', fetchMock)
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Reifenwechsel' }))
+    fireEvent.change(screen.getByLabelText(/Kennzeichen/), {
+      target: { value: 'cw ab 123' },
+    })
+    await user.click(screen.getByLabelText('Ja'))
+    await user.click(
+      screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
+    )
+
+    const sendButton = screen.getByRole('button', {
+      name: /vorgang bestätigen.*senden/i,
+    })
+    fireEvent.click(sendButton)
+    fireEvent.click(sendButton)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(
+      await screen.findByRole('heading', { name: 'E-Mail wird versendet' }),
+    ).toBeVisible()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    emailRequest.resolve(response(emailSent()))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Alles erledigt.' }),
+    ).toBeVisible()
   })
 
   it('blockiert eine fehlerhafte Einlagerung bis zur Korrektur', async () => {

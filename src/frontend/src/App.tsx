@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import {
   FrontendErrorBoundary,
   FrontendErrorState,
@@ -81,6 +81,10 @@ function App() {
   const [deliveryResult, setDeliveryResult] = useState<ApiDeliveryStatus | null>(
     null,
   )
+  // State updates do not take effect until React renders again.  Keep a
+  // synchronous guard as well, so two very fast taps cannot start two HTTP
+  // requests before the button becomes disabled.
+  const submissionLockRef = useRef(false)
 
   useEffect(() => {
     const updateRoute = () => setRoute(getRoute())
@@ -307,6 +311,7 @@ function App() {
 
   function isSubmissionInProgress() {
     return (
+      submissionLockRef.current ||
       submissionState.kind === 'validating' || submissionState.kind === 'sending'
     )
   }
@@ -319,59 +324,63 @@ function App() {
     if (
       confirmationIssues.length > 0 ||
       workshopProcess.status === 'confirmed' ||
-      submissionState.kind === 'validating' ||
-      submissionState.kind === 'sending'
+      isSubmissionInProgress()
     ) {
       return
     }
 
-    setBackendIssues([])
-    setSubmissionState({ kind: 'validating' })
-    let validation: ApiValidationResponse
+    submissionLockRef.current = true
     try {
-      validation = await validateRegistration(
-        mapWorkshopProcessToRegistration(workshopProcess),
-      )
-    } catch (error) {
-      showSubmissionError(error, 'validation')
-      return
-    }
+      setBackendIssues([])
+      setSubmissionState({ kind: 'validating' })
+      let validation: ApiValidationResponse
+      try {
+        validation = await validateRegistration(
+          mapWorkshopProcessToRegistration(workshopProcess),
+        )
+      } catch (error) {
+        showSubmissionError(error, 'validation')
+        return
+      }
 
-    setBackendIssues(validation.issues)
-    if (!validation.valid) {
-      setSubmissionState({
-        kind: 'error',
-        phase: 'validation',
-        message: 'Das Backend hat Angaben markiert. Bitte korrigieren und erneut prüfen.',
-        retryable: false,
-      })
-      return
-    }
+      setBackendIssues(validation.issues)
+      if (!validation.valid) {
+        setSubmissionState({
+          kind: 'error',
+          phase: 'validation',
+          message: 'Das Backend hat Angaben markiert. Bitte korrigieren und erneut prüfen.',
+          retryable: false,
+        })
+        return
+      }
 
-    if (validation.registration.vehicle.license_plate !== workshopProcess.licensePlate) {
-      setWorkshopProcess((currentProcess) =>
-        currentProcess
-          ? {
-              ...currentProcess,
-              licensePlate: validation.registration.vehicle.license_plate,
-            }
-          : currentProcess,
-      )
-    }
+      if (validation.registration.vehicle.license_plate !== workshopProcess.licensePlate) {
+        setWorkshopProcess((currentProcess) =>
+          currentProcess
+            ? {
+                ...currentProcess,
+                licensePlate: validation.registration.vehicle.license_plate,
+              }
+            : currentProcess,
+        )
+      }
 
-    // The confirmation flag is set only on this post-confirmation send request.
-    setSubmissionState({ kind: 'sending' })
-    try {
-      const delivery = await sendRegistration(
-        mapWorkshopProcessToRegistration(workshopProcess, true),
-      )
-      setDeliveryResult(delivery)
-      setWorkshopProcess((currentProcess) =>
-        currentProcess ? { ...currentProcess, status: 'confirmed' } : currentProcess,
-      )
-      navigate('/bestaetigt')
-    } catch (error) {
-      showSubmissionError(error, 'delivery')
+      // The confirmation flag is set only on this post-confirmation send request.
+      setSubmissionState({ kind: 'sending' })
+      try {
+        const delivery = await sendRegistration(
+          mapWorkshopProcessToRegistration(workshopProcess, true),
+        )
+        setDeliveryResult(delivery)
+        setWorkshopProcess((currentProcess) =>
+          currentProcess ? { ...currentProcess, status: 'confirmed' } : currentProcess,
+        )
+        navigate('/bestaetigt')
+      } catch (error) {
+        showSubmissionError(error, 'delivery')
+      }
+    } finally {
+      submissionLockRef.current = false
     }
   }
 
@@ -379,14 +388,20 @@ function App() {
     if (
       submissionState.kind !== 'error' ||
       !submissionState.retryable ||
-      submissionState.delivery?.status !== 'email_failed'
+      submissionState.phase !== 'delivery' ||
+      isSubmissionInProgress()
     ) {
       return
     }
 
-    setSubmissionState({ kind: 'sending' })
+    submissionLockRef.current = true
     try {
-      const delivery = await retryRegistrationDelivery(workshopProcess.id)
+      setSubmissionState({ kind: 'sending' })
+      const delivery = submissionState.delivery?.status === 'email_failed'
+        ? await retryRegistrationDelivery(submissionState.delivery.registration_id)
+        : await sendRegistration(
+            mapWorkshopProcessToRegistration(workshopProcess, true),
+          )
       setDeliveryResult(delivery)
       setWorkshopProcess((currentProcess) =>
         currentProcess ? { ...currentProcess, status: 'confirmed' } : currentProcess,
@@ -394,6 +409,8 @@ function App() {
       navigate('/bestaetigt')
     } catch (error) {
       showSubmissionError(error, 'delivery')
+    } finally {
+      submissionLockRef.current = false
     }
   }
 
@@ -422,11 +439,11 @@ function App() {
       kind: 'error',
       phase,
       message:
-        apiError?.message ||
-        (phase === 'delivery'
-          ? 'Beim Senden ist ein unerwarteter Fehler aufgetreten. Bitte erneut versuchen.'
-          : 'Das Backend ist nicht erreichbar. Bitte Verbindung prüfen und erneut versuchen.'),
-      retryable: phase === 'delivery' && delivery?.status === 'email_failed',
+        phase === 'delivery'
+          ? 'Die E-Mail konnte nicht versendet werden. Alle erfassten Fahrzeug- und Reifendaten bleiben erhalten.'
+          : apiError?.message ||
+            'Das Backend ist nicht erreichbar. Bitte Verbindung prüfen und erneut versuchen.',
+      retryable: phase === 'delivery',
       delivery,
     })
   }
@@ -1019,11 +1036,16 @@ function ProcessOverviewPage({
             )}
             {submissionState.retryable && (
               <button
-                className="secondary-button frontend-error-state__retry"
+                aria-label="Erneut senden"
+                className="primary-action frontend-error-state__retry"
                 onClick={onRetryDelivery}
                 type="button"
               >
-                Versand erneut versuchen
+                <span className="primary-action__icon" aria-hidden="true">↻</span>
+                <span>Erneut senden</span>
+                <span className="primary-action__hint">
+                  Gespeicherte Daten erneut an das Büro senden
+                </span>
               </button>
             )}
           </FrontendErrorState>
