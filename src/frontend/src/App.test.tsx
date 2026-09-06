@@ -136,6 +136,54 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(screen.getByLabelText(/Hersteller/)).toHaveValue('Continental')
   })
 
+  it('speichert das unveränderte Transkript mit dem Vorgang, ohne Formularwerte daraus abzuleiten', async () => {
+    const transcript = '  Abweichendes Kennzeichen: CW ZZ 999.  \n'
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ status: 'completed', transcript }))
+      .mockResolvedValueOnce(response(validRegistration('CW-AB 123')))
+      .mockResolvedValueOnce(response(emailSent()))
+    vi.stubGlobal('fetch', fetchMock)
+    installAudioRecording()
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Einlagerung' }))
+    fireEvent.change(screen.getByLabelText(/Kennzeichen/), {
+      target: { value: 'cw ab 123' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }))
+    await user.click(screen.getByRole('button', { name: 'Aufnahme stoppen' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Gesprochene Notiz' }),
+    ).toBeVisible()
+
+    await user.click(
+      screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: /vorgang bestätigen.*senden/i }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Alles erledigt.' }),
+    ).toBeVisible()
+    const validationPayload = JSON.parse(
+      String((fetchMock.mock.calls[1]?.[1] as RequestInit).body),
+    )
+    const sendPayload = JSON.parse(
+      String((fetchMock.mock.calls[2]?.[1] as RequestInit).body),
+    )
+    expect(validationPayload).toMatchObject({
+      raw_transcript: transcript,
+      vehicle: { license_plate: 'CW-AB 123' },
+    })
+    expect(sendPayload).toMatchObject({
+      raw_transcript: transcript,
+      vehicle: { license_plate: 'CW-AB 123' },
+    })
+  })
+
   it('bietet nach einer fehlgeschlagenen Transkription einen Retry mit derselben Aufnahme an', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(

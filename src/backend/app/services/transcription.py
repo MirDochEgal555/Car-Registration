@@ -154,7 +154,9 @@ class OpenAITranscriptionProvider:
             raise TranscriptionProviderError(
                 "Der Sprachtranskriptionsdienst hat keinen Text zurückgegeben."
             )
-        return transcript.strip()
+        # Whitespace still establishes whether speech was returned, but the
+        # stored transcript itself must remain byte-for-byte provider output.
+        return transcript
 
     def _create_client(self) -> Any:
         """Create the async SDK lazily so an unconfigured app can still start."""

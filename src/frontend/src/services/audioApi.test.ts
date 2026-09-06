@@ -28,7 +28,7 @@ describe('transcribeAudioRecording', () => {
 
     await expect(
       transcribeAudioRecording(new Blob(['audio'], { type: 'audio/webm' })),
-    ).resolves.toBe('Sommerreifen vorne links geprüft.')
+    ).resolves.toBe('  Sommerreifen vorne links geprüft.  ')
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/audio/transcribe',

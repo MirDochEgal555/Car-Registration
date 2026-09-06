@@ -120,7 +120,7 @@ Die Zustellgarantie endet bei der Annahme durch den SMTP-Server. Fällt der Proz
 
 ## E-Mail und Konfiguration
 
-Die E-Mail enthält eine Text- und eine HTML-Alternative (`multipart/alternative`). Beide Varianten werden aus einem gemeinsamen Dokument gerendert; Feldwerte und Prüfhinweise können daher nicht auseinanderlaufen. Werte werden für HTML maskiert. Das Rohtranskript ist weder in der E-Mail noch in der Outbox enthalten.
+Die E-Mail enthält eine Text- und eine HTML-Alternative (`multipart/alternative`). Beide Varianten werden aus einem gemeinsamen Dokument gerendert; Feldwerte und Prüfhinweise können daher nicht auseinanderlaufen. Werte werden für HTML maskiert. Das unveränderte Rohtranskript bleibt aus der E-Mail heraus, wird aber zusammen mit dem bestätigten Vorgang in der Outbox für spätere Büroprüfung oder Fehlersuche aufbewahrt; es ist keine strukturierte Datenquelle.
 
 Die Konfiguration wird ausschließlich aus Prozess-Umgebungsvariablen gelesen. Eine lokale `.env`-Datei wird nicht automatisch geladen; die Deployment-Umgebung muss die Werte bereitstellen. Eine kommentierte Vorlage liegt unter [`src/backend/.env.example`](../src/backend/.env.example).
 
@@ -138,7 +138,7 @@ Die Konfiguration wird ausschließlich aus Prozess-Umgebungsvariablen gelesen. E
 | `CARTECH_OPENAI_TRANSCRIPTION_MODEL` | OpenAI-Transkriptionsmodell, standardmäßig `gpt-transcribe`. |
 | `CARTECH_OPENAI_TIMEOUT_SECONDS` | Positiver Request-Timeout für Speech-to-Text, standardmäßig `30`. |
 
-Für Produktion muss das Outbox-Verzeichnis persistent, verschlüsselt und auf die Anwendung beschränkt sein. Es enthält strukturierte Fahrzeug- und Werkstattdaten. Zugangsdaten gehören in ein Secret-Management des Deployments, nicht in das Repository.
+Für Produktion muss das Outbox-Verzeichnis persistent, verschlüsselt und auf die Anwendung beschränkt sein. Es enthält strukturierte Fahrzeug- und Werkstattdaten sowie Rohtranskripte. Zugangsdaten gehören in ein Secret-Management des Deployments, nicht in das Repository.
 
 ## Kohärenzbewertung
 
@@ -147,7 +147,7 @@ Der aktuelle Backend-Stand ist für den definierten MVP fachlich und technisch k
 - Der Client besitzt den Entwurf; das Backend validiert ihn vor jeder Übergabe erneut.
 - Validierung, E-Mail-Darstellung und Outbox verwenden denselben strukturierten Vertrag.
 - Der kritische Fehlerfall „E-Mail nicht erreichbar“ ist durch Speichern vor dem SMTP-Aufruf und durch Retry abgedeckt.
-- Das Rohtranskript bleibt aus der dauerhaften Versandablage und aus der E-Mail heraus.
+- Das Rohtranskript wird unverändert zusammen mit dem Vorgang aufbewahrt, bleibt aber aus der E-Mail heraus und beeinflusst keine strukturierten Werte.
 - Die Test-Suite deckt Konfiguration, Modelle, Validierung, E-Mail-Rendering, Outbox, Fehlerfälle und die dokumentierten Werkstattfälle ab. Bei der Prüfung dieses Stands liefen `75` Tests erfolgreich durch.
 
 Folgende Punkte sind bewusste MVP-Grenzen oder vor einem Produktivbetrieb zu entscheiden:

@@ -97,7 +97,7 @@ unknown
 | service_date | date | ja | Datum des Werkstattprotokolls |
 | status | enum | ja | Ablaufstatus |
 | notes | text | nein | allgemeine Servicehinweise |
-| raw_transcript | text | nein | originales Sprachtranskript |
+| raw_transcript | text | nein | originales, unverändertes Sprachtranskript für spätere Büroprüfung/Fehlersuche; keine strukturierte Datenquelle |
 | extraction_payload | JSONB | nein | unveränderte KI-Extraktion |
 | field_status | JSONB | nein | Status einzelner extrahierter Felder |
 | review_required | boolean | ja | Prüfung wegen Unsicherheit oder Validierung nötig |
@@ -143,7 +143,7 @@ Bei `tire_storage` und `tire_change` müssen für die Übernahme in WERBAS minde
 
 Nach der Mechanikerbestätigung rendert das System den strukturierten Entwurf für die konfigurierte Büro-Adresse als `multipart/alternative`-E-Mail. Eine HTML- und eine Textansicht entstehen aus demselben E-Mail-Dokument und enthalten daher identische Fachinformationen: Protokolltyp, Kennzeichen, Absendezeitpunkt, alle erfassten Fahrzeug-, Reifen- und Servicedaten sowie einen getrennten Abschnitt „Prüfhinweise“ für `missing`, `uncertain` und `invalid`. Die Textansicht bleibt für reine Text-Mailclients und Weiterleitungen verfügbar.
 
-Die E-Mail ersetzt im MVP weder WERBAS noch eine zentrale CarTech-Datenbank. Damit ein SMTP-Fehler keinen bestätigten Vorgang still verliert, wird die vollständige, validierte Fassung der strukturierten Protokolldaten vor dem Versand in einer lokalen SQLite-Versand-Outbox gespeichert; das Rohtranskript wird dabei nicht übernommen. `GET /api/v1/registrations/{id}/delivery-status` zeigt Status, Fehler und Versuchszähler; `POST /api/v1/registrations/{id}/retry` versendet den gespeicherten Datensatz erneut. Die Outbox enthält personenbezogene Werkstattdaten und muss deshalb im Produktivbetrieb auf einem persistenten, zugriffsgeschützten und verschlüsselten Volume liegen.
+Die E-Mail ersetzt im MVP weder WERBAS noch eine zentrale CarTech-Datenbank. Damit ein SMTP-Fehler keinen bestätigten Vorgang still verliert, wird die vollständige, validierte Fassung der Protokolldaten einschließlich des unveränderten Rohtranskripts vor dem Versand in einer lokalen SQLite-Versand-Outbox gespeichert. Das Rohtranskript ist nur für spätere Büroprüfung oder Fehlersuche bestimmt: Es erscheint nicht in der E-Mail und wird nicht zur Ableitung strukturierter Werte verwendet. `GET /api/v1/registrations/{id}/delivery-status` zeigt Status, Fehler und Versuchszähler; `POST /api/v1/registrations/{id}/retry` versendet den gespeicherten Datensatz erneut. Die Outbox enthält personenbezogene Werkstattdaten und muss deshalb im Produktivbetrieb auf einem persistenten, zugriffsgeschützten und verschlüsselten Volume liegen.
 
 ## CustomerSignature (Kundenunterschrift)
 

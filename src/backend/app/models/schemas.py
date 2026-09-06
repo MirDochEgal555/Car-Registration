@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import Any, Annotated, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.models.enums import (
     FieldStatus,
@@ -42,6 +42,10 @@ YearMonth = Annotated[
 ]
 
 NonNegativeDecimal = Annotated[Decimal, Field(ge=0)]
+
+# DomainModel normalises ordinary form strings. Speech-to-text output is kept
+# verbatim for later review, so it deliberately opts out of that normalisation.
+RawTranscript = Annotated[str, StringConstraints(strip_whitespace=False)]
 
 
 def utc_now() -> datetime:
@@ -101,7 +105,7 @@ class ServiceRecord(TimestampedModel):
     service_date: date
     status: ServiceStatus = ServiceStatus.DRAFT
     notes: Optional[str] = None
-    raw_transcript: Optional[str] = None
+    raw_transcript: Optional[RawTranscript] = None
     extraction_payload: Optional[dict[str, Any]] = None
     field_status: Optional[dict[str, FieldStatus]] = None
     review_required: bool = False

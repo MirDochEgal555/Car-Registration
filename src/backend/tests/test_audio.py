@@ -208,7 +208,7 @@ def test_openai_provider_uses_german_workshop_context_without_extracting_fields(
         )
     )
 
-    assert transcript == "Audi A4, RDKS geprüft."
+    assert transcript == "  Audi A4, RDKS geprüft.  "
     assert client.transcriptions.requests == [
         {
             "file": ("workshop-note.webm", b"recorded workshop audio", "audio/webm"),

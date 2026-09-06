@@ -61,9 +61,10 @@ The only required values for handoff to WERBAS are `service_type`,
 `field_status` values from extraction are preserved; `uncertain` and `invalid`
 set `review_required` but do not block sending on their own. The outbox is an
 audit/retry mechanism, not a general office inbox or WERBAS replacement. It
-stores the complete structured confirmed registration locally (not the raw
-transcript) and must therefore be placed on encrypted, access-controlled
-persistent storage in production.
+stores the complete confirmed registration, including the unchanged raw
+transcript for later office review/debugging, and must therefore be placed on
+encrypted, access-controlled persistent storage in production. The transcript
+is not used to derive structured values.
 
 ## Tests
 

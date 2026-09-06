@@ -12,6 +12,14 @@ export type WorkshopProcess = {
   /** Normalisiertes Kennzeichen, z. B. `CW-AB 123`. */
   licensePlate: string
   /**
+   * Wortlaut der letzten erfolgreich transkribierten Sprachnotiz.
+   *
+   * Der Text ist ein unverändertes Audit-/Prüfartefakt. Er darf die manuell
+   * gepflegten strukturierten Angaben erst dann beeinflussen, wenn eine
+   * separate Extraktion ausdrücklich eingeführt wird.
+   */
+  rawTranscript?: string
+  /**
    * Der lokale Entwurf folgt dem bestehenden RegistrationDraft-Vertrag:
    * Stammdaten des Satzes, Profiltiefen und Zustände bleiben getrennt.
    */

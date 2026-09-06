@@ -79,13 +79,9 @@ class DeliveryStore:
         ID and makes a successfully handled request idempotent.
         """
 
-        # The transcript never belongs in the delivery email and project rules
-        # keep it client-session-only.  Preserve every structured protocol
-        # value needed for a retry without expanding that sensitive footprint.
-        registration = registration.model_copy(
-            deep=True,
-            update={"raw_transcript": None},
-        )
+        # The raw transcript is retained with the immutable registration for
+        # later office review/debugging. Email rendering explicitly excludes
+        # it, so it remains an audit value rather than structured handoff data.
         payload = _serialize_registration(registration)
         now = _utc_now()
         try:

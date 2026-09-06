@@ -67,6 +67,18 @@ def test_validate_returns_draft_and_review_hints() -> None:
     assert payload["status"] == "mechanic_review"
 
 
+def test_validate_preserves_the_raw_transcript_verbatim() -> None:
+    transcript = "  CW AB 123, vier Winterreifen.  \n"
+
+    response = TestClient(app).post(
+        "/api/v1/registrations/validate",
+        json=_valid_tire_storage_draft(raw_transcript=transcript),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["registration"]["raw_transcript"] == transcript
+
+
 def test_validate_reports_missing_handoff_fields_without_claiming_review() -> None:
     response = TestClient(app).post("/api/v1/registrations/validate", json={})
 
@@ -203,7 +215,7 @@ def test_failed_delivery_is_saved_and_retryable(
     persisted = delivery_store.get(UUID(registration_id))
     assert persisted is not None
     assert persisted.registration.vehicle.license_plate == "CW-AB 123"
-    assert persisted.registration.raw_transcript is None
+    assert persisted.registration.raw_transcript == "CW AB 123, vier Winterreifen."
 
     assert retry_response.status_code == 200
     assert retry_response.json()["status"] == "email_sent"

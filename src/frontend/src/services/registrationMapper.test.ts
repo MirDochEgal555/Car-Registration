@@ -9,6 +9,7 @@ describe('mapWorkshopProcessToRegistration', () => {
       serviceType: 'tire_change',
       status: 'draft',
       licensePlate: 'CW-AB 123',
+      rawTranscript: '  Reifen vorne links bitte prüfen.  \n',
       tireSets: [
         {
           role: 'installed',
@@ -38,6 +39,7 @@ describe('mapWorkshopProcessToRegistration', () => {
       service_type: 'tire_change',
       mechanic_confirmed: true,
       vehicle: { license_plate: 'CW-AB 123' },
+      raw_transcript: '  Reifen vorne links bitte prüfen.  \n',
       tire_sets: [
         {
           role: 'installed',

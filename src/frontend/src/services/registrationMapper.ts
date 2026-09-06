@@ -32,6 +32,9 @@ export function mapWorkshopProcessToRegistration(
     vehicle: {
       license_plate: process.licensePlate,
     },
+    // Keep speech-to-text output as an opaque audit value. In particular, it
+    // must not be parsed here or overwrite any manually captured field.
+    raw_transcript: process.rawTranscript,
     tire_sets: process.tireSets.map(({ role, tireSet }) => ({
       role,
       tire_set: {

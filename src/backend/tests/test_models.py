@@ -17,6 +17,7 @@ from app.models import (
     VisualInspectionComponent,
     VisualInspectionResult,
 )
+from app.models.registration import RegistrationDraft
 
 
 def test_vehicle_serializes_a_year_month_without_a_day() -> None:
@@ -89,6 +90,22 @@ def test_service_record_recalculates_review_requirement_when_statuses_change() -
     record.field_status = {"model": FieldStatus.UNCERTAIN}
 
     assert record.review_required is True
+
+
+def test_raw_transcript_is_preserved_verbatim() -> None:
+    transcript = "  Audi A4, RDKS geprüft.  \n"
+
+    draft = RegistrationDraft(raw_transcript=transcript)
+    record = ServiceRecord(
+        vehicle_id=uuid4(),
+        created_by=uuid4(),
+        service_type=ServiceType.TIRE_CHANGE,
+        service_date=date(2026, 8, 23),
+        raw_transcript=transcript,
+    )
+
+    assert draft.raw_transcript == transcript
+    assert record.raw_transcript == transcript
 
 
 def test_stored_tire_allows_documented_damage_without_inventing_notes() -> None:

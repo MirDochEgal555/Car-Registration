@@ -162,8 +162,7 @@ def test_realistic_workshop_record_reaches_office_via_outbox(
 
     persisted = store.get(UUID(str(payload["id"])))
     assert persisted is not None
-    assert persisted.registration.raw_transcript is None
-    assert persisted.registration.model_dump(mode="json") == {
-        **_expected_registration({**payload, "mechanic_confirmed": True}),
-        "raw_transcript": None,
-    }
+    assert persisted.registration.raw_transcript == case["input"]
+    assert persisted.registration.model_dump(mode="json") == _expected_registration(
+        {**payload, "mechanic_confirmed": True}
+    )

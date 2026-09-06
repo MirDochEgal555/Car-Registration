@@ -30,7 +30,7 @@ from app.models.enums import (
     VisualInspectionResult,
     WheelBoltConfiguration,
 )
-from app.models.schemas import DomainModel, YearMonth
+from app.models.schemas import DomainModel, RawTranscript, YearMonth
 
 
 class VehicleDraft(DomainModel):
@@ -168,7 +168,7 @@ class RegistrationDraft(DomainModel):
     mechanic_confirmed: bool = False
     vehicle: VehicleDraft = Field(default_factory=VehicleDraft)
     notes: Optional[str] = None
-    raw_transcript: Optional[str] = None
+    raw_transcript: Optional[RawTranscript] = None
     field_status: dict[str, FieldStatus] = Field(default_factory=dict)
     tire_sets: list[RegistrationTireSet] = Field(default_factory=list)
     tire_inspections: list[TireInspectionDraft] = Field(default_factory=list)

@@ -11,6 +11,8 @@ export type ApiRegistrationDraft = {
   vehicle: {
     license_plate: string
   }
+  /** Unveränderter Text der Spracherkennung, nicht als Strukturquelle genutzt. */
+  raw_transcript?: string
   tire_sets: Array<{
     role: 'installed' | 'removed' | 'stored'
     tire_set: {

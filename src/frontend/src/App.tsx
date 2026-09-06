@@ -90,9 +90,9 @@ function App() {
   const [deliveryResult, setDeliveryResult] = useState<ApiDeliveryStatus | null>(
     null,
   )
-  // Voice notes and their transcript remain session-only and are deliberately
-  // separate from the registration payload. In particular, no transcript may
-  // overwrite a mechanic's manually entered vehicle or tire data.
+  // The recording itself is only needed for an in-session retry. Its completed
+  // transcript is kept with the registration draft as an opaque audit value;
+  // it never overwrites mechanic-entered vehicle or tire data.
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null)
   const [audioTranscriptionState, setAudioTranscriptionState] =
     useState<AudioTranscriptionState>(initialAudioTranscriptionState)
@@ -153,6 +153,11 @@ function App() {
     audioTranscriptionRequestIdRef.current += 1
     setRecordedAudio(null)
     setAudioTranscriptionState(initialAudioTranscriptionState)
+    setWorkshopProcess((currentProcess) =>
+      currentProcess
+        ? { ...currentProcess, rawTranscript: undefined }
+        : currentProcess,
+    )
   }
 
   const transcribeRecordedAudio = async (audio: Blob) => {
@@ -165,6 +170,11 @@ function App() {
       const transcript = await transcribeAudioRecording(audio)
       if (audioTranscriptionRequestIdRef.current === requestId) {
         setAudioTranscriptionState({ kind: 'completed', transcript })
+        setWorkshopProcess((currentProcess) =>
+          currentProcess
+            ? { ...currentProcess, rawTranscript: transcript }
+            : currentProcess,
+        )
       }
     } catch (error) {
       if (audioTranscriptionRequestIdRef.current === requestId) {

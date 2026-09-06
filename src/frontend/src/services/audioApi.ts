@@ -63,7 +63,9 @@ export async function transcribeAudioRecording(audio: Blob): Promise<string> {
     )
   }
 
-  return body.transcript.trim()
+  // The transcript is an audit value. Validate that it contains speech, but
+  // do not alter the provider's text before it is attached to the session.
+  return body.transcript
 }
 
 export function canRetryAudioTranscription(error: unknown): boolean {
