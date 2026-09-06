@@ -3,7 +3,10 @@ import {
   FrontendErrorBoundary,
   FrontendErrorState,
 } from './components/FrontendErrorState'
-import { AudioRecorder } from './components/AudioRecorder'
+import {
+  AudioRecorder,
+  type AudioTranscriptionState,
+} from './components/AudioRecorder'
 import { MechanicStartPage } from './pages/MechanicStartPage'
 import {
   type ServiceProtocolId,
@@ -30,6 +33,10 @@ import {
   sendRegistration,
   validateRegistration,
 } from './services/registrationApi'
+import {
+  canRetryAudioTranscription,
+  transcribeAudioRecording,
+} from './services/audioApi'
 import { mapWorkshopProcessToRegistration } from './services/registrationMapper'
 import {
   getLicensePlateValidationError,
@@ -55,6 +62,7 @@ type SubmissionState =
     }
 
 const initialSubmissionState: SubmissionState = { kind: 'idle' }
+const initialAudioTranscriptionState: AudioTranscriptionState = { kind: 'idle' }
 
 function getRoute(): Route {
   switch (window.location.hash) {
@@ -82,13 +90,17 @@ function App() {
   const [deliveryResult, setDeliveryResult] = useState<ApiDeliveryStatus | null>(
     null,
   )
-  // Voice notes are deliberately session-only for now. They are not part of the
-  // registration payload until the later transcription workflow is implemented.
+  // Voice notes and their transcript remain session-only and are deliberately
+  // separate from the registration payload. In particular, no transcript may
+  // overwrite a mechanic's manually entered vehicle or tire data.
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null)
+  const [audioTranscriptionState, setAudioTranscriptionState] =
+    useState<AudioTranscriptionState>(initialAudioTranscriptionState)
   // State updates do not take effect until React renders again.  Keep a
   // synchronous guard as well, so two very fast taps cannot start two HTTP
   // requests before the button becomes disabled.
   const submissionLockRef = useRef(false)
+  const audioTranscriptionRequestIdRef = useRef(0)
 
   useEffect(() => {
     const updateRoute = () => setRoute(getRoute())
@@ -131,8 +143,53 @@ function App() {
     setSubmissionState(initialSubmissionState)
     setBackendIssues([])
     setDeliveryResult(null)
-    setRecordedAudio(null)
+    clearAudioTranscription()
     navigate('/erfassung')
+  }
+
+  const clearAudioTranscription = () => {
+    // Responses for an older recording must not appear after it was removed or
+    // after a mechanic starts another vehicle process.
+    audioTranscriptionRequestIdRef.current += 1
+    setRecordedAudio(null)
+    setAudioTranscriptionState(initialAudioTranscriptionState)
+  }
+
+  const transcribeRecordedAudio = async (audio: Blob) => {
+    const requestId = audioTranscriptionRequestIdRef.current + 1
+    audioTranscriptionRequestIdRef.current = requestId
+    setRecordedAudio(audio)
+    setAudioTranscriptionState({ kind: 'processing' })
+
+    try {
+      const transcript = await transcribeAudioRecording(audio)
+      if (audioTranscriptionRequestIdRef.current === requestId) {
+        setAudioTranscriptionState({ kind: 'completed', transcript })
+      }
+    } catch (error) {
+      if (audioTranscriptionRequestIdRef.current === requestId) {
+        setAudioTranscriptionState({
+          kind: 'error',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Die Sprachtranskription ist fehlgeschlagen. Bitte erneut versuchen.',
+          retryable: canRetryAudioTranscription(error),
+        })
+      }
+    }
+  }
+
+  const retryAudioTranscription = () => {
+    if (
+      !recordedAudio ||
+      audioTranscriptionState.kind !== 'error' ||
+      !audioTranscriptionState.retryable
+    ) {
+      return
+    }
+
+    void transcribeRecordedAudio(recordedAudio)
   }
 
   if (route === 'start') {
@@ -527,8 +584,11 @@ function App() {
 
         <AudioRecorder
           audioBlob={recordedAudio}
-          onAudioRecorded={setRecordedAudio}
-          onAudioRemoved={() => setRecordedAudio(null)}
+          onAudioRecorded={transcribeRecordedAudio}
+          onAudioRemoved={clearAudioTranscription}
+          onRecordingStarted={clearAudioTranscription}
+          onRetryTranscription={retryAudioTranscription}
+          transcriptionState={audioTranscriptionState}
         />
 
         <label className="license-plate-field" htmlFor="license-plate">

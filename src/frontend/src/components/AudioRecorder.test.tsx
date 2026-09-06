@@ -26,6 +26,8 @@ function RecorderHarness({
         setAudio(null)
         onAudioRemoved()
       }}
+      onRetryTranscription={() => undefined}
+      transcriptionState={{ kind: 'idle' }}
     />
   )
 }

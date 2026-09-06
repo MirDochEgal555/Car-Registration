@@ -52,6 +52,38 @@ function emailSent() {
   }
 }
 
+class AudioMediaRecorderMock {
+  state: RecordingState = 'inactive'
+  mimeType = 'audio/webm'
+  ondataavailable: ((event: BlobEvent) => void) | null = null
+  onerror: ((event: Event) => void) | null = null
+  onstop: ((event: Event) => void) | null = null
+
+  start() {
+    this.state = 'recording'
+  }
+
+  stop() {
+    this.state = 'inactive'
+    this.ondataavailable?.({
+      data: new Blob(['Werkstattnotiz'], { type: this.mimeType }),
+    } as BlobEvent)
+    this.onstop?.(new Event('stop'))
+  }
+}
+
+function installAudioRecording() {
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: {
+      getUserMedia: vi.fn().mockResolvedValue({
+        getTracks: () => [{ stop: vi.fn() }],
+      } as unknown as MediaStream),
+    },
+  })
+  vi.stubGlobal('MediaRecorder', AudioMediaRecorderMock)
+}
+
 describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
   beforeEach(() => {
     window.location.hash = ''
@@ -59,6 +91,93 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'mediaDevices')
+  })
+
+  it('lädt die Aufnahme hoch, zeigt den Text und behält manuell erfasste Daten bei', async () => {
+    const transcriptionRequest = deferred<Response>()
+    const fetchMock = vi.fn().mockReturnValue(transcriptionRequest.promise)
+    vi.stubGlobal('fetch', fetchMock)
+    installAudioRecording()
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Reifenwechsel' }))
+    fireEvent.change(screen.getByLabelText(/Kennzeichen/), {
+      target: { value: 'cw ab 123' },
+    })
+    fireEvent.change(screen.getByLabelText(/Hersteller/), {
+      target: { value: 'Continental' },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }))
+    await user.click(screen.getByRole('button', { name: 'Aufnahme stoppen' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Sprachnotiz wird verarbeitet' }),
+    ).toBeVisible()
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/audio/transcribe')
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit
+    expect(request.body).toBeInstanceOf(FormData)
+
+    transcriptionRequest.resolve(
+      response({
+        status: 'completed',
+        transcript: 'Vorne links bitte Profiltiefe prüfen.',
+      }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Gesprochene Notiz' }),
+    ).toBeVisible()
+    expect(screen.getByText('Vorne links bitte Profiltiefe prüfen.')).toBeVisible()
+    expect(screen.getByLabelText(/Kennzeichen/)).toHaveValue('CW-AB 123')
+    expect(screen.getByLabelText(/Hersteller/)).toHaveValue('Continental')
+  })
+
+  it('bietet nach einer fehlgeschlagenen Transkription einen Retry mit derselben Aufnahme an', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(
+        response(
+          {
+            status: 'failed',
+            transcript: null,
+            error: {
+              code: 'transcription_provider_unavailable',
+              message: 'Der Sprachtranskriptionsdienst ist zurzeit nicht verfügbar.',
+            },
+          },
+          503,
+        ),
+      )
+      .mockResolvedValueOnce(
+        response({
+          status: 'completed',
+          transcript: 'Räder nachziehen.',
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    installAudioRecording()
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Einlagerung' }))
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }))
+    await user.click(screen.getByRole('button', { name: 'Aufnahme stoppen' }))
+
+    expect(
+      await screen.findByRole('button', {
+        name: 'Transkription erneut versuchen',
+      }),
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Transkription erneut versuchen' }),
+    )
+
+    expect(await screen.findByText('Räder nachziehen.')).toBeVisible()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('mappt einen Reifenwechsel, prüft ihn und übergibt ihn an die Büro-E-Mail', async () => {

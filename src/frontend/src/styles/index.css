@@ -398,6 +398,93 @@ h1 {
   color: #85271f;
 }
 
+.audio-transcription {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid #b7cbbd;
+  border-radius: 0.9rem;
+}
+
+.audio-transcription h3,
+.audio-transcription p {
+  margin: 0;
+}
+
+.audio-transcription h3 {
+  font-size: 1rem;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.audio-transcription--processing {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: start;
+  border-color: #78a4d0;
+  background: #eef7ff;
+  color: #123f67;
+}
+
+.audio-transcription--processing p,
+.audio-transcription--error > div > p {
+  margin-top: 0.25rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.audio-transcription__spinner {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: 0.1rem;
+  border: 0.2rem solid #a8c9e7;
+  border-top-color: #075bc2;
+  border-radius: 50%;
+  animation: transcription-spin 850ms linear infinite;
+}
+
+.audio-transcription--completed {
+  border-color: #8ebba0;
+  background: #f2f8f3;
+  color: #173f28;
+}
+
+.audio-transcription__eyebrow {
+  margin-bottom: 0.25rem !important;
+  color: #39704e;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.audio-transcription__text {
+  margin-top: 0.65rem !important;
+  padding-left: 0.85rem;
+  border-left: 0.25rem solid #4e9a68;
+  color: #102119;
+  font-size: 1.03rem;
+  font-weight: 650;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.audio-transcription__hint {
+  margin-top: 0.75rem !important;
+  color: #466251;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.audio-transcription--error {
+  display: grid;
+  gap: 0.85rem;
+  border-color: #e6aaa3;
+  background: #fff0ee;
+  color: #85271f;
+}
+
 .audio-recorder__start,
 .audio-recorder__stop {
   display: grid;
@@ -487,10 +574,31 @@ h1 {
   text-underline-offset: 0.2em;
 }
 
+.audio-recorder__retry {
+  min-height: 2.85rem;
+  padding: 0.6rem 0.85rem;
+  border: 2px solid #9d3f36;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: #85271f;
+  font-weight: 800;
+  text-align: center;
+}
+
+.audio-recorder__retry:not(:disabled):hover {
+  background: #fde4e0;
+}
+
 @keyframes recording-pulse {
   50% {
     opacity: 0.35;
     transform: scale(0.78);
+  }
+}
+
+@keyframes transcription-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -1396,6 +1504,10 @@ h1 {
   }
 
   .audio-recorder__recording-dot {
+    animation: none;
+  }
+
+  .audio-transcription__spinner {
     animation: none;
   }
 }

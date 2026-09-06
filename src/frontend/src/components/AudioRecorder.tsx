@@ -8,10 +8,19 @@ type RecorderState =
   | 'recorded'
   | 'error'
 
+export type AudioTranscriptionState =
+  | { kind: 'idle' }
+  | { kind: 'processing' }
+  | { kind: 'completed'; transcript: string }
+  | { kind: 'error'; message: string; retryable: boolean }
+
 type AudioRecorderProps = {
   audioBlob: Blob | null
   onAudioRecorded: (audio: Blob) => void
   onAudioRemoved: () => void
+  onRecordingStarted?: () => void
+  onRetryTranscription: () => void
+  transcriptionState: AudioTranscriptionState
 }
 
 function stopMediaStream(stream: MediaStream | null) {
@@ -48,6 +57,9 @@ export function AudioRecorder({
   audioBlob,
   onAudioRecorded,
   onAudioRemoved,
+  onRecordingStarted,
+  onRetryTranscription,
+  transcriptionState,
 }: AudioRecorderProps) {
   const [recorderState, setRecorderState] = useState<RecorderState>(
     audioBlob ? 'recorded' : 'idle',
@@ -206,6 +218,7 @@ export function AudioRecorder({
       }
 
       recorder.start()
+      onRecordingStarted?.()
       setRecorderState('recording')
     } catch (error) {
       stopMediaStream(stream)
@@ -252,8 +265,8 @@ export function AudioRecorder({
       </div>
 
       <p className="audio-recorder__description">
-        Sprich Besonderheiten direkt am Fahrzeug ein. Die Audiodatei bleibt nur
-        vorübergehend in diesem Browser und wird noch nicht versendet.
+        Sprich Besonderheiten direkt am Fahrzeug ein. Nach dem Stoppen wird die
+        Aufnahme sicher zur Transkription hochgeladen.
       </p>
 
       {isRecording && (
@@ -279,6 +292,61 @@ export function AudioRecorder({
         <p aria-live="polite" className="audio-recorder__status" role="status">
           ✓ Aufnahme gespeichert · {formatDuration(elapsedSeconds)}
         </p>
+      )}
+
+      {audioBlob && transcriptionState.kind === 'processing' && (
+        <section
+          aria-live="polite"
+          className="audio-transcription audio-transcription--processing"
+          role="status"
+        >
+          <span aria-hidden="true" className="audio-transcription__spinner" />
+          <div>
+            <h3>Sprachnotiz wird verarbeitet</h3>
+            <p>Aufnahme wird hochgeladen und transkribiert …</p>
+          </div>
+        </section>
+      )}
+
+      {audioBlob && transcriptionState.kind === 'completed' && (
+        <section
+          aria-labelledby="audio-transcript-title"
+          className="audio-transcription audio-transcription--completed"
+        >
+          <p className="audio-transcription__eyebrow">Transkript</p>
+          <h3 id="audio-transcript-title">Gesprochene Notiz</h3>
+          <p className="audio-transcription__text">
+            {transcriptionState.transcript}
+          </p>
+          <p className="audio-transcription__hint">
+            Das Transkript wird nur angezeigt und ändert keine manuell erfassten
+            Fahrzeug- oder Reifendaten.
+          </p>
+        </section>
+      )}
+
+      {audioBlob && transcriptionState.kind === 'error' && (
+        <section
+          aria-labelledby="audio-transcription-error-title"
+          className="audio-transcription audio-transcription--error"
+          role="alert"
+        >
+          <div>
+            <h3 id="audio-transcription-error-title">
+              Transkription fehlgeschlagen
+            </h3>
+            <p>{transcriptionState.message}</p>
+          </div>
+          {transcriptionState.retryable && (
+            <button
+              className="audio-recorder__retry"
+              onClick={onRetryTranscription}
+              type="button"
+            >
+              Transkription erneut versuchen
+            </button>
+          )}
+        </section>
       )}
 
       {recorderState === 'error' && errorMessage && (
