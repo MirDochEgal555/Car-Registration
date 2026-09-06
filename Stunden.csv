@@ -3,3 +3,5 @@ Tag,Stunden,Tätigkeit
 19.08.2026,1.0,Research Tech Stack; Kostenanalyse; Timeline; Dokumentation; Meilensteinplan
 23.08.2026,2.0,Erstes Aufsetzen des Backends; Datenbankstruktur entwerfen; API Endpoints definieren
 31.08.2026,2.0,Frontend-Design; UI/UX Überlegungen; GitHub Deployment; CI/CD Pipeline einrichten
+05.09.2026,0.5,Email-Integration implementieren
+06.09.2026,1.0,Audio-Recording; Test Coverage erhöhen

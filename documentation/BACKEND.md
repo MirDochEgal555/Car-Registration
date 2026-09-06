@@ -42,6 +42,15 @@ FastAPI-Routen (/api/v1/registrations)
 
 Die Klassen in `app/models/schemas.py` beschreiben ein optionales Zieldatenmodell für eine spätere zentrale Speicherung. Sie sind keine aktuell verwendeten Datenbankmodelle.
 
+`POST /audio/transcribe` nimmt das `audio/webm`-Blob des Browser-`MediaRecorder`
+als Multipart-Feld `audio` entgegen. Fehlende, fehlerhafte, leere und nicht
+unterstützte Dateien liefern einen einheitlichen Fehlerkörper mit `error.code` und
+`error.message`. Die Route validiert nur den Upload und übergibt ihn an den
+getrennten Vertrag in `app/services/transcription.py`. Solange kein
+Speech-to-Text-Anbieter konfiguriert ist, antwortet sie mit `503`; eine
+Fahrzeug- oder Vorgangsextraktion findet an dieser Stelle ausdrücklich nicht
+statt.
+
 ## API und Ablauf
 
 Alle Endpunkte sind unter `/api/v1` versioniert.
@@ -49,6 +58,7 @@ Alle Endpunkte sind unter `/api/v1` versioniert.
 | Methode und Pfad | Zweck | Persistenz |
 | --- | --- | --- |
 | `GET /health` | Liveness-Prüfung der Anwendung | keine |
+| `POST /audio/transcribe` | Prüft eine Browseraufnahme im Format `audio/webm` und übergibt sie an den Speech-to-Text-Anbieter. | keine |
 | `POST /registrations/validate` | Prüft einen vollständigen Entwurf für die Mechanikeransicht und normalisiert ein vorhandenes Kennzeichen. | keine |
 | `POST /registrations/send` | Prüft erneut, verlangt Mechanikerbestätigung, legt den Vorgang ab und versucht den E-Mail-Versand. | SQLite-Outbox |
 | `GET /registrations/{id}/delivery-status` | Liefert Versandstatus, Versuchszähler und sichere Fehlermeldung ohne Protokolldaten. | liest Outbox |

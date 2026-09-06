@@ -6,8 +6,9 @@ Pydantic domain models, and the mechanic-registration workflow. A browser
 sends its complete draft for validation and, after explicit mechanic
 confirmation, for email delivery. A small durable outbox preserves every valid
 confirmed record before SMTP is called, so failed deliveries can be retried
-after a browser or server restart. Audio processing and AI extraction remain
-separate follow-up tasks.
+after a browser or server restart. The audio endpoint accepts browser-recorded
+WebM files and hands them to a separate speech-to-text provider boundary; no
+provider or AI vehicle-data extraction is configured yet.
 
 ## Local start
 
@@ -43,6 +44,16 @@ Missing/invalid required values return `409`; a missing confirmation returns
 delivery status and a retry URL. The record remains in `email_failed` until a
 retry succeeds. `email_pending` and `email_sending` make an unfinished attempt
 visible; interrupted `email_sending` records become retryable on service start.
+
+## Audio API
+
+`POST /api/v1/audio/transcribe` accepts a multipart `audio` field containing
+the frontend's `audio/webm` MediaRecorder blob (including a `codecs` MIME
+parameter). Missing, malformed, and empty files, plus unsupported media types,
+return a documented JSON error envelope. The route delegates only speech-to-text to
+`app/services/transcription.py`; it does not extract vehicle or service data.
+Until a concrete provider is configured, a valid upload returns `503` with
+`transcription_provider_unavailable` rather than fabricating a transcript.
 
 The only required values for handoff to WERBAS are `service_type`,
 `service_date`, `mechanic_id`, and `vehicle.license_plate`. Existing
