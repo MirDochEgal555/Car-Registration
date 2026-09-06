@@ -1,0 +1,330 @@
+import { useEffect, useRef, useState } from 'react'
+
+type RecorderState =
+  | 'idle'
+  | 'requesting'
+  | 'recording'
+  | 'stopping'
+  | 'recorded'
+  | 'error'
+
+type AudioRecorderProps = {
+  audioBlob: Blob | null
+  onAudioRecorded: (audio: Blob) => void
+  onAudioRemoved: () => void
+}
+
+function stopMediaStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop())
+}
+
+function getMicrophoneErrorMessage(error: unknown): string {
+  if (!(error instanceof DOMException)) {
+    return 'Die Audioaufnahme konnte nicht gestartet werden. Bitte erneut versuchen.'
+  }
+
+  switch (error.name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return 'Mikrofonzugriff wurde nicht erlaubt. Bitte erlaube das Mikrofon in den Browser-Einstellungen.'
+    case 'NotFoundError':
+      return 'Es wurde kein Mikrofon gefunden. Bitte ein Mikrofon verbinden und erneut versuchen.'
+    case 'NotReadableError':
+    case 'AbortError':
+      return 'Das Mikrofon wird gerade von einer anderen App verwendet. Bitte diese schließen und erneut versuchen.'
+    default:
+      return 'Die Audioaufnahme konnte nicht gestartet werden. Bitte erneut versuchen.'
+  }
+}
+
+function formatDuration(seconds: number) {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
+export function AudioRecorder({
+  audioBlob,
+  onAudioRecorded,
+  onAudioRemoved,
+}: AudioRecorderProps) {
+  const [recorderState, setRecorderState] = useState<RecorderState>(
+    audioBlob ? 'recorded' : 'idle',
+  )
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
+  const recordingStartedAtRef = useRef<number | null>(null)
+  const isMountedRef = useRef(false)
+  const recordingFailedRef = useRef(false)
+  const onAudioRecordedRef = useRef(onAudioRecorded)
+
+  onAudioRecordedRef.current = onAudioRecorded
+
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+      const recorder = mediaRecorderRef.current
+      if (recorder) {
+        recorder.ondataavailable = null
+        recorder.onstop = null
+        recorder.onerror = null
+
+        if (recorder.state !== 'inactive') {
+          recorder.stop()
+        }
+      }
+
+      stopMediaStream(mediaStreamRef.current)
+      mediaRecorderRef.current = null
+      mediaStreamRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (recorderState !== 'recording') {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (recordingStartedAtRef.current !== null) {
+        setElapsedSeconds(
+          Math.floor((Date.now() - recordingStartedAtRef.current) / 1000),
+        )
+      }
+    }, 1_000)
+
+    return () => window.clearInterval(intervalId)
+  }, [recorderState])
+
+  const releaseMicrophone = () => {
+    stopMediaStream(mediaStreamRef.current)
+    mediaStreamRef.current = null
+    mediaRecorderRef.current = null
+  }
+
+  const startRecording = async () => {
+    if (recorderState === 'requesting' || recorderState === 'recording') {
+      return
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setRecorderState('error')
+      setErrorMessage(
+        'Dieser Browser unterstützt keinen Mikrofonzugriff. Bitte einen aktuellen Browser verwenden.',
+      )
+      return
+    }
+
+    if (!window.MediaRecorder) {
+      setRecorderState('error')
+      setErrorMessage(
+        'Dieser Browser unterstützt keine Audioaufnahme. Bitte einen aktuellen Browser verwenden.',
+      )
+      return
+    }
+
+    setRecorderState('requesting')
+    setErrorMessage(null)
+    recordingFailedRef.current = false
+
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch (error) {
+      if (isMountedRef.current) {
+        setRecorderState('error')
+        setErrorMessage(getMicrophoneErrorMessage(error))
+      }
+      return
+    }
+
+    if (!isMountedRef.current) {
+      stopMediaStream(stream)
+      return
+    }
+
+    try {
+      const recorder = new MediaRecorder(stream)
+      const audioChunks: BlobPart[] = []
+
+      mediaStreamRef.current = stream
+      mediaRecorderRef.current = recorder
+      recordingStartedAtRef.current = Date.now()
+      setElapsedSeconds(0)
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data)
+        }
+      }
+
+      recorder.onerror = () => {
+        recordingFailedRef.current = true
+        if (isMountedRef.current) {
+          setRecorderState('error')
+          setErrorMessage(
+            'Die Audioaufnahme wurde unterbrochen. Bitte erneut versuchen.',
+          )
+        }
+        releaseMicrophone()
+      }
+
+      recorder.onstop = () => {
+        const duration = recordingStartedAtRef.current
+          ? Math.max(
+              1,
+              Math.floor((Date.now() - recordingStartedAtRef.current) / 1000),
+            )
+          : 0
+        recordingStartedAtRef.current = null
+
+        if (!recordingFailedRef.current) {
+          const audio = new Blob(audioChunks, {
+            type: recorder.mimeType || 'audio/webm',
+          })
+
+          if (audio.size > 0) {
+            onAudioRecordedRef.current(audio)
+            if (isMountedRef.current) {
+              setElapsedSeconds(duration)
+              setRecorderState('recorded')
+            }
+          } else if (isMountedRef.current) {
+            setRecorderState('error')
+            setErrorMessage(
+              'Es konnte keine Audiodatei gespeichert werden. Bitte erneut versuchen.',
+            )
+          }
+        }
+
+        releaseMicrophone()
+      }
+
+      recorder.start()
+      setRecorderState('recording')
+    } catch (error) {
+      stopMediaStream(stream)
+      mediaStreamRef.current = null
+      mediaRecorderRef.current = null
+      if (isMountedRef.current) {
+        setRecorderState('error')
+        setErrorMessage(getMicrophoneErrorMessage(error))
+      }
+    }
+  }
+
+  const stopRecording = () => {
+    const recorder = mediaRecorderRef.current
+    if (!recorder || recorder.state === 'inactive') {
+      return
+    }
+
+    setRecorderState('stopping')
+    recorder.stop()
+  }
+
+  const removeRecording = () => {
+    onAudioRemoved()
+    setElapsedSeconds(0)
+    setErrorMessage(null)
+    setRecorderState('idle')
+  }
+
+  const isRecording = recorderState === 'recording'
+  const isStopping = recorderState === 'stopping'
+
+  return (
+    <section
+      aria-labelledby="audio-recording-title"
+      className={`audio-recorder${isRecording ? ' audio-recorder--recording' : ''}`}
+    >
+      <div className="audio-recorder__heading">
+        <div>
+          <p className="audio-recorder__eyebrow">Optional</p>
+          <h2 id="audio-recording-title">Sprachnotiz</h2>
+        </div>
+        {isRecording && <span className="audio-recorder__live-indicator">Läuft</span>}
+      </div>
+
+      <p className="audio-recorder__description">
+        Sprich Besonderheiten direkt am Fahrzeug ein. Die Audiodatei bleibt nur
+        vorübergehend in diesem Browser und wird noch nicht versendet.
+      </p>
+
+      {isRecording && (
+        <p aria-live="polite" className="audio-recorder__status" role="status">
+          <span className="audio-recorder__recording-dot" aria-hidden="true" />
+          Aufnahme läuft · {formatDuration(elapsedSeconds)}
+        </p>
+      )}
+
+      {recorderState === 'requesting' && (
+        <p aria-live="polite" className="audio-recorder__status" role="status">
+          Mikrofon wird geöffnet …
+        </p>
+      )}
+
+      {isStopping && (
+        <p aria-live="polite" className="audio-recorder__status" role="status">
+          Aufnahme wird gespeichert …
+        </p>
+      )}
+
+      {recorderState === 'recorded' && audioBlob && (
+        <p aria-live="polite" className="audio-recorder__status" role="status">
+          ✓ Aufnahme gespeichert · {formatDuration(elapsedSeconds)}
+        </p>
+      )}
+
+      {recorderState === 'error' && errorMessage && (
+        <p className="audio-recorder__error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+
+      {isRecording || isStopping ? (
+        <button
+          aria-label={isStopping ? 'Speichert Aufnahme' : 'Aufnahme stoppen'}
+          className="audio-recorder__stop"
+          disabled={isStopping}
+          onClick={stopRecording}
+          type="button"
+        >
+          <span className="audio-recorder__stop-icon" aria-hidden="true" />
+          {isStopping ? 'Speichert Aufnahme …' : 'Aufnahme stoppen'}
+        </button>
+      ) : (
+        <button
+          aria-label="Aufnahme starten"
+          className="audio-recorder__start"
+          disabled={recorderState === 'requesting'}
+          onClick={startRecording}
+          type="button"
+        >
+          <span className="audio-recorder__microphone" aria-hidden="true">⌁</span>
+          <span>Aufnahme starten</span>
+          <span className="audio-recorder__button-hint">
+            {recorderState === 'requesting'
+              ? 'Mikrofon wird geöffnet'
+              : 'Zum Sprechen antippen'}
+          </span>
+        </button>
+      )}
+
+      {recorderState === 'recorded' && audioBlob && (
+        <button
+          className="audio-recorder__remove"
+          onClick={removeRecording}
+          type="button"
+        >
+          Aufnahme verwerfen
+        </button>
+      )}
+    </section>
+  )
+}

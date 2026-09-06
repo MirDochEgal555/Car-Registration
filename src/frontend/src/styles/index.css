@@ -300,6 +300,200 @@ h1 {
   font-size: 1.2rem;
 }
 
+.audio-recorder {
+  margin: 1.5rem 0 2rem;
+  padding: clamp(1.1rem, 4vw, 1.5rem);
+  border: 2px solid #b7cbbd;
+  border-radius: 1.2rem;
+  background: #ffffff;
+  box-shadow: 0 0.45rem 1.1rem rgba(30, 58, 40, 0.06);
+}
+
+.audio-recorder--recording {
+  border-color: #bd3326;
+  background: #fff9f8;
+}
+
+.audio-recorder__heading {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.audio-recorder__eyebrow {
+  margin: 0 0 0.25rem;
+  color: #467054;
+  font-size: 0.75rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.audio-recorder h2 {
+  margin: 0;
+  color: #102119;
+  font-size: clamp(1.45rem, 5vw, 1.9rem);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.audio-recorder__live-indicator {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: #f9dbd7;
+  color: #962b22;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.audio-recorder__description {
+  max-width: 36rem;
+  margin: 0.65rem 0 1.1rem;
+  color: #43594b;
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.audio-recorder__status,
+.audio-recorder__error {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  min-height: 2rem;
+  margin: 0 0 0.9rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.audio-recorder__status {
+  color: #1b6139;
+}
+
+.audio-recorder--recording .audio-recorder__status {
+  color: #962b22;
+}
+
+.audio-recorder__recording-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #bd3326;
+  animation: recording-pulse 1.2s ease-in-out infinite;
+}
+
+.audio-recorder__error {
+  margin-bottom: 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #e6aaa3;
+  border-radius: 0.8rem;
+  background: #fff0ee;
+  color: #85271f;
+}
+
+.audio-recorder__start,
+.audio-recorder__stop {
+  display: grid;
+  width: 100%;
+  min-height: 6.5rem;
+  grid-template-columns: auto 1fr;
+  gap: 0 0.95rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  border: 0;
+  border-radius: 1rem;
+  color: #ffffff;
+  font-size: clamp(1.25rem, 4vw, 1.45rem);
+  font-weight: 850;
+  text-align: left;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.audio-recorder__start {
+  background: #125f35;
+  box-shadow: 0 0.55rem 1.2rem rgba(13, 64, 35, 0.2);
+}
+
+.audio-recorder__stop {
+  background: #a72f25;
+  box-shadow: 0 0.55rem 1.2rem rgba(114, 37, 30, 0.2);
+}
+
+.audio-recorder__start:not(:disabled):hover,
+.audio-recorder__stop:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+.audio-recorder__start:not(:disabled):active,
+.audio-recorder__stop:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.audio-recorder__start:disabled,
+.audio-recorder__stop:disabled {
+  background: #607267;
+  box-shadow: none;
+}
+
+.audio-recorder__microphone,
+.audio-recorder__stop-icon {
+  display: grid;
+  grid-row: span 2;
+  width: 3.25rem;
+  height: 3.25rem;
+  place-items: center;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.audio-recorder__microphone {
+  font-size: 2.4rem;
+  font-weight: 900;
+  line-height: 1;
+  transform: rotate(90deg);
+}
+
+.audio-recorder__stop-icon::after {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 0.2rem;
+  background: #ffffff;
+  content: '';
+}
+
+.audio-recorder__button-hint {
+  color: #dff4e6;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.audio-recorder__remove {
+  display: block;
+  min-height: 3rem;
+  margin: 0.85rem auto 0;
+  padding: 0.45rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: #405748;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+@keyframes recording-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.78);
+  }
+}
+
 .license-plate-field {
   display: block;
 }
@@ -1195,7 +1389,13 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   .primary-action,
   .service-selection__button,
-  .secondary-button {
+  .secondary-button,
+  .audio-recorder__start,
+  .audio-recorder__stop {
     transition: none;
+  }
+
+  .audio-recorder__recording-dot {
+    animation: none;
   }
 }

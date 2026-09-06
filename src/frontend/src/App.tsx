@@ -3,6 +3,7 @@ import {
   FrontendErrorBoundary,
   FrontendErrorState,
 } from './components/FrontendErrorState'
+import { AudioRecorder } from './components/AudioRecorder'
 import { MechanicStartPage } from './pages/MechanicStartPage'
 import {
   type ServiceProtocolId,
@@ -81,6 +82,9 @@ function App() {
   const [deliveryResult, setDeliveryResult] = useState<ApiDeliveryStatus | null>(
     null,
   )
+  // Voice notes are deliberately session-only for now. They are not part of the
+  // registration payload until the later transcription workflow is implemented.
+  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null)
   // State updates do not take effect until React renders again.  Keep a
   // synchronous guard as well, so two very fast taps cannot start two HTTP
   // requests before the button becomes disabled.
@@ -127,6 +131,7 @@ function App() {
     setSubmissionState(initialSubmissionState)
     setBackendIssues([])
     setDeliveryResult(null)
+    setRecordedAudio(null)
     navigate('/erfassung')
   }
 
@@ -519,6 +524,12 @@ function App() {
           <span aria-hidden="true">{protocol.icon}</span>
           {protocol.title}
         </div>
+
+        <AudioRecorder
+          audioBlob={recordedAudio}
+          onAudioRecorded={setRecordedAudio}
+          onAudioRemoved={() => setRecordedAudio(null)}
+        />
 
         <label className="license-plate-field" htmlFor="license-plate">
           <span className="license-plate-field__label">
