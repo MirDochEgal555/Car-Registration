@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Optional, Union
+import logging
+from typing import Annotated, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.responses import JSONResponse
@@ -18,6 +19,7 @@ from app.services.transcription import (
 
 
 router = APIRouter(prefix="/audio", tags=["audio"])
+logger = logging.getLogger(__name__)
 
 # The current browser recorder explicitly creates a Blob with this MIME type.
 # Parameters such as ``;codecs=opus`` are normalised before this allow-list is
@@ -35,15 +37,18 @@ class AudioUploadError(BaseModel):
 class AudioUploadErrorResponse(BaseModel):
     """Consistent error envelope for the audio API."""
 
+    status: Literal["failed"] = "failed"
+    transcript: None = None
     error: AudioUploadError
 
 
 class TranscriptionResponse(BaseModel):
-    """Plain text returned by the speech-to-text provider.
+    """Completed speech-to-text result.
 
     No vehicle or service fields are extracted at this boundary.
     """
 
+    status: Literal["completed"] = "completed"
     transcript: str
 
 
@@ -76,7 +81,7 @@ def _normalise_media_type(content_type: str | None) -> str | None:
     status_code=status.HTTP_200_OK,
     summary="Transcribe a recorded workshop audio note",
     responses={
-        400: {"model": AudioUploadErrorResponse, "description": "Audio file missing."},
+        400: {"model": AudioUploadErrorResponse, "description": "Audio upload invalid."},
         415: {
             "model": AudioUploadErrorResponse,
             "description": "Audio format is not supported.",
@@ -88,7 +93,7 @@ def _normalise_media_type(content_type: str | None) -> str | None:
         },
         503: {
             "model": AudioUploadErrorResponse,
-            "description": "No transcription provider is configured.",
+            "description": "The transcription service is unavailable.",
         },
     },
 )
@@ -151,6 +156,15 @@ async def transcribe_workshop_audio(
             status.HTTP_502_BAD_GATEWAY,
             code="transcription_failed",
             message=str(error),
+        )
+    except Exception:
+        # Keep an unexpected adapter failure in the documented error shape and
+        # avoid leaking provider diagnostics to the mechanic's device.
+        logger.exception("Unexpected transcription provider failure.")
+        return audio_error_response(
+            status.HTTP_502_BAD_GATEWAY,
+            code="transcription_failed",
+            message="Die Sprachtranskription ist fehlgeschlagen. Bitte erneut versuchen.",
         )
 
     return TranscriptionResponse(transcript=transcript)

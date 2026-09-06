@@ -6,7 +6,7 @@ Das Backend ist der technische Übergabepunkt zwischen der Web-App des Mechanike
 
 WERBAS bleibt im MVP das fachlich führende System. CarTech unterhält keine zentrale Kunden-, Fahrzeug- oder Vorgangsdatenbank: Es prüft browserseitige Entwürfe, erzeugt eine strukturierte Büro-E-Mail und hält bestätigte Versandaufträge in einer kleinen SQLite-Outbox vor. So geht ein Vorgang bei SMTP-Fehlern nicht still verloren.
 
-Sprachverarbeitung und KI-Extraktion liegen vor diesem Backend und sind hier nicht implementiert. Sie müssen einen `RegistrationDraft` gemäß API-Vertrag erzeugen.
+Die Speech-to-Text-Anbindung ist über `POST /audio/transcribe` integriert und liefert ausschließlich ein Rohtranskript. Die nachgelagerte KI-Extraktion ist noch nicht implementiert; sie muss später aus dem Transkript einen `RegistrationDraft` gemäß API-Vertrag erzeugen.
 
 Fachliche Felddefinitionen stehen im [Datenmodell](DATA_MODEL.md); lokale Startanweisungen enthält das [Backend-README](../src/backend/README.md).
 
@@ -43,13 +43,14 @@ FastAPI-Routen (/api/v1/registrations)
 Die Klassen in `app/models/schemas.py` beschreiben ein optionales Zieldatenmodell für eine spätere zentrale Speicherung. Sie sind keine aktuell verwendeten Datenbankmodelle.
 
 `POST /audio/transcribe` nimmt das `audio/webm`-Blob des Browser-`MediaRecorder`
-als Multipart-Feld `audio` entgegen. Fehlende, fehlerhafte, leere und nicht
-unterstützte Dateien liefern einen einheitlichen Fehlerkörper mit `error.code` und
-`error.message`. Die Route validiert nur den Upload und übergibt ihn an den
-getrennten Vertrag in `app/services/transcription.py`. Solange kein
-Speech-to-Text-Anbieter konfiguriert ist, antwortet sie mit `503`; eine
-Fahrzeug- oder Vorgangsextraktion findet an dieser Stelle ausdrücklich nicht
-statt.
+als Multipart-Feld `audio` entgegen und übergibt es an den OpenAI-
+Transkriptionsadapter. Erfolgreiche Antworten enthalten `status: "completed"`
+und den unstrukturierten `transcript`. Fehlende, fehlerhafte, leere und nicht
+unterstützte Dateien sowie fehlgeschlagene Transkriptionen liefern
+`status: "failed"`, `transcript: null` und einen einheitlichen Fehlerkörper mit
+`error.code` und `error.message`. Der Adapter übergibt die Sprache `de` sowie
+deutschen Kfz-Werkstatt-Kontext und Fachbegriffe. Eine Fahrzeug- oder
+Vorgangsextraktion findet an dieser Stelle ausdrücklich nicht statt.
 
 ## API und Ablauf
 
@@ -58,7 +59,7 @@ Alle Endpunkte sind unter `/api/v1` versioniert.
 | Methode und Pfad | Zweck | Persistenz |
 | --- | --- | --- |
 | `GET /health` | Liveness-Prüfung der Anwendung | keine |
-| `POST /audio/transcribe` | Prüft eine Browseraufnahme im Format `audio/webm` und übergibt sie an den Speech-to-Text-Anbieter. | keine |
+| `POST /audio/transcribe` | Prüft eine Browseraufnahme im Format `audio/webm` und transkribiert sie mit OpenAI. | keine |
 | `POST /registrations/validate` | Prüft einen vollständigen Entwurf für die Mechanikeransicht und normalisiert ein vorhandenes Kennzeichen. | keine |
 | `POST /registrations/send` | Prüft erneut, verlangt Mechanikerbestätigung, legt den Vorgang ab und versucht den E-Mail-Versand. | SQLite-Outbox |
 | `GET /registrations/{id}/delivery-status` | Liefert Versandstatus, Versuchszähler und sichere Fehlermeldung ohne Protokolldaten. | liest Outbox |
@@ -133,6 +134,9 @@ Die Konfiguration wird ausschließlich aus Prozess-Umgebungsvariablen gelesen. E
 | `CARTECH_SMTP_USE_SSL` | Implizites TLS, typischerweise für Port `465`; STARTTLS wird dann nicht verwendet. |
 | `CARTECH_SMTP_TIMEOUT_SECONDS` | Positiver Verbindungs- und Versand-Timeout, standardmäßig `15`. |
 | `CARTECH_DELIVERY_STORE_PATH` | Speicherort der SQLite-Outbox, standardmäßig `data/processed/cartech-deliveries.sqlite3`. |
+| `CARTECH_OPENAI_API_KEY` | API-Schlüssel für die Speech-to-Text-Anbindung; alternativ wird der Standardname `OPENAI_API_KEY` gelesen. |
+| `CARTECH_OPENAI_TRANSCRIPTION_MODEL` | OpenAI-Transkriptionsmodell, standardmäßig `gpt-transcribe`. |
+| `CARTECH_OPENAI_TIMEOUT_SECONDS` | Positiver Request-Timeout für Speech-to-Text, standardmäßig `30`. |
 
 Für Produktion muss das Outbox-Verzeichnis persistent, verschlüsselt und auf die Anwendung beschränkt sein. Es enthält strukturierte Fahrzeug- und Werkstattdaten. Zugangsdaten gehören in ein Secret-Management des Deployments, nicht in das Repository.
 
@@ -144,7 +148,7 @@ Der aktuelle Backend-Stand ist für den definierten MVP fachlich und technisch k
 - Validierung, E-Mail-Darstellung und Outbox verwenden denselben strukturierten Vertrag.
 - Der kritische Fehlerfall „E-Mail nicht erreichbar“ ist durch Speichern vor dem SMTP-Aufruf und durch Retry abgedeckt.
 - Das Rohtranskript bleibt aus der dauerhaften Versandablage und aus der E-Mail heraus.
-- Die Test-Suite deckt Konfiguration, Modelle, Validierung, E-Mail-Rendering, Outbox, Fehlerfälle und die dokumentierten Werkstattfälle ab. Bei der Prüfung dieses Stands liefen `61` Tests erfolgreich durch.
+- Die Test-Suite deckt Konfiguration, Modelle, Validierung, E-Mail-Rendering, Outbox, Fehlerfälle und die dokumentierten Werkstattfälle ab. Bei der Prüfung dieses Stands liefen `75` Tests erfolgreich durch.
 
 Folgende Punkte sind bewusste MVP-Grenzen oder vor einem Produktivbetrieb zu entscheiden:
 
@@ -154,7 +158,7 @@ Folgende Punkte sind bewusste MVP-Grenzen oder vor einem Produktivbetrieb zu ent
 4. **Aufbewahrung und Datenschutz sind noch keine Funktion.** Ein Löschkonzept, Backups, Verschlüsselung, Zugriffsprotokollierung und eine definierte Aufbewahrungsdauer müssen betrieblich festgelegt werden.
 5. **Reifensatzrollen sind nicht eindeutig begrenzt.** Die Validierung prüft, ob eine Rolle zum Protokolltyp passt, erlaubt aber mehrere Sätze mit derselben Rolle. Falls je Rolle genau ein Satz vorgesehen ist, sollte dies validiert werden. Falls mehrere erlaubt sein sollen, brauchen Prüfungen statt der Rolle eine stabile Reifensatz-ID als Referenz.
 
-Nicht Teil des Backends sind aktuell die Speech-to-Text-/KI-Anbindung, eine direkte WERBAS-Schnittstelle, eine zentrale CarTech-Fachdatenbank und eine Büro-Oberfläche. Diese Erweiterungen können auf dem vorhandenen API- und Zieldatenmodell aufbauen, sollten die genannten Produktionsentscheidungen aber zuerst berücksichtigen.
+Nicht Teil des Backends sind aktuell die strukturierte KI-Extraktion, eine direkte WERBAS-Schnittstelle, eine zentrale CarTech-Fachdatenbank und eine Büro-Oberfläche. Diese Erweiterungen können auf dem vorhandenen API- und Zieldatenmodell aufbauen, sollten die genannten Produktionsentscheidungen aber zuerst berücksichtigen.
 
 ## Lokale Prüfung
 

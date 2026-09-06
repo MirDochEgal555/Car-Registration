@@ -7,8 +7,8 @@ sends its complete draft for validation and, after explicit mechanic
 confirmation, for email delivery. A small durable outbox preserves every valid
 confirmed record before SMTP is called, so failed deliveries can be retried
 after a browser or server restart. The audio endpoint accepts browser-recorded
-WebM files and hands them to a separate speech-to-text provider boundary; no
-provider or AI vehicle-data extraction is configured yet.
+WebM files and transcribes them with OpenAI's speech-to-text API. Vehicle-data
+extraction remains deliberately out of scope.
 
 ## Local start
 
@@ -49,11 +49,12 @@ visible; interrupted `email_sending` records become retryable on service start.
 
 `POST /api/v1/audio/transcribe` accepts a multipart `audio` field containing
 the frontend's `audio/webm` MediaRecorder blob (including a `codecs` MIME
-parameter). Missing, malformed, and empty files, plus unsupported media types,
-return a documented JSON error envelope. The route delegates only speech-to-text to
-`app/services/transcription.py`; it does not extract vehicle or service data.
-Until a concrete provider is configured, a valid upload returns `503` with
-`transcription_provider_unavailable` rather than fabricating a transcript.
+parameter). On success it returns `status: "completed"` and the plain
+`transcript`. A rejected upload or failed transcription returns HTTP 4xx/5xx
+with `status: "failed"`, `transcript: null`, and an `error` object containing a
+machine-readable code and safe German message. The route sends `language: de`,
+German Kfz-workshop context, and terminology hints to the transcription model;
+it does not extract vehicle or service data.
 
 The only required values for handoff to WERBAS are `service_type`,
 `service_date`, `mechanic_id`, and `vehicle.license_plate`. Existing
@@ -75,9 +76,9 @@ python3 -m pytest -q
 `tests/test_workshop_e2e.py` executes all 23 anonymised workshop phrases from
 [`data/fixtures/workshop_e2e_cases.json`](../../data/fixtures/workshop_e2e_cases.json)
 through the extraction-result contract, validation API, and—using an
-in-process mailbox—the durable outbox and office-email handoff. The actual
-speech-to-text/AI extraction adapter remains a separate integration point; the
-fixtures define its regression contract without requiring external services.
+in-process mailbox—the durable outbox and office-email handoff. Structured AI
+extraction remains a separate integration point; the fixtures define its
+regression contract without requiring external services.
 
 Configure SMTP in the deployment environment:
 
@@ -92,6 +93,9 @@ CARTECH_SMTP_USE_TLS=true
 CARTECH_SMTP_USE_SSL=false
 CARTECH_SMTP_TIMEOUT_SECONDS=15
 CARTECH_DELIVERY_STORE_PATH=/var/lib/cartech/cartech-deliveries.sqlite3
+CARTECH_OPENAI_API_KEY=...
+CARTECH_OPENAI_TRANSCRIPTION_MODEL=gpt-transcribe
+CARTECH_OPENAI_TIMEOUT_SECONDS=30
 ```
 
 All mail configuration is read only from environment variables. An annotated,
@@ -106,6 +110,13 @@ STARTTLS on port 587. `CARTECH_SMTP_TIMEOUT_SECONDS` controls the connection
 and delivery timeout. `CARTECH_DELIVERY_STORE_PATH` is the SQLite outbox path.
 Mount its parent directory as persistent storage when running in Docker or on a
 VPS; deleting the file removes the retry history.
+
+`CARTECH_OPENAI_API_KEY` configures speech-to-text; `OPENAI_API_KEY` is also
+accepted for standard OpenAI deployments when the CarTech-specific name is not
+set. The API key must stay in the deployment secret store, never in the
+repository. `CARTECH_OPENAI_TRANSCRIPTION_MODEL` defaults to `gpt-transcribe`;
+the default sends German automotive keyword hints. `CARTECH_OPENAI_TIMEOUT_SECONDS`
+defaults to `30`.
 
 ## Layout
 

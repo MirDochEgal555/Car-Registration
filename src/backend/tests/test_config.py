@@ -19,6 +19,9 @@ def test_settings_reads_smtp_values_from_environment(monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("CARTECH_SMTP_USE_SSL", "true")
     monkeypatch.setenv("CARTECH_SMTP_TIMEOUT_SECONDS", "9.5")
     monkeypatch.setenv("CARTECH_DELIVERY_STORE_PATH", "/var/lib/cartech/outbox.sqlite3")
+    monkeypatch.setenv("CARTECH_OPENAI_API_KEY", "not-a-real-openai-secret")
+    monkeypatch.setenv("CARTECH_OPENAI_TRANSCRIPTION_MODEL", "gpt-transcribe")
+    monkeypatch.setenv("CARTECH_OPENAI_TIMEOUT_SECONDS", "21.5")
     monkeypatch.setenv(
         "CARTECH_CORS_ORIGINS", "https://mechanic.example, https://office.example"
     )
@@ -35,6 +38,9 @@ def test_settings_reads_smtp_values_from_environment(monkeypatch: pytest.MonkeyP
     assert configuration.smtp_use_ssl is True
     assert configuration.smtp_timeout_seconds == 9.5
     assert configuration.delivery_store_path == "/var/lib/cartech/outbox.sqlite3"
+    assert configuration.openai_api_key == "not-a-real-openai-secret"
+    assert configuration.openai_transcription_model == "gpt-transcribe"
+    assert configuration.openai_timeout_seconds == 21.5
     assert configuration.cors_origins == (
         "https://mechanic.example",
         "https://office.example",
@@ -49,6 +55,7 @@ def test_settings_reads_smtp_values_from_environment(monkeypatch: pytest.MonkeyP
         ("CARTECH_SMTP_USE_TLS", "perhaps"),
         ("CARTECH_SMTP_TIMEOUT_SECONDS", "0"),
         ("CARTECH_SMTP_TIMEOUT_SECONDS", "nan"),
+        ("CARTECH_OPENAI_TIMEOUT_SECONDS", "0"),
     ],
 )
 def test_settings_rejects_invalid_smtp_environment(

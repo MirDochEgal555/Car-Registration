@@ -49,7 +49,7 @@ def _environment_port(name: str, default: int) -> int:
 
 
 def _environment_timeout(name: str, default: float) -> float:
-    """Read a positive SMTP timeout in seconds from the environment."""
+    """Read a positive external-service timeout in seconds from the environment."""
 
     value = _environment_value(name)
     if value is None:
@@ -74,7 +74,7 @@ def _environment_origins(name: str, default: tuple[str, ...]) -> tuple[str, ...]
 
 @dataclass(frozen=True)
 class Settings:
-    """Settings needed by the HTTP API and SMTP delivery adapter."""
+    """Settings needed by the HTTP API and its external service adapters."""
 
     app_name: str = "CarTech API"
     app_version: str = "0.1.0"
@@ -111,6 +111,21 @@ class Settings:
     delivery_store_path: str = field(
         default_factory=lambda: _environment_value("CARTECH_DELIVERY_STORE_PATH")
         or "data/processed/cartech-deliveries.sqlite3"
+    )
+    openai_api_key: str | None = field(
+        default_factory=lambda: _environment_value("CARTECH_OPENAI_API_KEY")
+        or _environment_value("OPENAI_API_KEY")
+    )
+    openai_transcription_model: str = field(
+        default_factory=lambda: _environment_value(
+            "CARTECH_OPENAI_TRANSCRIPTION_MODEL"
+        )
+        or "gpt-transcribe"
+    )
+    openai_timeout_seconds: float = field(
+        default_factory=lambda: _environment_timeout(
+            "CARTECH_OPENAI_TIMEOUT_SECONDS", default=30.0
+        )
     )
     cors_origins: tuple[str, ...] = field(
         default_factory=lambda: _environment_origins(
