@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { FrontendErrorState } from './FrontendErrorState'
 
 type RecorderState =
   | 'idle'
@@ -12,7 +13,17 @@ export type AudioTranscriptionState =
   | { kind: 'idle' }
   | { kind: 'processing' }
   | { kind: 'completed'; transcript: string }
-  | { kind: 'error'; message: string; retryable: boolean }
+  | {
+      kind: 'error'
+      failureKind: 'upload' | 'transcription'
+      message: string
+      retryable: boolean
+    }
+
+type RecorderError = {
+  kind: 'permission-denied' | 'media-recorder-unavailable' | 'recording-failed'
+  message: string
+}
 
 type AudioRecorderProps = {
   audioBlob: Blob | null
@@ -27,22 +38,51 @@ function stopMediaStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop())
 }
 
-function getMicrophoneErrorMessage(error: unknown): string {
+function getMicrophoneError(error: unknown): RecorderError {
   if (!(error instanceof DOMException)) {
-    return 'Die Audioaufnahme konnte nicht gestartet werden. Bitte erneut versuchen.'
+    return {
+      kind: 'recording-failed',
+      message: 'Die Audioaufnahme konnte nicht gestartet werden. Bitte erneut versuchen.',
+    }
   }
 
   switch (error.name) {
     case 'NotAllowedError':
     case 'SecurityError':
-      return 'Mikrofonzugriff wurde nicht erlaubt. Bitte erlaube das Mikrofon in den Browser-Einstellungen.'
+      return {
+        kind: 'permission-denied',
+        message:
+          'Mikrofonzugriff wurde nicht erlaubt. Bitte erlaube das Mikrofon in den Browser-Einstellungen und versuche es erneut.',
+      }
     case 'NotFoundError':
-      return 'Es wurde kein Mikrofon gefunden. Bitte ein Mikrofon verbinden und erneut versuchen.'
+      return {
+        kind: 'recording-failed',
+        message:
+          'Es wurde kein Mikrofon gefunden. Bitte ein Mikrofon verbinden und erneut versuchen.',
+      }
     case 'NotReadableError':
     case 'AbortError':
-      return 'Das Mikrofon wird gerade von einer anderen App verwendet. Bitte diese schließen und erneut versuchen.'
+      return {
+        kind: 'recording-failed',
+        message:
+          'Das Mikrofon wird gerade von einer anderen App verwendet. Bitte diese schließen und erneut versuchen.',
+      }
     default:
-      return 'Die Audioaufnahme konnte nicht gestartet werden. Bitte erneut versuchen.'
+      return {
+        kind: 'recording-failed',
+        message: 'Die Audioaufnahme konnte nicht gestartet werden. Bitte erneut versuchen.',
+      }
+  }
+}
+
+function getRecorderErrorTitle(error: RecorderError): string {
+  switch (error.kind) {
+    case 'permission-denied':
+      return 'Mikrofonzugriff nicht erlaubt'
+    case 'media-recorder-unavailable':
+      return 'Audioaufnahme nicht verfügbar'
+    case 'recording-failed':
+      return 'Aufnahme fehlgeschlagen'
   }
 }
 
@@ -65,7 +105,7 @@ export function AudioRecorder({
     audioBlob ? 'recorded' : 'idle',
   )
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [recorderError, setRecorderError] = useState<RecorderError | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const recordingStartedAtRef = useRef<number | null>(null)
@@ -126,22 +166,26 @@ export function AudioRecorder({
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setRecorderState('error')
-      setErrorMessage(
-        'Dieser Browser unterstützt keinen Mikrofonzugriff. Bitte einen aktuellen Browser verwenden.',
-      )
+      setRecorderError({
+        kind: 'recording-failed',
+        message:
+          'Dieser Browser unterstützt keinen Mikrofonzugriff. Bitte einen aktuellen Browser verwenden.',
+      })
       return
     }
 
     if (!window.MediaRecorder) {
       setRecorderState('error')
-      setErrorMessage(
-        'Dieser Browser unterstützt keine Audioaufnahme. Bitte einen aktuellen Browser verwenden.',
-      )
+      setRecorderError({
+        kind: 'media-recorder-unavailable',
+        message:
+          'Dieser Browser unterstützt keine Audioaufnahme. Bitte einen aktuellen Browser verwenden.',
+      })
       return
     }
 
     setRecorderState('requesting')
-    setErrorMessage(null)
+    setRecorderError(null)
     recordingFailedRef.current = false
 
     let stream: MediaStream
@@ -150,7 +194,7 @@ export function AudioRecorder({
     } catch (error) {
       if (isMountedRef.current) {
         setRecorderState('error')
-        setErrorMessage(getMicrophoneErrorMessage(error))
+        setRecorderError(getMicrophoneError(error))
       }
       return
     }
@@ -179,9 +223,10 @@ export function AudioRecorder({
         recordingFailedRef.current = true
         if (isMountedRef.current) {
           setRecorderState('error')
-          setErrorMessage(
-            'Die Audioaufnahme wurde unterbrochen. Bitte erneut versuchen.',
-          )
+          setRecorderError({
+            kind: 'recording-failed',
+            message: 'Die Audioaufnahme wurde unterbrochen. Bitte erneut versuchen.',
+          })
         }
         releaseMicrophone()
       }
@@ -208,9 +253,11 @@ export function AudioRecorder({
             }
           } else if (isMountedRef.current) {
             setRecorderState('error')
-            setErrorMessage(
-              'Es konnte keine Audiodatei gespeichert werden. Bitte erneut versuchen.',
-            )
+            setRecorderError({
+              kind: 'recording-failed',
+              message:
+                'Es konnte keine Audiodatei gespeichert werden. Bitte erneut versuchen.',
+            })
           }
         }
 
@@ -219,14 +266,19 @@ export function AudioRecorder({
 
       recorder.start()
       onRecordingStarted?.()
-      setRecorderState('recording')
-    } catch (error) {
+      if (!recordingFailedRef.current) {
+        setRecorderState('recording')
+      }
+    } catch {
       stopMediaStream(stream)
       mediaStreamRef.current = null
       mediaRecorderRef.current = null
       if (isMountedRef.current) {
         setRecorderState('error')
-        setErrorMessage(getMicrophoneErrorMessage(error))
+        setRecorderError({
+          kind: 'recording-failed',
+          message: 'Die Audioaufnahme konnte nicht gestartet werden. Bitte erneut versuchen.',
+        })
       }
     }
   }
@@ -244,7 +296,7 @@ export function AudioRecorder({
   const removeRecording = () => {
     onAudioRemoved()
     setElapsedSeconds(0)
-    setErrorMessage(null)
+    setRecorderError(null)
     setRecorderState('idle')
   }
 
@@ -326,17 +378,16 @@ export function AudioRecorder({
       )}
 
       {audioBlob && transcriptionState.kind === 'error' && (
-        <section
-          aria-labelledby="audio-transcription-error-title"
-          className="audio-transcription audio-transcription--error"
-          role="alert"
+        <FrontendErrorState
+          compact
+          kind="unexpected"
+          message={transcriptionState.message}
+          title={
+            transcriptionState.failureKind === 'upload'
+              ? 'Audio-Upload fehlgeschlagen'
+              : 'Transkription fehlgeschlagen'
+          }
         >
-          <div>
-            <h3 id="audio-transcription-error-title">
-              Transkription fehlgeschlagen
-            </h3>
-            <p>{transcriptionState.message}</p>
-          </div>
           {transcriptionState.retryable && (
             <button
               className="audio-recorder__retry"
@@ -346,13 +397,23 @@ export function AudioRecorder({
               Transkription erneut versuchen
             </button>
           )}
-        </section>
+          <button
+            className="audio-recorder__remove"
+            onClick={removeRecording}
+            type="button"
+          >
+            Neue Aufnahme erstellen
+          </button>
+        </FrontendErrorState>
       )}
 
-      {recorderState === 'error' && errorMessage && (
-        <p className="audio-recorder__error" role="alert">
-          {errorMessage}
-        </p>
+      {recorderState === 'error' && recorderError && (
+        <FrontendErrorState
+          compact
+          kind="unexpected"
+          message={recorderError.message}
+          title={getRecorderErrorTitle(recorderError)}
+        />
       )}
 
       {isRecording || isStopping ? (
@@ -368,23 +429,35 @@ export function AudioRecorder({
         </button>
       ) : (
         <button
-          aria-label="Aufnahme starten"
+          aria-label={
+            recorderState === 'error'
+              ? 'Aufnahme erneut versuchen'
+              : 'Aufnahme starten'
+          }
           className="audio-recorder__start"
           disabled={recorderState === 'requesting'}
           onClick={startRecording}
           type="button"
         >
           <span className="audio-recorder__microphone" aria-hidden="true">⌁</span>
-          <span>Aufnahme starten</span>
+          <span>
+            {recorderState === 'error'
+              ? 'Aufnahme erneut versuchen'
+              : 'Aufnahme starten'}
+          </span>
           <span className="audio-recorder__button-hint">
             {recorderState === 'requesting'
               ? 'Mikrofon wird geöffnet'
-              : 'Zum Sprechen antippen'}
+              : recorderState === 'error'
+                ? 'Einstellungen prüfen und erneut antippen'
+                : 'Zum Sprechen antippen'}
           </span>
         </button>
       )}
 
-      {recorderState === 'recorded' && audioBlob && (
+      {recorderState === 'recorded' &&
+        audioBlob &&
+        transcriptionState.kind !== 'error' && (
         <button
           className="audio-recorder__remove"
           onClick={removeRecording}

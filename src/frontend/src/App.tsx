@@ -35,9 +35,15 @@ import {
 } from './services/registrationApi'
 import {
   canRetryAudioTranscription,
+  getAudioTranscriptionFailureKind,
   transcribeAudioRecording,
 } from './services/audioApi'
 import { mapWorkshopProcessToRegistration } from './services/registrationMapper'
+import {
+  clearWorkshopDraft,
+  loadWorkshopDraft,
+  saveWorkshopDraft,
+} from './services/workshopDraftStorage'
 import {
   getLicensePlateValidationError,
   normalizeLicensePlate,
@@ -64,6 +70,34 @@ type SubmissionState =
 const initialSubmissionState: SubmissionState = { kind: 'idle' }
 const initialAudioTranscriptionState: AudioTranscriptionState = { kind: 'idle' }
 
+function getRestoredDeliveryFailureState(
+  delivery: ApiDeliveryStatus,
+): SubmissionState {
+  return {
+    kind: 'error',
+    phase: 'delivery',
+    message:
+      'Die E-Mail konnte noch nicht versendet werden. Alle erfassten Fahrzeug- und Reifendaten bleiben erhalten und können erneut gesendet werden.',
+    retryable: true,
+    delivery,
+  }
+}
+
+function getDeliveryErrorMessage(
+  apiError: RegistrationApiError | null,
+  delivery?: ApiDeliveryStatus,
+): string {
+  if (delivery?.status === 'email_failed') {
+    return 'Die E-Mail konnte nicht versendet werden. Der Vorgang ist für den erneuten Versand gespeichert; alle erfassten Fahrzeug- und Reifendaten bleiben erhalten.'
+  }
+
+  if (apiError?.status === 0) {
+    return 'Die E-Mail konnte noch nicht an das Backend übergeben werden. Alle erfassten Fahrzeug- und Reifendaten bleiben erhalten. Bitte Verbindung prüfen und erneut senden.'
+  }
+
+  return 'Die E-Mail konnte nicht versendet werden. Alle erfassten Fahrzeug- und Reifendaten bleiben erhalten. Du kannst erneut senden.'
+}
+
 function getRoute(): Route {
   switch (window.location.hash) {
     case '#/neu':
@@ -80,12 +114,18 @@ function getRoute(): Route {
 }
 
 function App() {
+  const restoredDraftRef = useRef(loadWorkshopDraft())
+  const restoredDraft = restoredDraftRef.current
   const [route, setRoute] = useState<Route>(getRoute)
   const [workshopProcess, setWorkshopProcess] = useState<WorkshopProcess | null>(
-    null,
+    restoredDraft?.process ?? null,
   )
   const [submissionState, setSubmissionState] =
-    useState<SubmissionState>(initialSubmissionState)
+    useState<SubmissionState>(() =>
+      restoredDraft?.failedDelivery
+        ? getRestoredDeliveryFailureState(restoredDraft.failedDelivery)
+        : initialSubmissionState,
+    )
   const [backendIssues, setBackendIssues] = useState<ApiValidationIssue[]>([])
   const [deliveryResult, setDeliveryResult] = useState<ApiDeliveryStatus | null>(
     null,
@@ -108,6 +148,21 @@ function App() {
     window.addEventListener('hashchange', updateRoute)
     return () => window.removeEventListener('hashchange', updateRoute)
   }, [])
+
+  useEffect(() => {
+    if (!workshopProcess || workshopProcess.status === 'confirmed') {
+      clearWorkshopDraft()
+      return
+    }
+
+    const failedDelivery =
+      submissionState.kind === 'error' &&
+      submissionState.phase === 'delivery' &&
+      submissionState.delivery?.status === 'email_failed'
+        ? submissionState.delivery
+        : undefined
+    saveWorkshopDraft(workshopProcess, failedDelivery)
+  }, [submissionState, workshopProcess])
 
   const navigate = (path: string) => {
     window.location.hash = path
@@ -180,6 +235,7 @@ function App() {
       if (audioTranscriptionRequestIdRef.current === requestId) {
         setAudioTranscriptionState({
           kind: 'error',
+          failureKind: getAudioTranscriptionFailureKind(error),
           message:
             error instanceof Error
               ? error.message
@@ -203,7 +259,20 @@ function App() {
   }
 
   if (route === 'start') {
-    return <MechanicStartPage onStart={() => navigate('/neu')} />
+    return (
+      <MechanicStartPage
+        hasDraft={workshopProcess?.status === 'draft'}
+        onResume={() =>
+          navigate(
+            submissionState.kind === 'error' &&
+              submissionState.phase === 'delivery'
+              ? '/uebersicht'
+              : '/erfassung',
+          )
+        }
+        onStart={() => navigate('/neu')}
+      />
+    )
   }
 
   if (route === 'selection') {
@@ -480,7 +549,7 @@ function App() {
       )
       navigate('/bestaetigt')
     } catch (error) {
-      showSubmissionError(error, 'delivery')
+      showSubmissionError(error, 'delivery', submissionState.delivery)
     } finally {
       submissionLockRef.current = false
     }
@@ -489,6 +558,7 @@ function App() {
   function showSubmissionError(
     error: unknown,
     phase: 'validation' | 'delivery',
+    previousDelivery?: ApiDeliveryStatus,
   ) {
     const apiError = error instanceof RegistrationApiError ? error : null
     const detail = apiError?.detail
@@ -504,7 +574,7 @@ function App() {
       : []
     const delivery = detailObject && isApiDeliveryStatus(detailObject.delivery)
       ? detailObject.delivery
-      : undefined
+      : previousDelivery
 
     setBackendIssues(issues)
     setSubmissionState({
@@ -512,7 +582,7 @@ function App() {
       phase,
       message:
         phase === 'delivery'
-          ? 'Die E-Mail konnte nicht versendet werden. Alle erfassten Fahrzeug- und Reifendaten bleiben erhalten.'
+          ? getDeliveryErrorMessage(apiError, delivery)
           : apiError?.message ||
             'Das Backend ist nicht erreichbar. Bitte Verbindung prüfen und erneut versuchen.',
       retryable: phase === 'delivery',

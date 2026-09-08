@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AudioTranscriptionApiError,
   canRetryAudioTranscription,
+  getAudioTranscriptionFailureKind,
   transcribeAudioRecording,
 } from './audioApi'
 
@@ -66,18 +67,68 @@ describe('transcribeAudioRecording', () => {
     ).rejects.toMatchObject({
       name: 'AudioTranscriptionApiError',
       status: 502,
+      failureKind: 'transcription',
       message: 'Die Sprachtranskription ist fehlgeschlagen.',
     })
 
     expect(
       canRetryAudioTranscription(
-        new AudioTranscriptionApiError('Fehlgeschlagen', 502, null),
+        new AudioTranscriptionApiError(
+          'Fehlgeschlagen',
+          502,
+          null,
+          'transcription',
+        ),
       ),
     ).toBe(true)
     expect(
       canRetryAudioTranscription(
-        new AudioTranscriptionApiError('Ungültiges Audio', 422, null),
+        new AudioTranscriptionApiError('Ungültiges Audio', 422, null, 'upload'),
       ),
     ).toBe(false)
+  })
+
+  it('kennzeichnet eine nicht übertragene Aufnahme als Upload-Fehler', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')))
+
+    await expect(
+      transcribeAudioRecording(new Blob(['audio'], { type: 'audio/webm' })),
+    ).rejects.toMatchObject({
+      name: 'AudioTranscriptionApiError',
+      status: 0,
+      failureKind: 'upload',
+    })
+
+    expect(
+      getAudioTranscriptionFailureKind(
+        new AudioTranscriptionApiError('Offline', 0, null, 'upload'),
+      ),
+    ).toBe('upload')
+  })
+
+  it('kennzeichnet abgelehnte Audiodateien als Upload-Fehler', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          {
+            status: 'failed',
+            transcript: null,
+            error: {
+              code: 'unsupported_audio_format',
+              message: 'Nur Browseraufnahmen im Format audio/webm werden unterstützt.',
+            },
+          },
+          415,
+        ),
+      ),
+    )
+
+    await expect(
+      transcribeAudioRecording(new Blob(['audio'], { type: 'audio/webm' })),
+    ).rejects.toMatchObject({
+      failureKind: 'upload',
+      status: 415,
+    })
   })
 })

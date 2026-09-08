@@ -87,11 +87,13 @@ function installAudioRecording() {
 describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
   beforeEach(() => {
     window.location.hash = ''
+    window.sessionStorage.clear()
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
     Reflect.deleteProperty(navigator, 'mediaDevices')
+    window.sessionStorage.clear()
   })
 
   it('lädt die Aufnahme hoch, zeigt den Text und behält manuell erfasste Daten bei', async () => {
@@ -220,11 +222,56 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
         name: 'Transkription erneut versuchen',
       }),
     ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Transkription fehlgeschlagen' }),
+    ).toBeVisible()
     await user.click(
       screen.getByRole('button', { name: 'Transkription erneut versuchen' }),
     )
 
     expect(await screen.findByText('Räder nachziehen.')).toBeVisible()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('erhält Formulardaten bei einem Audio-Upload-Fehler und lässt dieselbe Aufnahme erneut senden', async () => {
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError('Offline'))
+      .mockResolvedValueOnce(
+        response({
+          status: 'completed',
+          transcript: 'Profiltiefe vorne geprüft.',
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    installAudioRecording()
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Einlagerung' }))
+    fireEvent.change(screen.getByLabelText(/Kennzeichen/), {
+      target: { value: 'cw ab 456' },
+    })
+    fireEvent.change(screen.getByLabelText(/Hersteller/), {
+      target: { value: 'Michelin' },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }))
+    await user.click(screen.getByRole('button', { name: 'Aufnahme stoppen' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Audio-Upload fehlgeschlagen' }),
+    ).toBeVisible()
+    expect(screen.getByLabelText(/Kennzeichen/)).toHaveValue('CW-AB 456')
+    expect(screen.getByLabelText(/Hersteller/)).toHaveValue('Michelin')
+
+    await user.click(
+      screen.getByRole('button', { name: 'Transkription erneut versuchen' }),
+    )
+
+    expect(await screen.findByText('Profiltiefe vorne geprüft.')).toBeVisible()
+    expect(screen.getByLabelText(/Kennzeichen/)).toHaveValue('CW-AB 456')
+    expect(screen.getByLabelText(/Hersteller/)).toHaveValue('Michelin')
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
@@ -376,7 +423,7 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
       .mockResolvedValueOnce(response({ ...emailSent(), attempt_count: 2 }))
     vi.stubGlobal('fetch', fetchMock)
     const user = startNewProcess()
-    render(<App />)
+    const app = render(<App />)
 
     await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
     await user.click(screen.getByRole('button', { name: 'Einlagerung' }))
@@ -407,6 +454,23 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(screen.getByRole('button', { name: 'Erneut senden' })).toHaveClass(
       'primary-action',
     )
+
+    app.unmount()
+    window.location.hash = ''
+    render(<App />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Erfassung fortsetzen' }),
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Erfassung fortsetzen' }),
+    )
+    expect(
+      await screen.findByRole('heading', { name: 'Versand fehlgeschlagen' }),
+    ).toBeVisible()
+    expect(screen.getByText('CW-AB 987')).toBeVisible()
+    expect(screen.getByText('Goodyear')).toBeVisible()
+
     await user.click(screen.getByRole('button', { name: 'Erneut senden' }))
 
     expect(

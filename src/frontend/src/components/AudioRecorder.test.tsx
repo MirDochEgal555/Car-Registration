@@ -52,6 +52,13 @@ class MediaRecorderMock {
   }
 }
 
+class FailingMediaRecorderMock extends MediaRecorderMock {
+  start() {
+    super.start()
+    this.onerror?.(new Event('error'))
+  }
+}
+
 function installGetUserMedia(getUserMedia: () => Promise<MediaStream>) {
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
@@ -102,9 +109,10 @@ describe('AudioRecorder', () => {
   })
 
   it('zeigt eine verständliche Meldung, wenn der Mikrofonzugriff abgelehnt wird', async () => {
-    installGetUserMedia(() =>
-      Promise.reject(new DOMException('Permission denied', 'NotAllowedError')),
+    const getUserMedia = vi.fn().mockRejectedValue(
+      new DOMException('Permission denied', 'NotAllowedError'),
     )
+    installGetUserMedia(getUserMedia)
     vi.stubGlobal('MediaRecorder', MediaRecorderMock)
     const user = userEvent.setup()
 
@@ -114,6 +122,56 @@ describe('AudioRecorder', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /Mikrofonzugriff wurde nicht erlaubt/,
     )
-    expect(screen.getByRole('button', { name: 'Aufnahme starten' })).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Mikrofonzugriff nicht erlaubt' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Aufnahme erneut versuchen' }),
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Aufnahme erneut versuchen' }),
+    )
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
+  })
+
+  it('erklärt eine nicht verfügbare MediaRecorder-API und lässt den Versuch wiederholen', async () => {
+    installGetUserMedia(vi.fn())
+    const user = userEvent.setup()
+
+    render(<RecorderHarness />)
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Audioaufnahme nicht verfügbar' }),
+    ).toBeVisible()
+    expect(screen.getByText(/unterstützt keine audioaufnahme/i)).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Aufnahme erneut versuchen' }),
+    ).toBeVisible()
+  })
+
+  it('meldet einen Aufnahmeabbruch und erhält die Retry-Aktion', async () => {
+    const stream = {
+      getTracks: () => [{ stop: vi.fn() }],
+    } as unknown as MediaStream
+    const getUserMedia = vi.fn().mockResolvedValue(stream)
+    installGetUserMedia(getUserMedia)
+    vi.stubGlobal('MediaRecorder', FailingMediaRecorderMock)
+    const user = userEvent.setup()
+
+    render(<RecorderHarness />)
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Aufnahme fehlgeschlagen' }),
+    ).toBeVisible()
+    expect(screen.getByText(/audioaufnahme wurde unterbrochen/i)).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Aufnahme erneut versuchen' }),
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Aufnahme erneut versuchen' }),
+    )
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
   })
 })

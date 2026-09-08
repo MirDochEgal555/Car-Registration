@@ -1,8 +1,14 @@
 type MechanicStartPageProps = {
+  hasDraft?: boolean
+  onResume?: () => void
   onStart: () => void
 }
 
-export function MechanicStartPage({ onStart }: MechanicStartPageProps) {
+export function MechanicStartPage({
+  hasDraft = false,
+  onResume,
+  onStart,
+}: MechanicStartPageProps) {
   return (
     <main className="workshop-view">
       <header className="app-header">
@@ -22,12 +28,39 @@ export function MechanicStartPage({ onStart }: MechanicStartPageProps) {
           Starte einen neuen Vorgang mit wenigen Berührungen.
         </p>
 
-        <button className="primary-action" onClick={onStart} type="button">
-          <span className="primary-action__icon" aria-hidden="true">
-            +
-          </span>
-          <span>Neue Erfassung</span>
-          <span className="primary-action__hint">Vorgang auswählen</span>
+        {hasDraft && onResume && (
+          <button
+            aria-label="Erfassung fortsetzen"
+            className="primary-action"
+            onClick={onResume}
+            type="button"
+          >
+            <span className="primary-action__icon" aria-hidden="true">
+              ↻
+            </span>
+            <span>Erfassung fortsetzen</span>
+            <span className="primary-action__hint">
+              Deine aktuellen Angaben bleiben erhalten
+            </span>
+          </button>
+        )}
+
+        <button
+          className={hasDraft ? 'secondary-button' : 'primary-action'}
+          onClick={onStart}
+          type="button"
+        >
+          {hasDraft ? (
+            'Neue Erfassung beginnen'
+          ) : (
+            <>
+              <span className="primary-action__icon" aria-hidden="true">
+                +
+              </span>
+              <span>Neue Erfassung</span>
+              <span className="primary-action__hint">Vorgang auswählen</span>
+            </>
+          )}
         </button>
       </section>
     </main>

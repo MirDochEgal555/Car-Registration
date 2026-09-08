@@ -15,11 +15,14 @@ type AudioTranscriptionSuccessResponse = {
   transcript: string
 }
 
+export type AudioTranscriptionFailureKind = 'upload' | 'transcription'
+
 export class AudioTranscriptionApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
     readonly detail: unknown,
+    readonly failureKind: AudioTranscriptionFailureKind,
   ) {
     super(message)
     this.name = 'AudioTranscriptionApiError'
@@ -43,6 +46,7 @@ export async function transcribeAudioRecording(audio: Blob): Promise<string> {
       'Die Sprachnotiz konnte nicht hochgeladen werden. Bitte Verbindung prüfen und erneut versuchen.',
       0,
       null,
+      'upload',
     )
   }
 
@@ -52,6 +56,7 @@ export async function transcribeAudioRecording(audio: Blob): Promise<string> {
       getErrorMessage(body, response.status),
       response.status,
       body,
+      getFailureKind(body, response.status),
     )
   }
 
@@ -60,6 +65,7 @@ export async function transcribeAudioRecording(audio: Blob): Promise<string> {
       'Die Sprachtranskription hat keinen lesbaren Text zurückgegeben. Bitte erneut versuchen.',
       response.status,
       body,
+      'transcription',
     )
   }
 
@@ -81,6 +87,14 @@ export function canRetryAudioTranscription(error: unknown): boolean {
     error.status >= 500 ||
     (error.status >= 200 && error.status < 300)
   )
+}
+
+export function getAudioTranscriptionFailureKind(
+  error: unknown,
+): AudioTranscriptionFailureKind {
+  return error instanceof AudioTranscriptionApiError
+    ? error.failureKind
+    : 'transcription'
 }
 
 async function readResponseBody(response: Response): Promise<unknown> {
@@ -119,6 +133,27 @@ function getErrorMessage(body: unknown, status: number): string {
   }
 
   return `Die Sprachtranskription konnte nicht verarbeitet werden (HTTP ${status}).`
+}
+
+function getFailureKind(
+  body: unknown,
+  status: number,
+): AudioTranscriptionFailureKind {
+  const errorCode = getErrorCode(body)
+  if (errorCode?.startsWith('transcription_') || status >= 500) {
+    return 'transcription'
+  }
+
+  return 'upload'
+}
+
+function getErrorCode(body: unknown): string | null {
+  if (!isAudioTranscriptionErrorResponse(body)) {
+    return null
+  }
+
+  const code = body.error?.code
+  return typeof code === 'string' ? code : null
 }
 
 function isAudioTranscriptionErrorResponse(
