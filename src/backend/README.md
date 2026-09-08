@@ -81,6 +81,14 @@ in-process mailbox—the durable outbox and office-email handoff. Structured AI
 extraction remains a separate integration point; the fixtures define its
 regression contract without requiring external services.
 
+`tests/test_transcription_cases.py` covers the adapter contract for nine
+natural German workshop utterances with plates, mileage, tire sizes, brands,
+model names, tread depths, axles and left/right positions. It includes the
+confusable pairs `63.500`/`6.350`, `205/55 R16`/`225/40 R18`, and
+`4,5`/`5,4`, plus incorrect or ambiguous provider answers that must remain
+unchanged for human review. The corresponding live-recording acceptance procedure is documented in
+[`documentation/SPEECH_TO_TEXT_TEST_CASES.md`](../../documentation/SPEECH_TO_TEXT_TEST_CASES.md).
+
 Configure SMTP in the deployment environment:
 
 ```text

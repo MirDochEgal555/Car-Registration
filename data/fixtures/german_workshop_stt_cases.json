@@ -1,0 +1,140 @@
+[
+  {
+    "id": "01-michelin-vorderachse",
+    "spoken_text": "Beim Golf mit dem Kennzeichen B-AB 2746 stehen 128.450 Kilometer auf dem Tacho. Auf der Vorderachse fahren Michelin Pilot Sport 5 in 205/55 R16; vorne links messe ich 5,5 und vorne rechts 5 Millimeter Profil.",
+    "expected_transcript": "Beim Golf mit dem Kennzeichen B-AB 2746 stehen 128.450 Kilometer auf dem Tacho. Auf der Vorderachse fahren Michelin Pilot Sport 5 in 205/55 R16; vorne links messe ich 5,5 und vorne rechts 5 Millimeter Profil.",
+    "required_fragments": ["B-AB 2746", "128.450", "Vorderachse", "Michelin", "Pilot Sport 5", "205/55 R16", "vorne links", "5,5", "vorne rechts", "5 Millimeter"],
+    "accepted_variants": {
+      "license_plate": ["B-AB 2746", "B AB 2746"],
+      "mileage_km": ["128.450", "128450"],
+      "tire_size": ["205/55 R16", "205 55 R16", "205/55R16"],
+      "tread_depth_mm": ["5,5", "5.5"]
+    }
+  },
+  {
+    "id": "02-continental-hinterachse",
+    "spoken_text": "Für den Skoda mit M-KT 681 und 84.920 Kilometern: Continental WinterContact TS 870 in 205/55 R16. Auf der Hinterachse sind hinten links 6 und hinten rechts 6,5 Millimeter Profil.",
+    "expected_transcript": "Für den Skoda mit M-KT 681 und 84.920 Kilometern: Continental WinterContact TS 870 in 205/55 R16. Auf der Hinterachse sind hinten links 6 und hinten rechts 6,5 Millimeter Profil.",
+    "required_fragments": ["M-KT 681", "84.920", "Continental", "WinterContact TS 870", "205/55 R16", "Hinterachse", "hinten links 6", "hinten rechts", "6,5 Millimeter"],
+    "accepted_variants": {
+      "license_plate": ["M-KT 681", "M KT 681"],
+      "mileage_km": ["84.920", "84920"],
+      "tire_size": ["205/55 R16", "205 55 R16", "205/55R16"],
+      "tread_depth_mm": ["6,5", "6.5"]
+    }
+  },
+  {
+    "id": "03-goodyear-abbreviated-positions",
+    "spoken_text": "Beim BMW mit S-WR 908, Kilometerstand 212.305, sind vorne Goodyear Vector 4Seasons Gen-3 montiert. Die Vorderachse hat links 4,8, rechts 5,0 Millimeter, hinten sind es beidseitig 5,5.",
+    "expected_transcript": "Beim BMW mit S-WR 908, Kilometerstand 212.305, sind vorne Goodyear Vector 4Seasons Gen-3 montiert. Die Vorderachse hat links 4,8, rechts 5,0 Millimeter, hinten sind es beidseitig 5,5.",
+    "required_fragments": ["S-WR 908", "212.305", "Goodyear", "Vector 4Seasons Gen-3", "vorne", "Vorderachse", "links", "4,8", "rechts", "5,0", "hinten", "5,5"],
+    "accepted_variants": {
+      "license_plate": ["S-WR 908", "S WR 908"],
+      "mileage_km": ["212.305", "212305"],
+      "tread_depth_mm": ["4,8", "4.8", "5,0", "5", "5,5", "5.5"]
+    }
+  },
+  {
+    "id": "04-bridgestone-all-wheel-positions",
+    "spoken_text": "Kennzeichen CW-CT 225, 73.400 Kilometer: Bitte die Bridgestone Blizzak LM005, Größe 205/55 R16, einlagern. Vorne links 7 Millimeter, vorne rechts 6,5; hinten links 6 und hinten rechts 5,5.",
+    "expected_transcript": "Kennzeichen CW-CT 225, 73.400 Kilometer: Bitte die Bridgestone Blizzak LM005, Größe 205/55 R16, einlagern. Vorne links 7 Millimeter, vorne rechts 6,5; hinten links 6 und hinten rechts 5,5.",
+    "required_fragments": ["CW-CT 225", "73.400", "Bridgestone", "Blizzak LM005", "205/55 R16", "vorne links", "7 Millimeter", "vorne rechts", "6,5", "hinten links", "6", "hinten rechts", "5,5"],
+    "accepted_variants": {
+      "license_plate": ["CW-CT 225", "CW CT 225"],
+      "mileage_km": ["73.400", "73400"],
+      "tire_size": ["205/55 R16", "205 55 R16", "205/55R16"],
+      "tread_depth_mm": ["6,5", "6.5", "5,5", "5.5"]
+    }
+  },
+  {
+    "id": "05-hankook-low-tread",
+    "spoken_text": "Bei F-PS 516 mit 56.780 Kilometern prüfen wir Hankook Ventus Prime 4 in 205/55 R16. An der Vorderachse ist vorne rechts das Profil mit 3,9 Millimetern niedriger als vorne links mit 4,4; an der Hinterachse links und rechts jeweils 4,8.",
+    "expected_transcript": "Bei F-PS 516 mit 56.780 Kilometern prüfen wir Hankook Ventus Prime 4 in 205/55 R16. An der Vorderachse ist vorne rechts das Profil mit 3,9 Millimetern niedriger als vorne links mit 4,4; an der Hinterachse links und rechts jeweils 4,8.",
+    "required_fragments": ["F-PS 516", "56.780", "Hankook", "Ventus Prime 4", "205/55 R16", "Vorderachse", "vorne rechts", "3,9", "vorne links", "4,4", "Hinterachse", "links", "rechts", "4,8"],
+    "accepted_variants": {
+      "license_plate": ["F-PS 516", "F PS 516"],
+      "mileage_km": ["56.780", "56780"],
+      "tire_size": ["205/55 R16", "205 55 R16", "205/55R16"],
+      "tread_depth_mm": ["3,9", "3.9", "4,4", "4.4", "4,8", "4.8"]
+    }
+  },
+  {
+    "id": "06-michelin-axle-summary",
+    "spoken_text": "Für das Fahrzeug DA-TS 870 mit 101.015 Kilometern sind Michelin Alpin 6 Winterreifen in 205/55 R16 montiert. Hinten rechts haben wir 4 Millimeter, hinten links 4,5; vorne auf beiden Seiten 6.",
+    "expected_transcript": "Für das Fahrzeug DA-TS 870 mit 101.015 Kilometern sind Michelin Alpin 6 Winterreifen in 205/55 R16 montiert. Hinten rechts haben wir 4 Millimeter, hinten links 4,5; vorne auf beiden Seiten 6.",
+    "required_fragments": ["DA-TS 870", "101.015", "Michelin", "Alpin 6", "Winterreifen", "205/55 R16", "hinten rechts", "4 Millimeter", "hinten links", "4,5", "vorne", "6"],
+    "accepted_variants": {
+      "license_plate": ["DA-TS 870", "DA TS 870"],
+      "mileage_km": ["101.015", "101015"],
+      "tire_size": ["205/55 R16", "205 55 R16", "205/55R16"],
+      "tread_depth_mm": ["4,5", "4.5"]
+    }
+  },
+  {
+    "id": "07-numeric-plate-63500-and-205-55-r16",
+    "spoken_text": "Kennzeichen M-AB 6350, Kilometerstand 63.500 Kilometer. Die Reifengröße ist 205/55 R16.",
+    "expected_transcript": "Kennzeichen M-AB 6350, Kilometerstand 63.500 Kilometer. Die Reifengröße ist 205/55 R16.",
+    "required_fragments": ["M-AB 6350", "63.500 Kilometer", "205/55 R16"],
+    "accepted_variants": {
+      "license_plate": ["M-AB 6350", "M AB 6350"],
+      "mileage_km": ["63.500", "63500"],
+      "tire_size": ["205/55 R16", "205 55 R16", "205/55R16"]
+    },
+    "documented_raw_results": [
+      {
+        "classification": "incorrect",
+        "provider_transcript": "Kennzeichen M-AP 635, Kilometerstand 63.500 Kilometer. Die Reifengröße ist 205/55 R16.",
+        "reason": "Die Kennzeichen-Buchstaben und die letzte Ziffer wurden verändert; der Adapter darf das Kennzeichen nicht erraten."
+      },
+      {
+        "classification": "incorrect",
+        "provider_transcript": "Kennzeichen M-AB 6350, Kilometerstand 6.350 Kilometer. Die Reifengröße ist 205/55 R16.",
+        "reason": "Der Kilometerstand wurde von 63.500 auf 6.350 geändert; der Adapter darf ihn nicht zurückrechnen."
+      }
+    ]
+  },
+  {
+    "id": "08-numeric-plate-6350-and-225-40-r18",
+    "spoken_text": "Kennzeichen M-AB 6350, Kilometerstand 6.350 Kilometer. Die Reifengröße ist 225/40 R18.",
+    "expected_transcript": "Kennzeichen M-AB 6350, Kilometerstand 6.350 Kilometer. Die Reifengröße ist 225/40 R18.",
+    "required_fragments": ["M-AB 6350", "6.350 Kilometer", "225/40 R18"],
+    "accepted_variants": {
+      "license_plate": ["M-AB 6350", "M AB 6350"],
+      "mileage_km": ["6.350", "6350"],
+      "tire_size": ["225/40 R18", "225 40 R18", "225/40R18"]
+    },
+    "documented_raw_results": [
+      {
+        "classification": "incorrect",
+        "provider_transcript": "Kennzeichen M-AB 6350, Kilometerstand 6.350 Kilometer. Die Reifengröße ist 225/40 R16.",
+        "reason": "Der Felgendurchmesser wurde von R18 auf R16 geändert und muss als Fehler dokumentiert werden."
+      },
+      {
+        "classification": "ambiguous",
+        "provider_transcript": "Kennzeichen M-AB 6350, Kilometerstand 6.350 Kilometer. Die Reifengröße ist 225/40 oder R18.",
+        "reason": "Die getrennte Alternative ist keine eindeutig zuordenbare Reifengröße und darf nicht zu 225/40 R18 ergänzt werden."
+      }
+    ]
+  },
+  {
+    "id": "09-numeric-tread-depths-by-wheel-position",
+    "spoken_text": "Profiltiefe: vorne links 4,5 Millimeter, vorne rechts 5,4 Millimeter, hinten links 5,4 Millimeter und hinten rechts 4,5 Millimeter.",
+    "expected_transcript": "Profiltiefe: vorne links 4,5 Millimeter, vorne rechts 5,4 Millimeter, hinten links 5,4 Millimeter und hinten rechts 4,5 Millimeter.",
+    "required_fragments": ["vorne links 4,5", "vorne rechts 5,4", "hinten links 5,4", "hinten rechts 4,5"],
+    "accepted_variants": {
+      "tread_depth_mm": ["4,5", "4.5", "5,4", "5.4"]
+    },
+    "documented_raw_results": [
+      {
+        "classification": "incorrect",
+        "provider_transcript": "Profiltiefe: vorne links 5,4 Millimeter, vorne rechts 4,5 Millimeter, hinten links 4,5 Millimeter und hinten rechts 5,4 Millimeter.",
+        "reason": "Die Werte 4,5 und 5,4 wurden den Radpositionen falsch zugeordnet; sie dürfen nicht vertauscht werden."
+      },
+      {
+        "classification": "ambiguous",
+        "provider_transcript": "Profiltiefe: vorne 4,5 und 5,4 Millimeter, hinten 5,4 und 4,5 Millimeter.",
+        "reason": "Die Links-rechts-Zuordnung fehlt. Die vier Einzelradwerte dürfen nicht aus der Reihenfolge hergeleitet werden."
+      }
+    ]
+  }
+]

@@ -598,3 +598,7 @@ Die Extraktion gilt für den MVP als ausreichend robust, wenn sie:
 - unrealistische Werte markiert, statt sie automatisch zu korrigieren.
 
 Vor dem produktiven Test sollten die Beispiele durch mindestens 30–50 anonymisierte Werkstattformulierungen ergänzt werden.
+
+Für die davon getrennte Prüfung des Rohtranskripts stehen natürliche
+Mechaniker-Sätze und ein manueller Aufnahmeablauf in den
+[Speech-to-Text-Testfällen](SPEECH_TO_TEXT_TEST_CASES.md) bereit.

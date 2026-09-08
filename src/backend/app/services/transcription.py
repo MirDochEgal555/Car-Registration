@@ -32,7 +32,8 @@ GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT = (
     "Fachbegriffe sind zum Beispiel Reifenwechsel, Reifeneinlagerung, "
     "Sommerreifen, Winterreifen, Ganzjahresreifen, Felge, Profiltiefe, Luftdruck, "
     "RDKS, Bremsen, Radschrauben, Drehmoment, Wuchtgewichte, HU, AU, "
-    "vorne links, vorne rechts, hinten links und hinten rechts."
+    "Vorderachse, Hinterachse, vorne, hinten, links, rechts, vorne links, "
+    "vorne rechts, hinten links und hinten rechts."
 )
 
 GERMAN_AUTOMOTIVE_KEYWORDS = (
@@ -41,7 +42,28 @@ GERMAN_AUTOMOTIVE_KEYWORDS = (
     "Sommerreifen",
     "Winterreifen",
     "Ganzjahresreifen",
+    "Kennzeichen",
+    "Kilometerstand",
+    "Vorderachse",
+    "Hinterachse",
+    "vorne",
+    "hinten",
+    "links",
+    "rechts",
     "Profiltiefe",
+    "205/55 R16",
+    "225/40 R18",
+    "Michelin",
+    "Continental",
+    "Goodyear",
+    "Bridgestone",
+    "Hankook",
+    "Pilot Sport 5",
+    "WinterContact TS 870",
+    "Vector 4Seasons Gen-3",
+    "Blizzak LM005",
+    "Ventus Prime 4",
+    "Alpin 6",
     "Luftdruck",
     "RDKS",
     "Reifendruckkontrollsystem",
