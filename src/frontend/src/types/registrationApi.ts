@@ -48,10 +48,15 @@ export type ApiValidationIssue = {
   status: 'missing' | 'uncertain' | 'invalid' | 'valid'
 }
 
+export type ApiFieldStatus = 'missing' | 'uncertain' | 'invalid' | 'valid'
+
+export type ApiFieldStatusMap = Record<string, ApiFieldStatus>
+
 export type ApiValidationResponse = {
   registration: ApiRegistrationDraft
   valid: boolean
   review_required: boolean
+  field_status?: ApiFieldStatusMap
   issues: ApiValidationIssue[]
 }
 

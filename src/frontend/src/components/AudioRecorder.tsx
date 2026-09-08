@@ -34,8 +34,30 @@ type AudioRecorderProps = {
   transcriptionState: AudioTranscriptionState
 }
 
+const WEBM_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm'] as const
+
 function stopMediaStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop())
+}
+
+function getSupportedWebmMimeType(): string | null {
+  // Older implementations can record WebM but do not expose
+  // `isTypeSupported`. Keep that compatibility path while explicitly
+  // selecting WebM in modern browsers, so the captured Blob matches the
+  // backend's supported `audio/webm` upload contract.
+  if (typeof MediaRecorder.isTypeSupported !== 'function') {
+    return 'audio/webm'
+  }
+
+  return (
+    WEBM_MIME_TYPES.find((mimeType) =>
+      MediaRecorder.isTypeSupported(mimeType),
+    ) ?? null
+  )
+}
+
+function normaliseMediaType(mediaType: string) {
+  return mediaType.split(';', 1)[0]?.trim().toLowerCase()
 }
 
 function getMicrophoneError(error: unknown): RecorderError {
@@ -204,12 +226,38 @@ export function AudioRecorder({
       return
     }
 
+    const webmMimeType = getSupportedWebmMimeType()
+    if (!webmMimeType) {
+      stopMediaStream(stream)
+      setRecorderState('error')
+      setRecorderError({
+        kind: 'media-recorder-unavailable',
+        message:
+          'Dieser Browser kann keine unterstützte WebM-Audioaufnahme erstellen. Du kannst die Angaben weiter manuell erfassen oder einen aktuellen Browser verwenden.',
+      })
+      return
+    }
+
     try {
-      const recorder = new MediaRecorder(stream)
+      const recorder = new MediaRecorder(stream, { mimeType: webmMimeType })
       const audioChunks: BlobPart[] = []
 
       mediaStreamRef.current = stream
       mediaRecorderRef.current = recorder
+
+      if (normaliseMediaType(recorder.mimeType) !== 'audio/webm') {
+        releaseMicrophone()
+        if (isMountedRef.current) {
+          setRecorderState('error')
+          setRecorderError({
+            kind: 'media-recorder-unavailable',
+            message:
+              'Dieser Browser erstellt kein unterstütztes WebM-Audioformat. Du kannst die Angaben weiter manuell erfassen oder einen aktuellen Browser verwenden.',
+          })
+        }
+        return
+      }
+
       recordingStartedAtRef.current = Date.now()
       setElapsedSeconds(0)
 
@@ -242,7 +290,7 @@ export function AudioRecorder({
 
         if (!recordingFailedRef.current) {
           const audio = new Blob(audioChunks, {
-            type: recorder.mimeType || 'audio/webm',
+            type: recorder.mimeType || webmMimeType,
           })
 
           if (audio.size > 0) {

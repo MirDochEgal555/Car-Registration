@@ -93,8 +93,13 @@ def send_registration(
             },
         )
     try:
+        # Validation responses intentionally leave the client draft unchanged.
+        # The durable delivery copy must nevertheless retain all computed
+        # field markers so a retry renders the identical review information.
+        delivery_registration = validation.registration.model_copy(deep=True)
+        delivery_registration.field_status = validation.field_status
         delivery, _ = delivery_store.save_or_get(
-            validation.registration,
+            delivery_registration,
             settings.office_email,
         )
     except DeliveryConflictError as error:

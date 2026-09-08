@@ -24,6 +24,7 @@ import type {
 } from './types/workshopProcess'
 import type {
   ApiDeliveryStatus,
+  ApiFieldStatusMap,
   ApiValidationIssue,
   ApiValidationResponse,
 } from './types/registrationApi'
@@ -137,6 +138,7 @@ function App() {
         : initialSubmissionState,
     )
   const [backendIssues, setBackendIssues] = useState<ApiValidationIssue[]>([])
+  const [backendFieldStatus, setBackendFieldStatus] = useState<ApiFieldStatusMap>({})
   const [deliveryResult, setDeliveryResult] = useState<ApiDeliveryStatus | null>(
     null,
   )
@@ -209,6 +211,7 @@ function App() {
     })
     setSubmissionState(initialSubmissionState)
     setBackendIssues([])
+    setBackendFieldStatus({})
     setDeliveryResult(null)
     clearAudioTranscription()
     navigate('/erfassung')
@@ -460,6 +463,10 @@ function App() {
   function clearSubmissionFeedback() {
     setSubmissionState(initialSubmissionState)
     setBackendIssues([])
+    // Field statuses describe the values at the moment of backend validation.
+    // Once a mechanic edits any form value, wait for the next validation
+    // response instead of showing a stale missing/uncertain/invalid marker.
+    setBackendFieldStatus({})
   }
 
   function isSubmissionInProgress() {
@@ -497,6 +504,7 @@ function App() {
       }
 
       setBackendIssues(validation.issues)
+      setBackendFieldStatus(validation.field_status ?? {})
       if (!validation.valid) {
         setSubmissionState({
           kind: 'error',
@@ -589,6 +597,9 @@ function App() {
       : previousDelivery
 
     setBackendIssues(issues)
+    if (validation && isApiFieldStatusMap(validation.field_status)) {
+      setBackendFieldStatus(validation.field_status)
+    }
     setSubmissionState({
       kind: 'error',
       phase,
@@ -642,6 +653,7 @@ function App() {
           tireCondition={tireCondition}
           tireInspection={tireInspection}
           tireSet={tireSet}
+          backendFieldStatus={backendFieldStatus}
           backendIssues={backendIssues}
           submissionState={submissionState}
         />
@@ -1075,6 +1087,7 @@ function DeliveryProgressNotice({ stage }: DeliveryProgressNoticeProps) {
 }
 
 type ProcessOverviewPageProps = {
+  backendFieldStatus: ApiFieldStatusMap
   backendIssues: ApiValidationIssue[]
   confirmationIssues: WorkshopProcessValidationIssue[]
   licensePlateError: string | null
@@ -1097,6 +1110,7 @@ type ProcessOverviewPageProps = {
 }
 
 function ProcessOverviewPage({
+  backendFieldStatus,
   backendIssues,
   confirmationIssues,
   licensePlateError,
@@ -1127,6 +1141,9 @@ function ProcessOverviewPage({
   const closeEditor = () => setEditingSection(null)
   const tireValidationIssues = confirmationIssues.filter(
     (issue) => issue.section === 'tires',
+  )
+  const backendFieldStatusEntries = Object.entries(backendFieldStatus).filter(
+    ([, status]) => status !== 'valid',
   )
   const finishEditing = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -1187,6 +1204,23 @@ function ProcessOverviewPage({
               {backendIssues.map((issue) => (
                 <li key={`${issue.field}-${issue.code}`}>
                   <strong>{backendIssueFieldLabel(issue.field)}:</strong> {issue.message}
+                </li>
+              ))}
+            </ul>
+          </FrontendErrorState>
+        )}
+
+        {backendFieldStatusEntries.length > 0 && (
+          <FrontendErrorState
+            kind="confirmation"
+            message="Diese Feldmarkierungen werden auch als Prüfhinweise in die Büro-E-Mail übernommen."
+            title="Prüfhinweise aus dem Backend"
+          >
+            <ul className="frontend-error-state__list">
+              {backendFieldStatusEntries.map(([field, status]) => (
+                <li key={field}>
+                  <strong>{backendIssueFieldLabel(field)}:</strong>{' '}
+                  {backendFieldStatusLabel(status)}
                 </li>
               ))}
             </ul>
@@ -1895,6 +1929,19 @@ function isApiValidationIssue(value: unknown): value is ApiValidationIssue {
   )
 }
 
+function isApiFieldStatusMap(value: unknown): value is ApiFieldStatusMap {
+  return (
+    isObject(value) &&
+    Object.values(value).every(
+      (status) =>
+        status === 'missing' ||
+        status === 'uncertain' ||
+        status === 'invalid' ||
+        status === 'valid',
+    )
+  )
+}
+
 function isApiDeliveryStatus(value: unknown): value is ApiDeliveryStatus {
   return (
     isObject(value) &&
@@ -1915,11 +1962,24 @@ function backendIssueFieldLabel(field: string): string {
     'tire_sets.0.tire_set.width_mm': 'Reifenbreite',
     'tire_sets.0.tire_set.aspect_ratio': 'Reifenquerschnitt',
     'tire_sets.0.tire_set.rim_diameter_inch': 'Felgendurchmesser',
+    'tire_sets.0.tire_set.model': 'Reifenmodell',
     'tire_inspections.0.tread_front_mm': 'Profiltiefe vorne',
     'tire_inspections.0.tread_rear_mm': 'Profiltiefe hinten',
+    notes: 'Notizen',
   }
 
   return labels[field] || field
+}
+
+function backendFieldStatusLabel(status: ApiFieldStatusMap[string]): string {
+  const labels: Record<ApiFieldStatusMap[string], string> = {
+    missing: 'Fehlt (missing)',
+    uncertain: 'Unsicher (uncertain)',
+    invalid: 'Unplausibel (invalid)',
+    valid: 'Gültig (valid)',
+  }
+
+  return labels[status]
 }
 
 type AppHeaderProps = {

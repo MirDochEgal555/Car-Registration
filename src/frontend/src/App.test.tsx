@@ -477,6 +477,50 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('zeigt fehlende, unsichere und unplausible Backend-Feldstatus vor dem Versand', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      response({
+        valid: false,
+        review_required: true,
+        registration: { vehicle: { license_plate: 'CW-AB 123' } },
+        field_status: {
+          'tire_sets.0.tire_set.model': 'missing',
+          notes: 'uncertain',
+          'tire_sets.0.tire_set.width_mm': 'invalid',
+        },
+        issues: [],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Einlagerung' }))
+    fireEvent.change(screen.getByLabelText(/Kennzeichen/), {
+      target: { value: 'cw ab 123' },
+    })
+    await user.click(
+      screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: /vorgang bestätigen.*senden/i }),
+    )
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Prüfhinweise aus dem Backend',
+      }),
+    ).toBeVisible()
+    expect(screen.getByText('Reifenmodell:')).toBeVisible()
+    expect(screen.getByText('Fehlt (missing)')).toBeVisible()
+    expect(screen.getByText('Notizen:')).toBeVisible()
+    expect(screen.getByText('Unsicher (uncertain)')).toBeVisible()
+    expect(screen.getByText('Reifenbreite:')).toBeVisible()
+    expect(screen.getByText('Unplausibel (invalid)')).toBeVisible()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('behält Fahrzeug- und Reifendaten nach einem Versandfehler und bietet einen Retry an', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response(validRegistration('CW-AB 987')))

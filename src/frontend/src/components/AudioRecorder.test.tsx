@@ -59,6 +59,12 @@ class FailingMediaRecorderMock extends MediaRecorderMock {
   }
 }
 
+class UnsupportedWebmMediaRecorderMock extends MediaRecorderMock {
+  static isTypeSupported() {
+    return false
+  }
+}
+
 function installGetUserMedia(getUserMedia: () => Promise<MediaStream>) {
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
@@ -148,6 +154,26 @@ describe('AudioRecorder', () => {
     expect(
       screen.getByRole('button', { name: 'Aufnahme erneut versuchen' }),
     ).toBeVisible()
+  })
+
+  it('lehnt einen Browser ohne unterstützte WebM-Aufnahme ab, ohne die manuelle Erfassung zu blockieren', async () => {
+    const stopTrack = vi.fn()
+    const stream = {
+      getTracks: () => [{ stop: stopTrack }],
+    } as unknown as MediaStream
+    installGetUserMedia(vi.fn().mockResolvedValue(stream))
+    vi.stubGlobal('MediaRecorder', UnsupportedWebmMediaRecorderMock)
+    const user = userEvent.setup()
+
+    render(<RecorderHarness />)
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Audioaufnahme nicht verfügbar' }),
+    ).toBeVisible()
+    expect(screen.getByText(/keine unterstützte webm-audioaufnahme/i)).toBeVisible()
+    expect(screen.getByText(/manuell erfassen/i)).toBeVisible()
+    expect(stopTrack).toHaveBeenCalledOnce()
   })
 
   it('meldet einen Aufnahmeabbruch und erhält die Retry-Aktion', async () => {

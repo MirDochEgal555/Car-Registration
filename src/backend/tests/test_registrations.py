@@ -63,6 +63,9 @@ def test_validate_returns_draft_and_review_hints() -> None:
     assert payload["valid"] is True
     assert payload["review_required"] is True
     assert payload["registration"]["vehicle"]["license_plate"] == "CW-AB 123"
+    assert payload["registration"]["field_status"] == {
+        "tire_sets.0.tire_set.model": "uncertain"
+    }
     assert payload["field_status"] == {"tire_sets.0.tire_set.model": "uncertain"}
     assert payload["status"] == "mechanic_review"
 
@@ -176,6 +179,7 @@ def test_failed_delivery_is_saved_and_retryable(
     draft = _valid_tire_storage_draft(
         mechanic_confirmed=True,
         raw_transcript="CW AB 123, vier Winterreifen.",
+        field_status={"notes": "uncertain"},
     )
     registration_id = draft["id"]
     monkeypatch.setattr(
@@ -216,11 +220,13 @@ def test_failed_delivery_is_saved_and_retryable(
     assert persisted is not None
     assert persisted.registration.vehicle.license_plate == "CW-AB 123"
     assert persisted.registration.raw_transcript == "CW AB 123, vier Winterreifen."
+    assert persisted.registration.field_status == {"notes": "uncertain"}
 
     assert retry_response.status_code == 200
     assert retry_response.json()["status"] == "email_sent"
     assert retry_response.json()["attempt_count"] == 2
     assert len(successful_sender.messages) == 1
+    assert "Notizen: Status Unsicher (uncertain)" in successful_sender.messages[0].body
 
 
 def test_successful_send_is_idempotent_for_the_registration_id(
