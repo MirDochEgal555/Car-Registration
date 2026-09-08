@@ -138,6 +138,82 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(screen.getByLabelText(/Hersteller/)).toHaveValue('Continental')
   })
 
+  it('zeigt das Originaltranskript bei der Prüfung und lässt die strukturierten Daten weiter korrigieren', async () => {
+    const transcript = 'Profil vorne bitte noch einmal prüfen.'
+    const fetchMock = vi.fn().mockResolvedValue(
+      response({ status: 'completed', transcript }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    installAudioRecording()
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Einlagerung' }))
+    fireEvent.change(screen.getByLabelText(/Kennzeichen/), {
+      target: { value: 'cw ab 123' },
+    })
+    fireEvent.change(screen.getByLabelText(/Hersteller/), {
+      target: { value: 'Continental' },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }))
+    await user.click(screen.getByRole('button', { name: 'Aufnahme stoppen' }))
+    expect(await screen.findByText(transcript)).toBeVisible()
+
+    await user.click(
+      screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
+    )
+
+    expect(
+      screen.getByRole('heading', { name: 'Originaltranskript' }),
+    ).toBeVisible()
+    expect(screen.getByText(transcript)).toBeVisible()
+
+    const tireSummary = getSummarySection('Reifendaten')
+    await user.click(within(tireSummary).getByRole('button', { name: 'Bearbeiten' }))
+    const manufacturer = screen.getByLabelText('Hersteller')
+    fireEvent.change(manufacturer, { target: { value: 'Michelin' } })
+    expect(manufacturer).toHaveValue('Michelin')
+  })
+
+  it('stellt ein gespeichertes Transkript nach einer Unterbrechung wieder für die Prüfung bereit', async () => {
+    const transcript = 'Einlagerung mit vier Winterreifen.'
+    window.sessionStorage.setItem(
+      'cartech.active-workshop-draft.v1',
+      JSON.stringify({
+        version: 1,
+        process: {
+          id: 'd4b14356-2089-4d84-bb7f-bd968ced6005',
+          serviceType: 'tire_storage',
+          status: 'draft',
+          licensePlate: 'CW-AB 123',
+          rawTranscript: transcript,
+          tireSets: [{ role: 'stored', tireSet: { manufacturer: 'Michelin' } }],
+          tireInspections: [{ tireSetRole: 'stored' }],
+          conditions: [{ tireSetRole: 'stored', position: 'all' }],
+        },
+      }),
+    )
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /erfassung fortsetzen/i }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Gesprochene Notiz' }),
+    ).toBeVisible()
+    expect(screen.getByText(transcript)).toBeVisible()
+
+    await user.click(
+      screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
+    )
+    expect(
+      screen.getByRole('heading', { name: 'Originaltranskript' }),
+    ).toBeVisible()
+    expect(screen.getByText(transcript)).toBeVisible()
+  })
+
   it('speichert das unveränderte Transkript mit dem Vorgang, ohne Formularwerte daraus abzuleiten', async () => {
     const transcript = '  Abweichendes Kennzeichen: CW ZZ 999.  \n'
     const fetchMock = vi.fn()

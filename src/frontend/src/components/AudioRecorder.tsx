@@ -360,7 +360,7 @@ export function AudioRecorder({
         </section>
       )}
 
-      {audioBlob && transcriptionState.kind === 'completed' && (
+      {transcriptionState.kind === 'completed' && (
         <section
           aria-labelledby="audio-transcript-title"
           className="audio-transcription audio-transcription--completed"
@@ -371,7 +371,7 @@ export function AudioRecorder({
             {transcriptionState.transcript}
           </p>
           <p className="audio-transcription__hint">
-            Das Transkript wird nur angezeigt und ändert keine manuell erfassten
+            Das Transkript bleibt im Vorgang und ändert keine manuell erfassten
             Fahrzeug- oder Reifendaten.
           </p>
         </section>

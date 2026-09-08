@@ -1,14 +1,14 @@
 # Projektstatus
 
-**Stand: 31.08.2026**
+**Stand: 08.09.2026**
 
 ## Repositoryzustand
 
 - Branch: `main`; der GitHub-Pages-Workflow wird bei jedem Push auf `main` ausgeführt
 - Live-Demo für die Werkstatt: [mirdochegal555.github.io/Car-Registration](https://mirdochegal555.github.io/Car-Registration/)
 - GitHub Pages ist für das Repository aktiviert; der erfolgreiche Erst-Deploy lief über `.github/workflows/deploy-pages.yml`
-- Backend-Qualitätsprüfung: **62 Tests erfolgreich** (`python3 -m pytest`)
-- Frontend-Qualitätsprüfung: **10 Tests erfolgreich**, ESLint und Produktions-Build erfolgreich (`npm test`, `npm run lint`, `npm run build`)
+- Backend-Qualitätsprüfung: **96 Tests erfolgreich** (`python3 -m pytest`)
+- Frontend-Qualitätsprüfung: **26 Tests erfolgreich**, ESLint und Produktions-Build erfolgreich (`npm test`, `npm run lint`, `npm run build`)
 
 ## Fertig
 
@@ -20,6 +20,7 @@
 - Persistente SQLite-Outbox für Versandstatus, fehlgeschlagene Zustellungen, Neustartsicherheit und erneutes Senden umgesetzt
 - Frontend als React-/TypeScript-PWA umgesetzt: Start-, Übersichts-, Erfassungs-, Korrektur-, Bestätigungs- und Fehleransichten für Reifenwechsel und Reifeneinlagerung
 - Frontend und Backend über den gemeinsamen `RegistrationDraft`-Vertrag integriert; Backend-Validierung, Versandstatus und Wiederholungsversand werden in der Mechanikeransicht angezeigt
+- Phase 5 in den Mechanikerablauf integriert: Browser-Audioaufnahme, Upload, Speech-to-Text, sichtbares Originaltranskript sowie sichere Wiederaufnahme eines Entwurfs; das Transkript bleibt von den manuell pflegbaren Strukturdaten getrennt
 - Anonymisierte End-to-End-Testfälle für typische Werkstattformulierungen als Regressionsvertrag abgedeckt
 - GitHub-Pages-Deployment für die Frontend-Design-Abnahme eingerichtet und erfolgreich veröffentlicht
 
@@ -34,15 +35,15 @@
 
 1. Manuellen Ablauf für beide Vorgangstypen inklusive Korrekturen, Validierungsfehlern, Bestätigung und E-Mail-Übergabe im Werkstattkontext testen.
 2. Offene fachliche Punkte priorisieren und die bestätigten Regeln in Datenmodell, Validierung, Oberfläche und Tests übernehmen.
-3. Audioaufnahme im Browser, Audio-Upload sowie Speech-to-Text anbinden und auf Smartphone/Tablet prüfen.
-4. KI-Extraktion nach den vorhandenen Extraktionsregeln integrieren; Unsicherheiten weiterhin markieren statt Werte zu erraten.
+3. Audioaufnahme, Upload, Speech-to-Text und Wiederaufnahme auf Smartphone/Tablet im Werkstattkontext prüfen.
+4. KI-Extraktion nach den vorhandenen Extraktionsregeln erst als getrennten Schritt integrieren; Unsicherheiten weiterhin markieren statt Werte zu erraten.
 5. Strukturierte E-Mail-Ausgabe mit dem Büro anhand realitätsnaher, anonymisierter Vorgänge abnehmen und die Retry-Strecke testen.
 
 ## Aktuell offene Fragen und Abgrenzungen
 
 - Die fachlichen Formularangaben bilden den implementierten vorläufigen Vertrag, sind aber noch nicht durch die Werkstatt verbindlich bestätigt oder rechtlich geprüft.
 - Es ist zu klären, welche Felder je Vorgangstyp zwingend, optional oder nur bei bestimmten Befunden erforderlich sind und wer spätere Regeländerungen verantwortet.
-- Speech-to-Text, KI-Extraktion und die Verarbeitung echter Audiodaten sind noch nicht implementiert; die vorhandenen Testfälle testen den Übergabevertrag, nicht externe KI- oder Sprachdienste.
+- Speech-to-Text ist integriert und konfigurationsabhängig über den OpenAI-Transkriptionsadapter verfügbar. Die KI-basierte Extraktion in Strukturdaten ist ausdrücklich noch nicht implementiert; das Originaltranskript überschreibt oder ergänzt keine manuell gepflegten Werte.
 - Eine produktive SMTP-Zustellung wurde noch nicht mit den realen Zugangsdaten und dem Büroempfänger verifiziert.
 - GitHub Pages liefert nur das statische Frontend aus. Ohne separat bereitgestelltes Backend sind Validierung, Versand, Versandstatus und Wiederholung in der Live-Demo nicht verfügbar.
 - Die vorläufige Mechaniker-ID muss vor Produktivbetrieb durch eine authentifizierte Identität ersetzt werden.

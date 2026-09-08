@@ -7,7 +7,8 @@ Der Mechaniker soll möglichst wenig tippen oder klicken.
 ```text
 Mechaniker wählt ein Protokoll
 → Mechaniker spricht
-→ KI extrahiert
+→ Speech-to-Text erstellt ein Originaltranskript
+→ Mechaniker ergänzt oder korrigiert die strukturierten Angaben manuell
 → Mechaniker bestätigt und sendet ab
 → Büro erhält ein strukturiertes Protokoll per E-Mail
 → Büro prüft, korrigiert und speichert den Vorgang in WERBAS
@@ -41,13 +42,13 @@ Aufgaben:
 ## Statusablauf
 
 ```text
-Neue Erfassung: draft
-Nach Extraktion: mechanic_review
+Neue Erfassung und Mechanikerprüfung: draft
+Während des Versands: email_sending
 Nach erfolgreichem E-Mail-Versand: email_sent
-Bei Abbruch: rejected
+Bei Versandfehler: email_failed
 ```
 
-Der Ablaufstatus wird im MVP nicht zentral gespeichert und endet nach erfolgreichem Versand. Unsicherheiten und Plausibilitätsfehler werden separat durch Feldstatus und `review_required` gekennzeichnet und als Prüfhinweis in der E-Mail ausgegeben. Korrekturen nimmt das Büro anschließend in WERBAS vor.
+Der lokale Entwurf bleibt von der Erfassung bis zur erfolgreichen E-Mail-Übergabe im Status `draft`; die Versandzustände werden durch die serverseitige Outbox geführt. Eine KI-basierte Überführung des Transkripts in Strukturdaten ist noch nicht Teil des Ablaufs. Der Mechaniker kann die strukturierten Angaben während Erfassung und Prüfung jederzeit manuell ändern. Plausibilitätsfehler werden separat durch Feldstatus und `review_required` gekennzeichnet und als Prüfhinweis in der E-Mail ausgegeben. Korrekturen nimmt das Büro anschließend in WERBAS vor.
 
 ## Flow 1: Neue Erfassung
 
@@ -60,7 +61,7 @@ Reifenwechsel
 Reifeneinlagerung
 ```
 
-Die Auswahl setzt den `service_type` auf `tire_change` beziehungsweise `tire_storage` und erzeugt einen Vorgang mit dem Status `draft`. Der gewählte Protokolltyp bleibt für die Aufnahme maßgeblich; die KI darf ihn nicht aufgrund einer missverstandenen Formulierung ändern.
+Die Auswahl setzt den `service_type` auf `tire_change` beziehungsweise `tire_storage` und erzeugt einen Vorgang mit dem Status `draft`. Der gewählte Protokolltyp bleibt für die Aufnahme maßgeblich; das Transkript ändert ihn nicht.
 
 ### Schritt 2 – Spracheingabe
 
@@ -76,9 +77,8 @@ Das System:
 
 1. nimmt Audio auf,
 2. führt Speech-to-Text durch,
-3. extrahiert einen strukturierten Entwurf,
-4. validiert die Daten und
-5. markiert Unsicherheiten.
+3. zeigt das unveränderte Originaltranskript an und
+4. hält die vorhandenen strukturierten Felder für die manuelle Erfassung und Korrektur bereit.
 
 Währenddessen zeigt die App:
 
@@ -86,7 +86,7 @@ Währenddessen zeigt die App:
 Daten werden verarbeitet …
 ```
 
-Nach erfolgreicher Extraktion erhält der Vorgang den Status `mechanic_review`.
+Die Formularwerte bleiben während der Transkription bearbeitbar. Das Transkript wird nicht automatisch ausgewertet und überschreibt keine manuell eingegebenen Angaben.
 
 ### Schritt 4 – Mechanikerprüfung
 
@@ -108,7 +108,9 @@ Vorne 6 mm
 Hinten 5 mm
 ```
 
-Unsichere Informationen werden deutlich markiert:
+Das Originaltranskript bleibt beim anschließenden Review sichtbar, damit der Mechaniker es mit den strukturierten Angaben abgleichen kann. Die strukturierten Felder lassen sich dort weiterhin direkt bearbeiten.
+
+Backendseitig erkannte fehlende oder unplausible Informationen werden deutlich markiert:
 
 ```text
 Reifenmodell: Alpin 6 [unsicher]
@@ -122,11 +124,13 @@ Fehlende Pflichtinformationen werden hervorgehoben:
 Kennzeichen fehlt
 ```
 
-Das System soll eine kurze ergänzende Spracheingabe erlauben:
+Der Mechaniker kann fehlende Angaben direkt im Formular oder in der Review-Ansicht ergänzen:
 
-> „Kennzeichen CW AB 123.“
+```text
+Kennzeichen: CW-AB 123
+```
 
-Danach wird nur das betroffene Feld aktualisiert.
+Eine neue Sprachaufnahme erzeugt ein neues Originaltranskript. Eine KI-basierte Aktualisierung einzelner strukturierter Felder aus Sprache ist noch nicht implementiert.
 
 ### Schritt 6 – Mechanikerbestätigung und Absenden
 
@@ -205,7 +209,7 @@ Spracheingabe konnte nicht zuverlässig erkannt werden.
 Mögliche Aktionen:
 
 - erneut aufnehmen
-- Transkript anzeigen und bearbeiten
+- vorhandene strukturierte Angaben manuell weiter erfassen oder korrigieren
 
 Es werden keine geratenen Daten übernommen.
 

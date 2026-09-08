@@ -70,6 +70,16 @@ type SubmissionState =
 const initialSubmissionState: SubmissionState = { kind: 'idle' }
 const initialAudioTranscriptionState: AudioTranscriptionState = { kind: 'idle' }
 
+function getRestoredAudioTranscriptionState(
+  process: WorkshopProcess | null | undefined,
+): AudioTranscriptionState {
+  if (process?.rawTranscript?.trim()) {
+    return { kind: 'completed', transcript: process.rawTranscript }
+  }
+
+  return initialAudioTranscriptionState
+}
+
 function getRestoredDeliveryFailureState(
   delivery: ApiDeliveryStatus,
 ): SubmissionState {
@@ -135,7 +145,9 @@ function App() {
   // it never overwrites mechanic-entered vehicle or tire data.
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null)
   const [audioTranscriptionState, setAudioTranscriptionState] =
-    useState<AudioTranscriptionState>(initialAudioTranscriptionState)
+    useState<AudioTranscriptionState>(() =>
+      getRestoredAudioTranscriptionState(restoredDraft?.process),
+    )
   // State updates do not take effect until React renders again.  Keep a
   // synchronous guard as well, so two very fast taps cannot start two HTTP
   // requests before the button becomes disabled.
@@ -626,6 +638,7 @@ function App() {
           onUpdateWheelChangePerformed={updateWheelChangePerformed}
           process={workshopProcess}
           protocol={protocol}
+          rawTranscript={workshopProcess.rawTranscript}
           tireCondition={tireCondition}
           tireInspection={tireInspection}
           tireSet={tireSet}
@@ -653,8 +666,8 @@ function App() {
         </div>
         <h1 id="page-title">Reifendaten erfassen</h1>
         <p className="workshop-view__intro">
-          Erfasse den Reifensatz direkt am Fahrzeug. Die Angaben bleiben lokal im
-          Vorgang gespeichert.
+          Nimm eine Sprachnotiz auf und prüfe das Transkript. Alle strukturierten
+          Angaben kannst du jederzeit manuell ergänzen oder korrigieren.
         </p>
 
         <div className="capture-context" aria-label="Gewählter Vorgang">
@@ -670,6 +683,16 @@ function App() {
           onRetryTranscription={retryAudioTranscription}
           transcriptionState={audioTranscriptionState}
         />
+
+        <p className="capture-workflow-hint" role="status">
+          {audioTranscriptionState.kind === 'processing'
+            ? 'Während die Sprachnotiz verarbeitet wird, bleiben alle Formularfelder bearbeitbar.'
+            : audioTranscriptionState.kind === 'completed'
+              ? 'Das Transkript bleibt für die anschließende Prüfung sichtbar und ändert keine Formularwerte.'
+              : audioTranscriptionState.kind === 'error'
+                ? 'Du kannst die strukturierten Angaben weiter manuell erfassen oder die Transkription erneut versuchen.'
+                : 'Du kannst die Daten direkt erfassen, auch wenn keine Sprachnotiz benötigt wird.'}
+        </p>
 
         <label className="license-plate-field" htmlFor="license-plate">
           <span className="license-plate-field__label">
@@ -1066,6 +1089,7 @@ type ProcessOverviewPageProps = {
   onUpdateWheelChangePerformed: (wheelChangePerformed: boolean) => void
   process: WorkshopProcess
   protocol: ServiceProtocol
+  rawTranscript?: string
   tireCondition: WorkshopTireCondition | undefined
   tireInspection: WorkshopTireInspection | undefined
   tireSet: TireSetDraft | undefined
@@ -1087,6 +1111,7 @@ function ProcessOverviewPage({
   onUpdateWheelChangePerformed,
   process,
   protocol,
+  rawTranscript,
   tireCondition,
   tireInspection,
   tireSet,
@@ -1232,6 +1257,25 @@ function ProcessOverviewPage({
               </dl>
             )}
           </section>
+
+          {rawTranscript?.trim() && (
+            <section
+              className="summary-card summary-card--transcript"
+              aria-labelledby="summary-transcript-title"
+            >
+              <div className="summary-card__heading">
+                <div>
+                  <p className="summary-card__label">Sprachnotiz</p>
+                  <h2 id="summary-transcript-title">Originaltranskript</h2>
+                </div>
+              </div>
+              <p className="summary-card__transcript">{rawTranscript}</p>
+              <p className="summary-card__hint">
+                Das Transkript dient nur zum Abgleich. Korrigiere die
+                strukturierten Angaben direkt in den Bereichen darunter.
+              </p>
+            </section>
+          )}
 
           <section className="summary-card" aria-labelledby="summary-plate-title">
             <div className="summary-card__heading">
