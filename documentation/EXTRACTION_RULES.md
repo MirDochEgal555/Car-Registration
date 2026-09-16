@@ -448,6 +448,30 @@ Nach der Extraktion erfolgen Plausibilitätsprüfungen, zum Beispiel für positi
 
 Der Wert darf nicht eigenständig auf `6.5` korrigiert werden.
 
+## Deterministische Fachvalidierung (Phase 7)
+
+Nach der Normalisierung prüft das Backend die Extraktion ohne LLM, externe
+Fahrzeugdatenbank oder Herstellerdatenbank. Die Prüfung ergänzt keine fehlende
+Information und stuft niemals ein bereits als `missing`, `uncertain` oder
+`invalid` markiertes Feld zu `valid` hoch. `review_required` wird danach erneut
+aus allen Feldstatus bestimmt.
+
+| Bereich | Harte Regel (`invalid`) | Inhaltliche Unsicherheit (`uncertain`) |
+| --- | --- | --- |
+| Kennzeichen | Exakt `KREIS-BUCHSTABEN ZAHL`, z. B. `CW-AB 123` (Kreis 1–3 Buchstaben, danach 1–2 Buchstaben, 1–4 Ziffern und optionaler Schlussbuchstabe) | — |
+| Kilometerstand | Ganze Zahl von 0 bis 2.000.000 km | — |
+| Reifenart und Zustand | — | Der Wert `unknown`/`unbekannt` ist nicht fachlich bestätigt und wird zu `uncertain`; vorhandene Unsicherheit bleibt erhalten. |
+| Reifengröße | Breite 125–405 mm in 5-mm-Schritten, Querschnitt 20–95 in 5er-Schritten, Felge 10–24 Zoll | Fehlende Größenbestandteile bleiben `missing`; sie werden nicht ergänzt. |
+| Anzahl | Ganze Zahl von 1 bis 8 je Reifensatz; mehr einzeln gelistete Reifen als die angegebene Menge ist widersprüchlich | — |
+| Profiltiefe | Endlicher Zahlenwert von 0,0 bis 15,0 mm | Fehlende Messwerte bleiben `missing`, niemals automatisch `valid`. Zwei unterschiedliche Messwerte für dieselbe Rolle und dieselbe Achse/Position werden `uncertain`. |
+| Reifenposition | Ein einzelner Reifen benötigt eine konkrete Position: `front_left`, `front_right`, `rear_left` oder `rear_right`. Ein `not_ok`-Sichtbefund darf nicht nur `front`, `rear` oder `all` haben. | Doppelt vergebene konkrete Positionen im selben Reifensatz sind nicht auflösbar und werden `uncertain`. `unknown`/`unbekannt` wird nie als `valid` übernommen. |
+| Hersteller und Modell | — | Hersteller und Modell bleiben getrennt. Ein fehlendes oder bereits unsicheres Modell wird nicht aus dem Hersteller abgeleitet; `unbekannt` bleibt `uncertain`. |
+
+Format- und Bereichsfehler behalten ihren ausdrücklich gelieferten Wert mit
+Status `invalid`, damit die Prüfung nachvollziehbar bleibt. Bei
+Mehrdeutigkeiten entfernt die Validierung den nicht sicher zuordenbaren Wert
+und setzt `uncertain`. Beide Status setzen `review_required: true`.
+
 ## Reifenwechselprotokoll
 
 In einem Reifenwechselprotokoll bleibt bei mehreren Reifensätzen ihre Rolle erhalten.

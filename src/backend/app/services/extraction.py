@@ -15,6 +15,7 @@ from app.models.extraction import (
     structured_extraction_json_schema,
 )
 from app.services.extraction_normalization import normalize_extraction_payload
+from app.services.extraction_validation import validate_extraction_payload
 
 
 STRUCTURED_EXTRACTION_SCHEMA_NAME = "german_workshop_extraction"
@@ -164,15 +165,17 @@ def structured_extraction_response_format() -> dict[str, Any]:
 def normalize_and_validate_extraction_response(
     payload: Mapping[str, Any],
 ) -> StructuredExtractionResult:
-    """Apply the central post-AI normalization before strict model validation.
+    """Normalize and validate an AI response before strict model validation.
 
     This is the hand-off used by an eventual LLM adapter.  Keeping it next to
     the response schema ensures callers cannot accidentally validate a raw AI
-    response on one path and normalize it on another.
+    response on one path while skipping normalization or deterministic domain
+    validation on another.
     """
 
+    normalized = normalize_extraction_payload(payload)
     return StructuredExtractionResult.model_validate(
-        normalize_extraction_payload(payload)
+        validate_extraction_payload(normalized)
     )
 
 
