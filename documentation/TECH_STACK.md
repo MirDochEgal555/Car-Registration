@@ -39,10 +39,16 @@ Aufgaben des Backends:
 
 - Audiodateien annehmen
 - Speech-to-Text ausführen
-- strukturierte KI-Extraktion durchführen
-- Daten validieren und zur Prüfung markieren
+- strukturierte KI-Extraktion mit Strict Structured Outputs durchführen
+- Daten normalisieren, validieren und zur Prüfung markieren
 - den strukturierten E-Mail-Text erzeugen und an die konfigurierte Büro-Adresse versenden
 - REST-API bereitstellen
+
+Die Phase-7-Route `POST /api/v1/extractions` ist umgesetzt. Sie verwendet den
+konfigurierten OpenAI-Adapter, das vorhandene `StructuredExtractionResult` und
+die bestehenden `RegistrationDraft`-/`ValidationResponse`-Verträge. Für den
+Betrieb sind `CARTECH_OPENAI_API_KEY` und ein Strict-Structured-Outputs-fähiges
+`CARTECH_OPENAI_EXTRACTION_MODEL` erforderlich.
 
 ### E-Mail-Versand
 
@@ -74,8 +80,10 @@ Audio
 → Speech-to-Text
 → Transkript
 → strukturierte KI-Extraktion
+→ Normalisierung
 → Entwurfsdaten und Feldstatus
-→ Validierung
+→ Validierung und review_required
+→ RegistrationDraft
 → Mechanikerprüfung
 → strukturierte E-Mail an das Büro
 → manuelle Prüfung und Speicherung in WERBAS
@@ -157,8 +165,8 @@ Der Pages-Build verwendet den Repository-Pfad als Vite-Basis und erzeugt eine un
 2. Mechaniker-UI erstellen
 3. E-Mail-Template für die strukturierte Ausgabe erstellen
 4. Audioaufnahme und Speech-to-Text parallel integrieren
-5. strukturierte KI-Extraktion implementieren
-6. Validierungslogik ergänzen
+5. strukturierte KI-Extraktion implementieren — erledigt in Phase 7
+6. Validierungslogik ergänzen — erledigt in Phase 7
 7. Mechaniker-Bestätigung umsetzen
 8. E-Mail-Versand, Fehleranzeige und Wiederholen umsetzen
 9. E-Mail-Ausgabe mit WERBAS-Eingabe im Büro testen

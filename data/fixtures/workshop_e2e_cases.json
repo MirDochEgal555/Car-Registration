@@ -127,7 +127,9 @@
     "draft": {
       "service_type": "tire_storage",
       "tire_sets": [{"role": "stored", "tire_set": {"manufacturer": "Hankook", "tire_type": "unknown", "quantity": 4, "width_mm": 205, "aspect_ratio": 55, "rim_diameter_inch": 16}}]
-    }
+    },
+    "expected_pipeline_field_status": {"tire_sets.0.tire_set.tire_type": "uncertain"},
+    "expected_pipeline_review_required": true
   },
   {
     "id": "15-anzahl-fehlt",
@@ -144,9 +146,9 @@
     "input": "Die Reifen sind fünf.",
     "draft": {
       "service_type": "tire_storage",
-      "field_status": {"statement": "uncertain"}
+      "field_status": {"notes": "uncertain"}
     },
-    "expected_field_status": {"statement": "uncertain"},
+    "expected_field_status": {"notes": "uncertain"},
     "expected_review_required": true
   },
   {
@@ -269,5 +271,98 @@
       "tire_inspections": [{"tire_set_role": "installed", "tread_front_mm": 5.5, "tread_rear_mm": 4}],
       "tire_change_details": {"wheel_change_performed": true}
     }
+  },
+  {
+    "id": "29-unsichere-profiltiefe",
+    "input": "Vorne ungefähr fünf Millimeter Profil.",
+    "draft": {
+      "service_type": "tire_change",
+      "tire_sets": [{"role": "installed", "tire_set": {}}],
+      "tire_inspections": [{"tire_set_role": "installed"}],
+      "field_status": {"tire_inspections.0.tread_front_mm": "uncertain"}
+    },
+    "expected_field_status": {"tire_inspections.0.tread_front_mm": "uncertain"},
+    "expected_legacy_field_status": {
+      "tire_inspections.0.tread_front_mm": "uncertain",
+      "tire_change_details": "missing"
+    },
+    "expected_valid": false,
+    "expected_review_required": true
+  },
+  {
+    "id": "30-widerspruechliche-profiltiefe",
+    "input": "Vorne fünf Millimeter Profil, vorne sechs Millimeter Profil.",
+    "draft": {
+      "service_type": "tire_change",
+      "tire_sets": [{"role": "installed", "tire_set": {}}],
+      "tire_inspections": [
+        {"tire_set_role": "installed"},
+        {"tire_set_role": "installed"}
+      ],
+      "field_status": {
+        "tire_inspections.0.tread_front_mm": "uncertain",
+        "tire_inspections.1.tread_front_mm": "uncertain"
+      }
+    },
+    "provider_draft": {
+      "service_type": "tire_change",
+      "tire_sets": [{"role": "installed", "tire_set": {}}],
+      "tire_inspections": [
+        {"tire_set_role": "installed", "tread_front_mm": 5},
+        {"tire_set_role": "installed", "tread_front_mm": 6}
+      ]
+    },
+    "expected_field_status": {
+      "tire_inspections.0.tread_front_mm": "uncertain",
+      "tire_inspections.1.tread_front_mm": "uncertain"
+    },
+    "expected_legacy_field_status": {
+      "tire_inspections.0.tread_front_mm": "uncertain",
+      "tire_inspections.1.tread_front_mm": "uncertain",
+      "tire_change_details": "missing"
+    },
+    "expected_valid": false,
+    "expected_review_required": true
+  },
+  {
+    "id": "31-ungueltige-reifengroesse",
+    "input": "Vier Winterreifen in 123 54 R9.",
+    "draft": {
+      "service_type": "tire_storage",
+      "tire_sets": [{"role": "stored", "tire_set": {"tire_type": "winter", "quantity": 4, "width_mm": 123, "aspect_ratio": 54, "rim_diameter_inch": 9}}]
+    },
+    "expected_field_status": {
+      "tire_sets.0.tire_set.width_mm": "invalid",
+      "tire_sets.0.tire_set.aspect_ratio": "invalid",
+      "tire_sets.0.tire_set.rim_diameter_inch": "invalid"
+    },
+    "expected_legacy_field_status": {
+      "tire_sets.0.tire_set.width_mm": "invalid",
+      "tire_sets.0.tire_set.rim_diameter_inch": "invalid"
+    },
+    "expected_valid": false,
+    "expected_review_required": true
+  },
+  {
+    "id": "32-ungueltiger-kilometerstand",
+    "input": "Kilometerstand minus eins.",
+    "draft": {
+      "service_type": "tire_storage",
+      "vehicle": {"mileage_km": -1}
+    },
+    "expected_field_status": {"vehicle.mileage_km": "invalid"},
+    "expected_valid": false,
+    "expected_review_required": true
+  },
+  {
+    "id": "33-unbrauchbares-transkript",
+    "input": "Äh, na ja, Dingens.",
+    "draft": {},
+    "expected_pipeline_field_status": {"notes": "uncertain"},
+    "expected_pipeline_review_required": true,
+    "expected_legacy_field_status": {
+      "service_type": "missing"
+    },
+    "expected_valid": false
   }
 ]

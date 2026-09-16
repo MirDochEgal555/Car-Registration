@@ -10,6 +10,17 @@ Grundregel:
 
 Es werden keine Werte geraten.
 
+## Ausführungsgrenze der Phase 7
+
+`POST /api/v1/extractions` nimmt ein unverändertes `transcript` entgegen und
+führt die gesamte Kette aus: OpenAI Strict Structured Output →
+Normalisierung → deterministische Fachvalidierung → Mapping in den bestehenden
+`RegistrationDraft` → bestehende Registrierungsvalidierung. Die Antwort ist
+der vorhandene `ValidationResponse`; `field_status` und `review_required`
+bleiben auch im zurückgegebenen Entwurf erhalten. Ein leerer Text wird mit
+`422`, ein nicht verfügbarer KI-Anbieter mit `503` und eine nicht verarbeitbare
+KI-Antwort mit `502` abgelehnt.
+
 ## Technische Normalisierung nach der KI-Extraktion
 
 Die zentrale Schicht
@@ -48,7 +59,7 @@ Fahrzeug-, Reifen- oder Herstellerdatenbanken.
 
 ## Ausgabe-Konventionen
 
-Der beim Start ausgewählte Protokolltyp wird als `service_type` in die Extraktion übernommen. Er ist maßgeblich und darf nicht allein aufgrund der gesprochenen Inhalte geändert werden. Erlaubt sind `tire_change` für ein Reifenwechselprotokoll und `tire_storage` für ein Reifeneinlagerungsprotokoll.
+Im finalen `RegistrationDraft` sind `tire_change` für ein Reifenwechselprotokoll und `tire_storage` für ein Reifeneinlagerungsprotokoll erlaubt. Der aktuelle Extraktionsendpunkt erhält nur ein Transkript und ergänzt keinen Protokolltyp; ein fehlender Typ bleibt deshalb `missing`. Die vorhandene Mechanikeroberfläche verwaltet ihre Auswahl weiterhin separat und ist noch nicht automatisch mit dem Extraktionsendpunkt verbunden.
 
 Bei einem einzelnen beschriebenen Reifensatz können Reifenwerte flach im Extraktionsergebnis stehen. Werden mehrere Reifensätze erwähnt, verwendet die Extraktion immer `tire_sets`; jeder Eintrag enthält eine `role` und ein `tire_set`-Objekt. Bei der Speicherung werden diese Daten auf `TireSet` und `ServiceTireSet` aus dem [Datenmodell](DATA_MODEL.md) abgebildet. Die zulässigen Rollen hängen vom Protokolltyp ab: `installed` und `removed` bei `tire_change`, `stored` bei `tire_storage`.
 
@@ -431,7 +442,7 @@ Dies darf weder als Anzahl noch als Profiltiefe ausgelegt werden:
 ```json
 {
   "field_status": {
-    "statement": "uncertain"
+    "notes": "uncertain"
   },
   "review_required": true
 }
@@ -447,6 +458,12 @@ Nach der Extraktion erfolgen Plausibilitätsprüfungen, zum Beispiel für positi
 ```
 
 Der Wert darf nicht eigenständig auf `6.5` korrigiert werden.
+
+Ein nicht leeres Transkript ohne irgendeine extrahierbare Information, etwa
+„Äh, na ja, Dingens.“, erzeugt ebenfalls keine Werte. Das Backend markiert in
+diesem Fall ausschließlich `notes` als `uncertain` und setzt damit
+`review_required: true`. So bleibt der Prüfbedarf sichtbar, ohne einen
+fachlichen Wert zu ergänzen.
 
 ## Deterministische Fachvalidierung (Phase 7)
 
@@ -639,4 +656,8 @@ Bürokorrektur
 > KI-Extraktion
 ```
 
-Das Originaltranskript und die ursprüngliche KI-Ausgabe bleiben für Audit-Zwecke erhalten.
+Das Originaltranskript bleibt im finalen Entwurf erhalten. Die API liefert den
+normalisierten und validierten Entwurf samt Feldstatus; eine separate rohe
+KI-Antwort wird im MVP nicht zusätzlich persistiert. Nach Mechanikerbestätigung
+wird das unveränderte Rohtranskript zusammen mit dem finalen Entwurf in der
+Versand-Outbox aufbewahrt und nicht in die E-Mail gerendert.

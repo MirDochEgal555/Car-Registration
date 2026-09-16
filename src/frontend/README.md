@@ -5,6 +5,13 @@ Sie verwendet dabei den gemeinsamen `RegistrationDraft`-Vertrag, zeigt
 Backend-Validierung direkt in der Übersicht und bietet bei einem gespeicherten
 E-Mail-Fehler einen Retry an.
 
+Die Phase-7-Extraktionspipeline ist im Backend über
+`POST /api/v1/extractions` verfügbar. Diese bestehende Oberfläche ruft den
+Endpunkt noch nicht automatisch auf: Sie bleibt für manuelle Erfassung,
+Prüfung und Versand unverändert nutzbar. Bei einer späteren Anbindung wird der
+zurückgegebene `RegistrationDraft` als prüfbarer Vorschlag in den vorhandenen
+Formularablauf übernommen.
+
 ## Voraussetzungen
 
 - Node.js `20.19+` oder `22.12+`

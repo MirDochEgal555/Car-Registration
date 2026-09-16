@@ -8,7 +8,8 @@ Der Mechaniker soll möglichst wenig tippen oder klicken.
 Mechaniker wählt ein Protokoll
 → Mechaniker spricht
 → Speech-to-Text erstellt ein Originaltranskript
-→ Mechaniker ergänzt oder korrigiert die strukturierten Angaben manuell
+→ Backend kann daraus einen geprüften KI-Entwurf erzeugen
+→ Mechaniker ergänzt oder korrigiert die strukturierten Angaben
 → Mechaniker bestätigt und sendet ab
 → Büro erhält ein strukturiertes Protokoll per E-Mail
 → Büro prüft, korrigiert und speichert den Vorgang in WERBAS
@@ -48,7 +49,7 @@ Nach erfolgreichem E-Mail-Versand: email_sent
 Bei Versandfehler: email_failed
 ```
 
-Der lokale Entwurf bleibt von der Erfassung bis zur erfolgreichen E-Mail-Übergabe im Status `draft`; die Versandzustände werden durch die serverseitige Outbox geführt. Eine KI-basierte Überführung des Transkripts in Strukturdaten ist noch nicht Teil des Ablaufs. Der Mechaniker kann die strukturierten Angaben während Erfassung und Prüfung jederzeit manuell ändern. Plausibilitätsfehler werden separat durch Feldstatus und `review_required` gekennzeichnet und als Prüfhinweis in der E-Mail ausgegeben. Korrekturen nimmt das Büro anschließend in WERBAS vor.
+Der lokale Entwurf bleibt von der Erfassung bis zur erfolgreichen E-Mail-Übergabe im Status `draft`; die Versandzustände werden durch die serverseitige Outbox geführt. Die Backend-Route `POST /api/v1/extractions` kann ein Originaltranskript als geprüften Entwurf mit Feldstatus erzeugen. Die bestehende Oberfläche löst diese Route noch nicht automatisch aus, daher bleibt die manuelle Erfassung vollständig nutzbar. Der Mechaniker kann die strukturierten Angaben während Erfassung und Prüfung jederzeit ändern. Plausibilitätsfehler werden separat durch Feldstatus und `review_required` gekennzeichnet und als Prüfhinweis in der E-Mail ausgegeben. Korrekturen nimmt das Büro anschließend in WERBAS vor.
 
 ## Flow 1: Neue Erfassung
 
@@ -77,8 +78,9 @@ Das System:
 
 1. nimmt Audio auf,
 2. führt Speech-to-Text durch,
-3. zeigt das unveränderte Originaltranskript an und
-4. hält die vorhandenen strukturierten Felder für die manuelle Erfassung und Korrektur bereit.
+3. zeigt das unveränderte Originaltranskript an,
+4. kann dieses über `POST /api/v1/extractions` in einen geprüften `RegistrationDraft` mit Feldstatus überführen und
+5. hält die vorhandenen strukturierten Felder für die manuelle Erfassung und Korrektur bereit.
 
 Währenddessen zeigt die App:
 
@@ -86,7 +88,7 @@ Währenddessen zeigt die App:
 Daten werden verarbeitet …
 ```
 
-Die Formularwerte bleiben während der Transkription bearbeitbar. Das Transkript wird nicht automatisch ausgewertet und überschreibt keine manuell eingegebenen Angaben.
+Die Formularwerte bleiben während der Transkription bearbeitbar. Die bestehende Oberfläche wertet das Transkript noch nicht automatisch aus. Bei einer späteren Anbindung darf ein KI-Entwurf nur als prüfbarer Vorschlag übernommen werden; er darf keine bereits manuell bestätigten Werte stillschweigend überschreiben.
 
 ### Schritt 4 – Mechanikerprüfung
 
@@ -130,7 +132,13 @@ Der Mechaniker kann fehlende Angaben direkt im Formular oder in der Review-Ansic
 Kennzeichen: CW-AB 123
 ```
 
-Eine neue Sprachaufnahme erzeugt ein neues Originaltranskript. Eine KI-basierte Aktualisierung einzelner strukturierter Felder aus Sprache ist noch nicht implementiert.
+Eine neue Sprachaufnahme erzeugt ein neues Originaltranskript. Das Backend kann
+dieses über `POST /api/v1/extractions` als neuen strukturierten Entwurf mit
+Feldstatus verarbeiten. Ein vollständig leerer Text wird mit `422` abgewiesen;
+ein nicht leerer, aber unbrauchbarer Text bleibt mit `notes: null`, Status
+`uncertain` und `review_required: true` sichtbar. Die bestehende Oberfläche
+ruft den Endpunkt noch nicht automatisch auf; bis zu ihrer Anbindung bleibt die
+direkte Bearbeitung der Felder unverändert verfügbar.
 
 ### Schritt 6 – Mechanikerbestätigung und Absenden
 

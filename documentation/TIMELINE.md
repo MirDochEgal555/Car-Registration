@@ -222,7 +222,12 @@ Bei Unsicherheit:
 
 #### Ergebnis
 
-Die dokumentierten [Extraktions-Testfälle](TEST_CASES.md) stehen zur fachlichen Abnahme bereit.
+**Technisch abgeschlossen am 16.09.2026:** `POST /api/v1/extractions`
+verbindet Transkript, Strict Structured Output, Normalisierung,
+Fachvalidierung, `review_required` und den vorhandenen `RegistrationDraft`.
+Alle 33 dokumentierten [Extraktions-Testfälle](TEST_CASES.md) laufen über
+diese API; die Backend-Gesamtsuite umfasst dabei 182 erfolgreiche Tests. Die
+fachliche Abnahme mit echten Werkstattaufnahmen bleibt Gegenstand von Phase 8.
 
 ## Phase 8 – Review 3: Extraktionsqualität und Validierung
 
@@ -406,6 +411,7 @@ Das System ist für den realen Werkstattbetrieb freigegeben. WERBAS bleibt das f
 | 07.09. | strukturierte E-Mail-Ausgabe und Speech-to-Text entwickelt |
 | 11.09. | Übergabe und Spracheingabe abgenommen |
 | 15.09. | KI-Extraktion entwickelt |
+| 16.09. | Phase-7-API-Pipeline und automatisierte Extraktionsfälle technisch abgeschlossen |
 | 20.09. | Extraktionsqualität und Validierung abgenommen |
 | 24.09. | E-Mail-Übergabe an WERBAS abgenommen |
 | 30.09. | Integrationstest abgeschlossen |

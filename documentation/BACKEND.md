@@ -6,26 +6,26 @@ Das Backend ist der technische Übergabepunkt zwischen der Web-App des Mechanike
 
 WERBAS bleibt im MVP das fachlich führende System. CarTech unterhält keine zentrale Kunden-, Fahrzeug- oder Vorgangsdatenbank: Es prüft browserseitige Entwürfe, erzeugt eine strukturierte Büro-E-Mail und hält bestätigte Versandaufträge in einer kleinen SQLite-Outbox vor. So geht ein Vorgang bei SMTP-Fehlern nicht still verloren.
 
-Die Speech-to-Text-Anbindung ist über `POST /audio/transcribe` integriert und liefert ausschließlich ein Rohtranskript. Die nachgelagerte KI-Extraktion ist noch nicht implementiert; sie muss später aus dem Transkript einen `RegistrationDraft` gemäß API-Vertrag erzeugen.
+Die Speech-to-Text-Anbindung ist über `POST /audio/transcribe` integriert und liefert ausschließlich ein Rohtranskript. Die nachgelagerte Phase-7-Pipeline ist über `POST /extractions` integriert: Sie erzeugt aus diesem Transkript einen geprüften `RegistrationDraft` gemäß API-Vertrag.
 
 Fachliche Felddefinitionen stehen im [Datenmodell](DATA_MODEL.md); lokale Startanweisungen enthält das [Backend-README](../src/backend/README.md).
 
 ## Architektur
 
 ```text
-Web-App / Extraktion
+Web-App / Audioaufnahme
         |
-        | vollständiger RegistrationDraft
-        v
-FastAPI-Routen (/api/v1/registrations)
+        +-- POST /audio/transcribe --> unverändertes Transkript
         |
-        +-- Validierung und Kennzeichen-Normalisierung
-        |       |
-        |       +-- Ergebnis für die Mechanikerprüfung
+        +-- POST /extractions --> Strict Structured Output
+                                  --> Normalisierung und Fachvalidierung
+                                  --> RegistrationDraft + field_status
+        |
+        +-- POST /registrations/validate --> Mechanikerprüfung
         |
         +-- bestätigter Versand
                 |
-                +-- SQLite-Outbox (dauerhaft, ohne Rohtranskript)
+                +-- SQLite-Outbox (dauerhaft, mit Rohtranskript)
                 +-- E-Mail-Renderer (Text + HTML aus einem Dokument)
                 +-- SMTP-Server --> Büro / WERBAS
 ```
@@ -33,8 +33,13 @@ FastAPI-Routen (/api/v1/registrations)
 | Baustein | Aufgabe |
 | --- | --- |
 | `app/main.py` | Erstellt die FastAPI-Anwendung und stellt beim Start unterbrochene Versandversuche wieder retry-fähig. |
+| `app/api/v1/routes/extraction.py` | Führt die Phase-7-Extraktionspipeline über die öffentliche API aus. |
 | `app/api/v1/routes/registrations.py` | Stellt Validierung, Versand, Statusabfrage und Wiederholung bereit. |
 | `app/models/registration.py` | Beschreibt API-Vertrag für browserseitige Entwürfe und Versandantworten. |
+| `app/models/extraction.py` | Definiert das strikte KI-Structured-Output-Schema mit Wert und Feldstatus. |
+| `app/services/extraction_provider.py` | Kapselt den OpenAI-Structured-Outputs-Aufruf und die sichere Fehlergrenze. |
+| `app/services/extraction_normalization.py` / `extraction_validation.py` | Normalisieren und validieren ausschließlich explizit gelieferte Extraktionswerte. |
+| `app/services/extraction_mapping.py` | Überführt den geprüften Structured Output verlustfrei in den vorhandenen `RegistrationDraft`. |
 | `app/services/registration_validation.py` | Enthält fachliche Plausibilitäts- und Ablaufprüfungen. |
 | `app/services/delivery_store.py` | Implementiert die lokale, persistente SQLite-Outbox mit atomaren Statuswechseln. |
 | `app/services/registration_email.py` | Baut Text- und HTML-E-Mail aus demselben Präsentationsmodell. |
@@ -49,8 +54,9 @@ und den unstrukturierten `transcript`. Fehlende, fehlerhafte, leere und nicht
 unterstützte Dateien sowie fehlgeschlagene Transkriptionen liefern
 `status: "failed"`, `transcript: null` und einen einheitlichen Fehlerkörper mit
 `error.code` und `error.message`. Der Adapter übergibt die Sprache `de` sowie
-deutschen Kfz-Werkstatt-Kontext und Fachbegriffe. Eine Fahrzeug- oder
-Vorgangsextraktion findet an dieser Stelle ausdrücklich nicht statt.
+deutschen Kfz-Werkstatt-Kontext und Fachbegriffe. Die Antwort bleibt bewusst
+ein Rohtranskript; die Fahrzeug- oder Vorgangsextraktion läuft anschließend
+explizit über `POST /extractions`.
 
 ## API und Ablauf
 
@@ -60,10 +66,25 @@ Alle Endpunkte sind unter `/api/v1` versioniert.
 | --- | --- | --- |
 | `GET /health` | Liveness-Prüfung der Anwendung | keine |
 | `POST /audio/transcribe` | Prüft eine Browseraufnahme im Format `audio/webm` und transkribiert sie mit OpenAI. | keine |
+| `POST /extractions` | Führt Transkript, strikte KI-Extraktion, Normalisierung, Fachvalidierung und Mapping in den `RegistrationDraft` zusammen. | keine |
 | `POST /registrations/validate` | Prüft einen vollständigen Entwurf für die Mechanikeransicht und normalisiert ein vorhandenes Kennzeichen. | keine |
 | `POST /registrations/send` | Prüft erneut, verlangt Mechanikerbestätigung, legt den Vorgang ab und versucht den E-Mail-Versand. | SQLite-Outbox |
 | `GET /registrations/{id}/delivery-status` | Liefert Versandstatus, Versuchszähler und sichere Fehlermeldung ohne Protokolldaten. | liest Outbox |
 | `POST /registrations/{id}/retry` | Versendet den unveränderten gespeicherten Vorgang erneut. | aktualisiert Outbox |
+
+`POST /extractions` erwartet ausschließlich ein unverändertes Transkript:
+
+```json
+{ "transcript": "CW AB 123, vier Winterreifen." }
+```
+
+Die Route ruft den konfigurierten OpenAI-Adapter mit dem vorhandenen Strict-
+Schema auf und gibt `ValidationResponse` zurück. Dessen `registration` ist der
+geprüfte `RegistrationDraft`; `field_status` und `review_required` befinden
+sich sowohl im Antwortumschlag als auch im Entwurf. Ein leerer Text ergibt
+`422`, ein nicht verfügbarer Anbieter `503` und eine unbrauchbare
+Anbieterantwort `502`. Die bestehende Audio-Route und die bestehenden
+Registrierungsrouten bleiben dabei unverändert getrennt und rückwärtskompatibel.
 
 Ein minimal versandfähiger Entwurf enthält diese vier fachlichen Pflichtwerte:
 
@@ -104,7 +125,7 @@ Extraktionsmarkierungen bleiben erhalten. So kann der Mechaniker eine unsichere,
 
 ## Versand-Outbox und Zustände
 
-Vor dem SMTP-Aufruf speichert das Backend die validierte, bestätigte Registrierung. Das Rohtranskript wird dabei ausdrücklich entfernt. Die Vorgangs-UUID ist ein Idempotenzschlüssel: dieselbe ID mit demselben strukturierten Inhalt wird nicht erneut angelegt; dieselbe ID mit anderen Inhalten führt zu `409 Conflict`.
+Vor dem SMTP-Aufruf speichert das Backend die validierte, bestätigte Registrierung einschließlich des unveränderten Rohtranskripts. Das Transkript wird nie in die E-Mail gerendert und nach seiner Verarbeitung nicht erneut zur Ableitung strukturierter Werte verwendet. Die Vorgangs-UUID ist ein Idempotenzschlüssel: dieselbe ID mit demselben strukturierten Inhalt wird nicht erneut angelegt; dieselbe ID mit anderen Inhalten führt zu `409 Conflict`.
 
 | Zustand | Bedeutung | Nächster Übergang |
 | --- | --- | --- |
@@ -134,9 +155,10 @@ Die Konfiguration wird ausschließlich aus Prozess-Umgebungsvariablen gelesen. E
 | `CARTECH_SMTP_USE_SSL` | Implizites TLS, typischerweise für Port `465`; STARTTLS wird dann nicht verwendet. |
 | `CARTECH_SMTP_TIMEOUT_SECONDS` | Positiver Verbindungs- und Versand-Timeout, standardmäßig `15`. |
 | `CARTECH_DELIVERY_STORE_PATH` | Speicherort der SQLite-Outbox, standardmäßig `data/processed/cartech-deliveries.sqlite3`. |
-| `CARTECH_OPENAI_API_KEY` | API-Schlüssel für die Speech-to-Text-Anbindung; alternativ wird der Standardname `OPENAI_API_KEY` gelesen. |
+| `CARTECH_OPENAI_API_KEY` | API-Schlüssel für Speech-to-Text und die strikte KI-Extraktion; alternativ wird der Standardname `OPENAI_API_KEY` gelesen. |
 | `CARTECH_OPENAI_TRANSCRIPTION_MODEL` | OpenAI-Transkriptionsmodell, standardmäßig `gpt-transcribe`. |
-| `CARTECH_OPENAI_TIMEOUT_SECONDS` | Positiver Request-Timeout für Speech-to-Text, standardmäßig `30`. |
+| `CARTECH_OPENAI_EXTRACTION_MODEL` | OpenAI-Modell für Strict Structured Outputs in `POST /extractions`, standardmäßig `gpt-4o-mini`. |
+| `CARTECH_OPENAI_TIMEOUT_SECONDS` | Positiver Request-Timeout für Speech-to-Text und KI-Extraktion, standardmäßig `30`. |
 
 Für Produktion muss das Outbox-Verzeichnis persistent, verschlüsselt und auf die Anwendung beschränkt sein. Es enthält strukturierte Fahrzeug- und Werkstattdaten sowie Rohtranskripte. Zugangsdaten gehören in ein Secret-Management des Deployments, nicht in das Repository.
 
@@ -144,11 +166,11 @@ Für Produktion muss das Outbox-Verzeichnis persistent, verschlüsselt und auf d
 
 Der aktuelle Backend-Stand ist für den definierten MVP fachlich und technisch kohärent:
 
-- Der Client besitzt den Entwurf; das Backend validiert ihn vor jeder Übergabe erneut.
+- Der Client kann einen Entwurf manuell pflegen; das Backend kann zusätzlich aus einem Transkript einen neuen, geprüften `RegistrationDraft` erzeugen. Beide Wege verwenden dieselbe anschließende Validierung.
 - Validierung, E-Mail-Darstellung und Outbox verwenden denselben strukturierten Vertrag.
 - Der kritische Fehlerfall „E-Mail nicht erreichbar“ ist durch Speichern vor dem SMTP-Aufruf und durch Retry abgedeckt.
 - Das Rohtranskript wird unverändert zusammen mit dem Vorgang aufbewahrt, bleibt aber aus der E-Mail heraus und beeinflusst keine strukturierten Werte.
-- Die Test-Suite deckt Konfiguration, Modelle, Validierung, E-Mail-Rendering, Outbox, Fehlerfälle und die dokumentierten Werkstattfälle ab. Bei der Prüfung dieses Stands liefen `75` Tests erfolgreich durch.
+- Die Test-Suite deckt Konfiguration, Modelle, Transkription, strikte KI-Antworten, Normalisierung, Validierung, Mapping, E-Mail-Rendering, Outbox, Fehlerfälle und 33 dokumentierte Phase-7-Fälle ab. Bei der Prüfung dieses Stands liefen `182` Backend-Tests erfolgreich durch.
 
 Folgende Punkte sind bewusste MVP-Grenzen oder vor einem Produktivbetrieb zu entscheiden:
 
@@ -158,7 +180,7 @@ Folgende Punkte sind bewusste MVP-Grenzen oder vor einem Produktivbetrieb zu ent
 4. **Aufbewahrung und Datenschutz sind noch keine Funktion.** Ein Löschkonzept, Backups, Verschlüsselung, Zugriffsprotokollierung und eine definierte Aufbewahrungsdauer müssen betrieblich festgelegt werden.
 5. **Reifensatzrollen sind nicht eindeutig begrenzt.** Die Validierung prüft, ob eine Rolle zum Protokolltyp passt, erlaubt aber mehrere Sätze mit derselben Rolle. Falls je Rolle genau ein Satz vorgesehen ist, sollte dies validiert werden. Falls mehrere erlaubt sein sollen, brauchen Prüfungen statt der Rolle eine stabile Reifensatz-ID als Referenz.
 
-Nicht Teil des Backends sind aktuell die strukturierte KI-Extraktion, eine direkte WERBAS-Schnittstelle, eine zentrale CarTech-Fachdatenbank und eine Büro-Oberfläche. Diese Erweiterungen können auf dem vorhandenen API- und Zieldatenmodell aufbauen, sollten die genannten Produktionsentscheidungen aber zuerst berücksichtigen.
+Nicht Teil des Backends sind aktuell eine direkte WERBAS-Schnittstelle, eine zentrale CarTech-Fachdatenbank und eine Büro-Oberfläche. Diese Erweiterungen können auf dem vorhandenen API- und Zieldatenmodell aufbauen, sollten die genannten Produktionsentscheidungen aber zuerst berücksichtigen.
 
 ## Lokale Prüfung
 

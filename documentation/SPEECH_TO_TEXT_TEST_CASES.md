@@ -7,6 +7,11 @@ Werkstattaufnahme. Er prüft keine Extraktion in Fahrzeug- oder Reifenfelder;
 dafür gibt es die [Extraktions-Testfälle](TEST_CASES.md). Alle Kennzeichen und
 Fahrzeugangaben sind anonymisierte Testdaten.
 
+Nach einem erfolgreichen `POST /api/v1/audio/transcribe` kann derselbe,
+unveränderte Text an `POST /api/v1/extractions` übergeben werden. Die
+Trennung bleibt absichtlich bestehen: Speech-to-Text verändert keine Inhalte;
+erst die Phase-7-Pipeline erzeugt den prüfbaren strukturierten Entwurf.
+
 Die neun Sätze stehen maschinenlesbar in
 [`data/fixtures/german_workshop_stt_cases.json`](../data/fixtures/german_workshop_stt_cases.json).
 Sie sind bewusst vollständige, natürlich formulierte Mechaniker-Sätze statt

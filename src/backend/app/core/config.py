@@ -122,6 +122,10 @@ class Settings:
         )
         or "gpt-transcribe"
     )
+    openai_extraction_model: str = field(
+        default_factory=lambda: _environment_value("CARTECH_OPENAI_EXTRACTION_MODEL")
+        or "gpt-4o-mini"
+    )
     openai_timeout_seconds: float = field(
         default_factory=lambda: _environment_timeout(
             "CARTECH_OPENAI_TIMEOUT_SECONDS", default=30.0

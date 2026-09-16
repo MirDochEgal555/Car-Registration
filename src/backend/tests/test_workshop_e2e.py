@@ -93,7 +93,9 @@ def test_documented_workshop_case_survives_validation_unchanged(
     body = response.json()
     expected = _expected_registration(payload)
     expected_status = dict(expected["field_status"])
-    expected_status.update(case.get("expected_field_status", {}))
+    expected_status.update(
+        case.get("expected_legacy_field_status", case.get("expected_field_status", {}))
+    )
 
     # The response must preserve every extracted value: especially the final
     # correction in a transcript, absent values as null, and distinct tire sets.

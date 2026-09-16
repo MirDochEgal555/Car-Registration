@@ -4,6 +4,12 @@
 
 Das Datenmodell beschreibt die strukturierte Ausgabe für die beiden Werkstattprotokolle Reifenwechsel und Reifeneinlagerung. Im MVP wird diese Struktur als E-Mail-Text an das Büro übergeben; die dauerhafte Speicherung und finale Bearbeitung erfolgen in WERBAS. Das Modell dient zugleich als saubere Grundlage für eine optionale spätere zentrale Speicherung.
 
+Die technische Phase-7-Pipeline liefert heute über `POST /api/v1/extractions`
+einen bestehenden `RegistrationDraft` mit Feldstatus. Dieses API-Modell ist der
+bearbeitbare Zwischenstand für die Mechanikerprüfung; die hier beschriebenen
+`ServiceRecord`-Beziehungen bleiben das optionale Zieldatenmodell für eine
+spätere zentrale Speicherung.
+
 Wichtige Prinzipien:
 
 - Informationen werden für E-Mail und spätere Speicheroptionen strukturiert aufbereitet.
@@ -98,7 +104,7 @@ unknown
 | status | enum | ja | Ablaufstatus |
 | notes | text | nein | allgemeine Servicehinweise |
 | raw_transcript | text | nein | originales, unverändertes Sprachtranskript für spätere Büroprüfung/Fehlersuche; keine strukturierte Datenquelle |
-| extraction_payload | JSONB | nein | unveränderte KI-Extraktion |
+| extraction_payload | JSONB | nein | optionale unveränderte KI-Extraktion für eine spätere zentrale Speicherung; im MVP nicht separat persistiert |
 | field_status | JSONB | nein | Status einzelner extrahierter Felder |
 | review_required | boolean | ja | Prüfung wegen Unsicherheit oder Validierung nötig |
 | created_by | UUID | ja | erfassender Mechaniker |
@@ -135,7 +141,7 @@ rejected
 
 `status` gehört zum optionalen Zieldatenmodell. Für die MVP-Zustellung wird der bestätigte Datensatz vor dem SMTP-Aufruf lokal als `email_pending` abgelegt und während des laufenden Versuchs als `email_sending` geführt. Nimmt der Mailserver die Nachricht an, wird der Status `email_sent`; bei Konfigurations-, Verbindungs- oder Zustellfehlern `email_failed`. Ein fehlgeschlagener Datensatz bleibt zusammen mit Versuchszähler und einer sicheren Fehlermeldung in der Versand-Outbox erhalten und kann erneut versendet werden. Nach erfolgreicher Zustellung endet die fachliche weitere Statusführung in WERBAS. Bei einer späteren zentralen Büro-Oberfläche können zusätzlich die Status `new`, `in_review` und `completed` verwendet werden.
 
-`field_status` enthält für jedes gekennzeichnete Feld einen der Werte `missing`, `uncertain`, `invalid` oder `valid`. `review_required` wird zentral aus diesen Feldstatus berechnet: Er ist genau dann `true`, wenn mindestens ein Feld `uncertain` oder `invalid` ist. `missing` (bei optionalen Angaben) und `valid` lösen allein keinen Prüfbedarf aus. Im MVP werden diese Markierungen in den E-Mail-Abschnitt „Prüfhinweise“ übernommen. In einer späteren Büro-Oberfläche müssen sie direkt am jeweiligen Feld angezeigt werden.
+`field_status` enthält für jedes gekennzeichnete Feld einen der Werte `missing`, `uncertain`, `invalid` oder `valid`. `review_required` wird zentral aus diesen Feldstatus berechnet: Er ist genau dann `true`, wenn mindestens ein Feld `uncertain` oder `invalid` ist. `missing` (bei optionalen Angaben) und `valid` lösen allein keinen Prüfbedarf aus. `POST /api/v1/extractions` flacht die Status des Strict Structured Output in diese Feldpfade ab und berechnet den Prüfbedarf nach der abschließenden Registrierungsvalidierung erneut. Im MVP werden diese Markierungen in den E-Mail-Abschnitt „Prüfhinweise“ übernommen. In einer späteren Büro-Oberfläche müssen sie direkt am jeweiligen Feld angezeigt werden.
 
 Bei `tire_storage` und `tire_change` müssen für die Übernahme in WERBAS mindestens ein Fahrzeug mit Kennzeichen, das Protokolldatum und der Mechaniker vorhanden sein. Kundenanlage oder -zuordnung bleibt Aufgabe des Büros.
 

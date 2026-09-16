@@ -10,7 +10,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from pydantic import BaseModel
+
 from app.models.extraction import (
+    ExtractedField,
     StructuredExtractionResult,
     structured_extraction_json_schema,
 )
@@ -59,6 +62,11 @@ Statusregeln:
 - Setze `review_required` genau dann auf `true`, wenn mindestens ein Feld den
   Status `uncertain` hat; sonst auf `false`. Da dieser Prompt keine
   Backend-Validierung ausführt, erzeugt er selbst keinen Status `invalid`.
+- Ist ein nicht leeres Transkript insgesamt unverständlich oder enthält es
+  ausschließlich Füllwörter, setze mindestens `notes` auf `value: null` und
+  `field_status: "uncertain"`. Alle nicht erwähnten fachlichen Felder bleiben
+  `missing`. So ist ein unbrauchbares Transkript sichtbar und erfordert eine
+  Prüfung, ohne daraus einen Wert abzuleiten.
 
 Korrekturen und Widersprüche:
 - Eine klar als Korrektur markierte spätere Angabe für dasselbe Feld ersetzt
@@ -193,6 +201,8 @@ def structured_extraction_response_format() -> dict[str, Any]:
 
 def normalize_and_validate_extraction_response(
     payload: Mapping[str, Any],
+    *,
+    transcript: str | None = None,
 ) -> StructuredExtractionResult:
     """Normalize and validate an AI response before strict model validation.
 
@@ -203,9 +213,44 @@ def normalize_and_validate_extraction_response(
     """
 
     normalized = normalize_extraction_payload(payload)
-    return StructuredExtractionResult.model_validate(
+    result = StructuredExtractionResult.model_validate(
         validate_extraction_payload(normalized)
     )
+    if transcript is not None and transcript.strip() and not _has_extracted_value(result):
+        return _mark_unusable_transcript(result)
+    return result
+
+
+def _has_extracted_value(value: object) -> bool:
+    """Return whether a validated result contains any explicit non-null value."""
+
+    if isinstance(value, ExtractedField):
+        return value.value is not None
+    if isinstance(value, BaseModel):
+        return any(
+            _has_extracted_value(getattr(value, field_name))
+            for field_name in value.__class__.model_fields
+            if field_name != "review_required"
+        )
+    if isinstance(value, list):
+        return any(_has_extracted_value(item) for item in value)
+    return False
+
+
+def _mark_unusable_transcript(
+    result: StructuredExtractionResult,
+) -> StructuredExtractionResult:
+    """Flag a non-empty transcript that yielded no extractable information.
+
+    This is a status-only safety marker on the existing free-form ``notes``
+    field. It preserves every (here absent) source value and gives the review
+    screen a deterministic indication that the transcript needs attention.
+    """
+
+    payload = result.model_dump(mode="json")
+    payload["notes"] = {"value": None, "field_status": "uncertain"}
+    payload["review_required"] = True
+    return StructuredExtractionResult.model_validate(payload)
 
 
 __all__ = [

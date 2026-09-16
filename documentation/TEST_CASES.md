@@ -6,6 +6,59 @@ Diese Tests prüfen, ob Spracheingaben zuverlässig in die erwartete Struktur ü
 
 Nicht genannte optionale Felder bleiben nicht gesetzt oder erhalten den Wert `null` mit `field_status: missing`. Unsichere oder unplausible Angaben setzen `review_required` auf `true`.
 
+## Ausführbare Phase-7-Pipeline
+
+Jeder Test 01–33 ist als Fall in
+[`data/fixtures/workshop_e2e_cases.json`](../data/fixtures/workshop_e2e_cases.json)
+hinterlegt und wird von
+[`tests/test_extraction_pipeline.py`](../src/backend/tests/test_extraction_pipeline.py)
+über die öffentliche Backend-API ausgeführt. Der Test ersetzt ausschließlich
+den externen KI-Aufruf durch einen deterministischen Provider; alle produktiven
+Schritte laufen unverändert:
+
+```text
+POST /api/v1/extractions
+{ "transcript": "…" }
+→ Strict Structured Output
+→ Normalisierung
+→ deterministische Fachvalidierung
+→ RegistrationDraft mit field_status
+→ bestehende Registrierungsvalidierung
+```
+
+Die Antwort ist der vorhandene `ValidationResponse` mit dem finalen
+`registration`-Entwurf, `field_status`, `review_required` und den
+Validierungshinweisen. Das unveränderte Transkript liegt in
+`registration.raw_transcript`. Ein leeres Transkript wird ohne KI-Aufruf mit
+`422` abgelehnt; ein nicht leerer, aber unbrauchbarer Text bleibt als
+`notes: null` mit Status `uncertain` sichtbar. `valid` bedeutet weiterhin
+„vollständig für den Versand“: Angaben wie Protokolldatum und Mechaniker-ID
+kommen aus der Oberfläche und werden nicht aus einem Transkript ergänzt.
+
+Ausführen:
+
+```bash
+cd src/backend
+python3 -m pytest -q tests/test_extraction_pipeline.py
+```
+
+Beim dokumentierten Stand laufen die 33 Fallvarianten zusammen mit
+Provider-, Leertext- und Fehlergrenzentests in der Backend-Gesamtsuite mit
+`182 passed`.
+
+| Geforderter End-to-End-Fall | Ausführbarer Test |
+| --- | --- |
+| vollständige, eindeutige Aussage | Test 01 |
+| fehlendes Modell | Test 04 |
+| unsichere Profiltiefe | Test 29 |
+| widersprüchliche Angaben | Test 30 |
+| Korrektur innerhalb eines Satzes | Test 24 |
+| mehrere Reifenpositionen | Test 06 |
+| ungültige Reifengröße | Test 31 |
+| ungültiger Kilometerstand | Test 32 |
+| Umgangssprache | Tests 11, 24 und 27 |
+| leeres/unbrauchbares Transkript | Test 33 sowie der API-Leertexttest |
+
 ## Test 01 – Standardfall
 
 ### Eingabe
@@ -257,9 +310,17 @@ Nicht genannte optionale Felder bleiben nicht gesetzt oder erhalten den Wert `nu
   "width_mm": 205,
   "aspect_ratio": 55,
   "rim_diameter_inch": 16,
-  "tire_type": "unknown"
+  "tire_type": null,
+  "field_status": {
+    "tire_type": "uncertain"
+  },
+  "review_required": true
 }
 ```
+
+Die KI darf für die ausdrücklich nur als „Reifen“ bezeichnete Art zunächst
+`unknown` ausgeben. Die deterministische Validierung übernimmt diesen Marker
+nicht als gesicherte Reifenart, sondern macht die Unsicherheit sichtbar.
 
 ## Test 15 – Anzahl fehlt
 
@@ -294,7 +355,7 @@ Ein Wert von vier darf nicht angenommen werden.
 ```json
 {
   "field_status": {
-    "statement": "uncertain"
+    "notes": "uncertain"
   },
   "review_required": true
 }
@@ -311,6 +372,9 @@ Ein Wert von vier darf nicht angenommen werden.
 ```json
 {
   "tread_front_mm": 65,
+  "field_status": {
+    "tread_front_mm": "invalid"
+  },
   "review_required": true
 }
 ```
@@ -679,6 +743,116 @@ Kennzeichenkürzel geraten werden.
 Die Werte gehören jeweils zur genannten Achse und dürfen weder gemittelt noch
 auf einzelne Räder übertragen werden.
 
+## Test 29 – Unsichere Profiltiefe
+
+### Eingabe
+
+> „Vorne ungefähr fünf Millimeter Profil.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "tread_front_mm": null,
+  "field_status": {
+    "tread_front_mm": "uncertain"
+  },
+  "review_required": true
+}
+```
+
+„Ungefähr“ ist keine genaue Messung. Der Wert wird nicht auf 5 mm gerundet
+oder als sicher übernommen.
+
+## Test 30 – Widersprüchliche Profiltiefe
+
+### Eingabe
+
+> „Vorne fünf Millimeter Profil, vorne sechs Millimeter Profil.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "tread_front_mm": null,
+  "field_status": {
+    "tread_front_mm": "uncertain"
+  },
+  "review_required": true
+}
+```
+
+Ohne klare Selbstkorrektur bleiben beide Angaben sichtbar als aufzulösender
+Widerspruch; keine der beiden Zahlen gewinnt stillschweigend.
+
+## Test 31 – Ungültige Reifengröße
+
+### Eingabe
+
+> „Vier Winterreifen in 123 54 R9.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "width_mm": 123,
+  "aspect_ratio": 54,
+  "rim_diameter_inch": 9,
+  "field_status": {
+    "width_mm": "invalid",
+    "aspect_ratio": "invalid",
+    "rim_diameter_inch": "invalid"
+  },
+  "review_required": true
+}
+```
+
+Die gesprochenen Komponenten bleiben erhalten; die Fachvalidierung ergänzt
+oder korrigiert keine Größe.
+
+## Test 32 – Ungültiger Kilometerstand
+
+### Eingabe
+
+> „Kilometerstand minus eins.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "mileage_km": -1,
+  "field_status": {
+    "mileage_km": "invalid"
+  },
+  "review_required": true
+}
+```
+
+Der ungültige Wert wird nicht verworfen oder auf null gesetzt, damit die
+Mechanikerprüfung den tatsächlich gesprochenen Wert nachvollziehen kann.
+
+## Test 33 – Vollständig unbrauchbares Transkript
+
+### Eingabe
+
+> „Äh, na ja, Dingens.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "notes": null,
+  "field_status": {
+    "notes": "uncertain"
+  },
+  "review_required": true
+}
+```
+
+Ein nicht leeres, aber nicht zuordenbares Transkript erzeugt keine erfundenen
+Entwurfsdaten. Ein vollständig leeres oder nur aus Leerzeichen bestehendes
+Transkript wird stattdessen mit `422` abgelehnt.
+
 ## Testanforderungen
 
 Die Extraktion gilt für den MVP als ausreichend robust, wenn sie:
@@ -692,6 +866,11 @@ Die Extraktion gilt für den MVP als ausreichend robust, wenn sie:
 - Korrekturen innerhalb einer Aufnahme berücksichtigt,
 - Unsicherheiten sichtbar markiert und
 - unrealistische Werte markiert, statt sie automatisch zu korrigieren.
+
+Die automatisierte API-Suite deckt zusätzlich die nicht erreichbare KI und
+einen leeren Eingabetext ab. Ein Live-Modellaufruf ist bewusst nicht Teil der
+Regressionstests; er wäre nicht deterministisch und würde keine zusätzliche
+Validierungslogik prüfen.
 
 Vor dem produktiven Test sollten die Beispiele durch mindestens 30–50 anonymisierte Werkstattformulierungen ergänzt werden.
 

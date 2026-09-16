@@ -29,6 +29,7 @@ def test_prompt_covers_the_required_workshop_extraction_topics() -> None:
         "Korrektur",
         "Widerspruch",
         "uncertain",
+        "ausschließlich Füllwörter",
     ):
         assert term in GERMAN_WORKSHOP_EXTRACTION_PROMPT
 

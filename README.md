@@ -1,6 +1,6 @@
 # Fahrzeug- & Reifenerfassung für CarTech
 
-Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowie zwei Werkstattprotokollen: **Reifenwechsel** und **Reifeneinlagerung**. Der Ablauf ist: **Mechaniker wählt das Protokoll → spricht → KI strukturiert Daten → bestätigt und sendet ab → Büro erhält die strukturierten Daten per E-Mail → Büro speichert und bearbeitet sie in WERBAS**.
+Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowie zwei Werkstattprotokollen: **Reifenwechsel** und **Reifeneinlagerung**. Das Backend stellt dafür die vollständige Pipeline **Transkript → KI‑Structured‑Output → Normalisierung → Validierung → `RegistrationDraft`** über `POST /api/v1/extractions` bereit. Die bestehende Mechanikeroberfläche kann Entwürfe weiterhin manuell prüfen und versenden; ihre automatische Anbindung an diesen neuen Endpunkt ist ein separater nächster Schritt.
 
 **Aktueller Stand: [Projektstatus](STATUS.md)**
 
@@ -9,6 +9,8 @@ Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowi
 Die aktuelle Frontend-Ansicht ist unter [mirdochegal555.github.io/Car-Registration](https://mirdochegal555.github.io/Car-Registration/) erreichbar. Sie wird bei jedem Push auf `main` automatisch über GitHub Pages aktualisiert.
 
 GitHub Pages stellt ausschließlich das statische Frontend bereit. Für Validierung, Versand und Statusabfragen muss das FastAPI-Backend separat öffentlich erreichbar sein und seine Basis-URL beim Build über `VITE_API_BASE_URL` hinterlegt werden.
+
+Für KI-Extraktion benötigt das Backend zusätzlich einen OpenAI-API-Schlüssel und ein Modell mit Strict Structured Outputs; Details stehen im [Backend-README](src/backend/README.md).
 
 ## Projektstruktur
 
@@ -42,6 +44,7 @@ tests/          Automatisierte Tests
 - Nur ausdrücklich genannte Informationen übernehmen; fehlende oder unsichere Werte markieren, niemals erraten.
 - Kundenzuordnung und finale Prüfung erfolgen ausschließlich im Büro.
 - Der Vorgangsstatus beschreibt den Ablauf; Feldstatus und `review_required` beschreiben Unsicherheiten oder Validierungsbedarf.
+- Die KI-Extraktion ergänzt keine Werte. Nicht leere, aber vollständig unbrauchbare Transkripte werden mit `notes: null`, `field_status: uncertain` und `review_required: true` an die Prüfung übergeben.
 - Jeder abgesendete Vorgang erzeugt eine E-Mail mit dem vollständigen strukturierten Protokoll, Kennzeichen, Zeitpunkt sowie klar markierten unsicheren oder unplausiblen Feldern.
 - Im Reifenwechselprotokoll erhalten Reifensätze die Rolle `installed` oder `removed`; im Einlagerungsprotokoll die Rolle `stored`.
 - WERBAS bleibt das führende Speichersystem. Im MVP gibt es keine direkte technische WERBAS-Integration; das Büro übernimmt die E-Mail-Inhalte manuell.

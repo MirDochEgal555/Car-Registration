@@ -53,8 +53,20 @@ parameter). On success it returns `status: "completed"` and the plain
 `transcript`. A rejected upload or failed transcription returns HTTP 4xx/5xx
 with `status: "failed"`, `transcript: null`, and an `error` object containing a
 machine-readable code and safe German message. The route sends `language: de`,
-German Kfz-workshop context, and terminology hints to the transcription model;
-it does not extract vehicle or service data.
+German Kfz-workshop context, and terminology hints to the transcription model.
+It deliberately returns only the raw transcript; use the separate Phase-7
+extraction API for vehicle and service data.
+
+## Extraction API
+
+`POST /api/v1/extractions` accepts a JSON body containing `transcript` and
+returns the existing `ValidationResponse`. It sends the verbatim text to an
+OpenAI Strict Structured-Outputs request, applies the deterministic
+normalisation and validation layers, then maps the result into the existing
+`RegistrationDraft` with every flattened `field_status`. `review_required` is
+calculated again from the final statuses. A blank transcript is rejected with
+HTTP 422; unavailable or unusable provider responses return HTTP 503 or 502
+without a partial draft.
 
 The only required values for handoff to WERBAS are `service_type`,
 `service_date`, `mechanic_id`, and `vehicle.license_plate`. Existing
@@ -63,8 +75,10 @@ set `review_required` but do not block sending on their own. The outbox is an
 audit/retry mechanism, not a general office inbox or WERBAS replacement. It
 stores the complete confirmed registration, including the unchanged raw
 transcript for later office review/debugging, and must therefore be placed on
-encrypted, access-controlled persistent storage in production. The transcript
-is not used to derive structured values.
+encrypted, access-controlled persistent storage in production. Der
+Transkriptwert wird vor der Mechanikerbestätigung ausschließlich durch die
+Phase-7-Route in einen Entwurf überführt; die gespeicherte Outbox-Fassung wird
+nicht erneut zur Ableitung strukturierter Werte verwendet.
 
 ## Tests
 
@@ -74,12 +88,17 @@ Run the complete backend suite from this directory:
 python3 -m pytest -q
 ```
 
-`tests/test_workshop_e2e.py` executes all 23 anonymised workshop phrases from
+`tests/test_workshop_e2e.py` executes the legacy workshop-flow fixtures from
 [`data/fixtures/workshop_e2e_cases.json`](../../data/fixtures/workshop_e2e_cases.json)
-through the extraction-result contract, validation API, and—using an
-in-process mailbox—the durable outbox and office-email handoff. Structured AI
-extraction remains a separate integration point; the fixtures define its
-regression contract without requiring external services.
+through the validation API and—using an in-process mailbox—the durable outbox
+and office-email handoff. `tests/test_extraction_pipeline.py` executes all
+documented Phase-7 cases through `POST /api/v1/extractions`, including strict
+provider response handling, normalization, validation, review marking and
+mapping to the internal draft; its provider is deterministic, so no external
+service or API key is required.
+
+Beim letzten lokalen Stand liefen `182` Backend-Tests erfolgreich; die
+33 dokumentierten Extraktionsfälle sind Teil dieser Suite.
 
 `tests/test_transcription_cases.py` covers the adapter contract for nine
 natural German workshop utterances with plates, mileage, tire sizes, brands,
@@ -104,6 +123,7 @@ CARTECH_SMTP_TIMEOUT_SECONDS=15
 CARTECH_DELIVERY_STORE_PATH=/var/lib/cartech/cartech-deliveries.sqlite3
 CARTECH_OPENAI_API_KEY=...
 CARTECH_OPENAI_TRANSCRIPTION_MODEL=gpt-transcribe
+CARTECH_OPENAI_EXTRACTION_MODEL=gpt-4o-mini
 CARTECH_OPENAI_TIMEOUT_SECONDS=30
 ```
 
@@ -120,12 +140,14 @@ and delivery timeout. `CARTECH_DELIVERY_STORE_PATH` is the SQLite outbox path.
 Mount its parent directory as persistent storage when running in Docker or on a
 VPS; deleting the file removes the retry history.
 
-`CARTECH_OPENAI_API_KEY` configures speech-to-text; `OPENAI_API_KEY` is also
-accepted for standard OpenAI deployments when the CarTech-specific name is not
-set. The API key must stay in the deployment secret store, never in the
-repository. `CARTECH_OPENAI_TRANSCRIPTION_MODEL` defaults to `gpt-transcribe`;
-the default sends German automotive keyword hints. `CARTECH_OPENAI_TIMEOUT_SECONDS`
-defaults to `30`.
+`CARTECH_OPENAI_API_KEY` configures speech-to-text and strict extraction;
+`OPENAI_API_KEY` is also accepted for standard OpenAI deployments when the
+CarTech-specific name is not set. The API key must stay in the deployment
+secret store, never in the repository.
+`CARTECH_OPENAI_TRANSCRIPTION_MODEL` defaults to `gpt-transcribe`; the default
+sends German automotive keyword hints.
+`CARTECH_OPENAI_EXTRACTION_MODEL` defaults to `gpt-4o-mini` and must support
+Strict Structured Outputs. `CARTECH_OPENAI_TIMEOUT_SECONDS` defaults to `30`.
 
 ## Layout
 

@@ -36,6 +36,12 @@ Mechaniker spricht
 
 Die KI darf ausschließlich explizit genannte oder eindeutig normalisierbare Werte übernehmen. Unsichere und fehlende Werte bleiben markiert; sie werden nicht geraten.
 
+Die technische Verarbeitung ist über `POST /api/v1/extractions` verfügbar:
+Das Backend sendet das unveränderte Transkript an eine strikte KI-Ausgabe,
+normalisiert und validiert sie und gibt den vorhandenen `RegistrationDraft` mit
+`field_status` und `review_required` zurück. Die bestehende Mechanikeroberfläche
+bindet diesen API-Schritt noch nicht automatisch ein.
+
 ## Rollen und Verantwortlichkeiten
 
 | Rolle | Verantwortung |
@@ -104,7 +110,7 @@ Kunde, Fahrzeug und Kennzeichen werden über die vorhandenen Stammdaten referenz
 - Sprachaufnahme ist der primäre Eingabekanal; kurze Korrekturen per Sprache oder Touch bleiben möglich.
 - Die Mechanikeransicht zeigt nur die wichtigsten Informationen und eine klar erkennbare Bestätigungsaktion.
 - Unsichere Angaben und Plausibilitätsfehler benötigen eine Prüfung, ändern Werte aber nicht automatisch.
-- Das Originaltranskript und die ursprüngliche KI-Extraktion bleiben während der Mechanikerprüfung sichtbar; im MVP werden sie nicht zentral gespeichert.
+- Das Originaltranskript sowie der daraus erzeugte Entwurf mit Feldstatus können während der Mechanikerprüfung abgeglichen werden. Der MVP speichert keine unabhängige zentrale KI-Historie; der bestätigte Entwurf einschließlich Rohtranskript liegt nur in der Versand-Outbox.
 - Das Büro kann Werte nach Bedarf in WERBAS korrigieren; unsichere, fehlende und unplausible Felder sind in der E-Mail klar markiert.
 - Bei jedem Absenden erhält das Büro eine strukturierte E-Mail mit allen erfassten Werten, Kennzeichen, Absendezeitpunkt und Prüfhinweisen.
 
