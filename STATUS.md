@@ -1,54 +1,26 @@
 # Projektstatus
 
-**Stand: 08.09.2026**
+**Stand: 16.09.2026**
 
-## Repositoryzustand
+## Kurz gesagt
 
-- Branch: `main`; der GitHub-Pages-Workflow wird bei jedem Push auf `main` ausgeführt
-- Live-Demo für die Werkstatt: [mirdochegal555.github.io/Car-Registration](https://mirdochegal555.github.io/Car-Registration/)
-- GitHub Pages ist für das Repository aktiviert; der erfolgreiche Erst-Deploy lief über `.github/workflows/deploy-pages.yml`
-- Backend-Qualitätsprüfung: **96 Tests erfolgreich** (`python3 -m pytest`)
-- Frontend-Qualitätsprüfung: **26 Tests erfolgreich**, ESLint und Produktions-Build erfolgreich (`npm test`, `npm run lint`, `npm run build`)
+Die digitale Erfassung für Reifenwechsel und Reifeneinlagerung ist umgesetzt. Mitarbeitende können Vorgänge erfassen, Angaben prüfen und sie nach Bestätigung an das Büro weitergeben. Auch Spracheingabe ist vorbereitet.
 
-## Fertig
+Eine Demo der Oberfläche ist online. Die vollständige Nutzung mit Prüfung, E-Mail-Versand und Versandstatus benötigt noch eine eingerichtete Betriebsumgebung.
 
-- MVP-Scope, Benutzerabläufe, Datenmodell, Extraktionsregeln, Testfälle und Zeitplan dokumentiert
-- FastAPI-Backend mit versionierter API, Health-Endpoint und zentralen Datenmodellen umgesetzt
-- Validierung vollständiger Vorgangsentwürfe inklusive Feldstatus (`missing`, `uncertain`, `invalid`) und `review_required` umgesetzt
-- Kennzeichen-Normalisierung und Plausibilitäts-/Pflichtfeldprüfung umgesetzt
-- E-Mail-Übergabe an das Büro implementiert: HTML- und Textformat, explizite Mechaniker-Bestätigung sowie SMTP-Konfiguration über Umgebungsvariablen
-- Persistente SQLite-Outbox für Versandstatus, fehlgeschlagene Zustellungen, Neustartsicherheit und erneutes Senden umgesetzt
-- Frontend als React-/TypeScript-PWA umgesetzt: Start-, Übersichts-, Erfassungs-, Korrektur-, Bestätigungs- und Fehleransichten für Reifenwechsel und Reifeneinlagerung
-- Frontend und Backend über den gemeinsamen `RegistrationDraft`-Vertrag integriert; Backend-Validierung, Versandstatus und Wiederholungsversand werden in der Mechanikeransicht angezeigt
-- Phase 5 in den Mechanikerablauf integriert: Browser-Audioaufnahme, Upload, Speech-to-Text, sichtbares Originaltranskript sowie sichere Wiederaufnahme eines Entwurfs; das Transkript bleibt von den manuell pflegbaren Strukturdaten getrennt
-- Anonymisierte End-to-End-Testfälle für typische Werkstattformulierungen als Regressionsvertrag abgedeckt
-- GitHub-Pages-Deployment für die Frontend-Design-Abnahme eingerichtet und erfolgreich veröffentlicht
+## Noch offen
 
-## In Arbeit
+- Den Ablauf gemeinsam mit der Werkstatt testen und freigeben.
+- Festlegen, welche Angaben in welchem Fall notwendig sind.
+- E-Mail-Versand, sichere Speicherung und Zugriffsrechte für den echten Betrieb einrichten und testen.
+- Die Online-Demo mit dem benötigten Hintergrunddienst verbinden.
+- Spracheingabe im Werkstattalltag auf Smartphone und Tablet testen.
+- KI-Verarbeitung ergänzen, damit gesprochene Angaben als Vorschläge in die passenden Felder übernommen werden können.
 
-- Review 1 des manuellen Kernablaufs: Reifenwechsel und Reifeneinlagerung müssen gemeinsam mit der Werkstatt vollständig durchgespielt und fachlich abgenommen werden
-- Verbindliche Abstimmung des Datenmodells mit der Werkstatt: Pflichtfelder, bedingte Angaben, Statusmodell und Verantwortlichkeiten
-- Vorbereitung der realen Betriebsumgebung: SMTP-Zugang, Empfängeradresse und dauerhaftes, zugriffsgeschütztes Speicherziel für die Outbox konfigurieren und testen
-- Erreichbares HTTPS-Backend für die Live-Demo bereitstellen und dessen URL als `VITE_API_BASE_URL` im Pages-Build hinterlegen
+## Nächster Schritt
 
-## Als Nächstes
+Den gesamten Ablauf mit realistischen Beispielen in der Werkstatt durchspielen und die offenen Regeln verbindlich festlegen.
 
-1. Manuellen Ablauf für beide Vorgangstypen inklusive Korrekturen, Validierungsfehlern, Bestätigung und E-Mail-Übergabe im Werkstattkontext testen.
-2. Offene fachliche Punkte priorisieren und die bestätigten Regeln in Datenmodell, Validierung, Oberfläche und Tests übernehmen.
-3. Audioaufnahme, Upload, Speech-to-Text und Wiederaufnahme auf Smartphone/Tablet im Werkstattkontext prüfen.
-4. KI-Extraktion nach den vorhandenen Extraktionsregeln erst als getrennten Schritt integrieren; Unsicherheiten weiterhin markieren statt Werte zu erraten.
-5. Strukturierte E-Mail-Ausgabe mit dem Büro anhand realitätsnaher, anonymisierter Vorgänge abnehmen und die Retry-Strecke testen.
+## Hinweis
 
-## Aktuell offene Fragen und Abgrenzungen
-
-- Die fachlichen Formularangaben bilden den implementierten vorläufigen Vertrag, sind aber noch nicht durch die Werkstatt verbindlich bestätigt oder rechtlich geprüft.
-- Es ist zu klären, welche Felder je Vorgangstyp zwingend, optional oder nur bei bestimmten Befunden erforderlich sind und wer spätere Regeländerungen verantwortet.
-- Speech-to-Text ist integriert und konfigurationsabhängig über den OpenAI-Transkriptionsadapter verfügbar. Die KI-basierte Extraktion in Strukturdaten ist ausdrücklich noch nicht implementiert; das Originaltranskript überschreibt oder ergänzt keine manuell gepflegten Werte.
-- Eine produktive SMTP-Zustellung wurde noch nicht mit den realen Zugangsdaten und dem Büroempfänger verifiziert.
-- GitHub Pages liefert nur das statische Frontend aus. Ohne separat bereitgestelltes Backend sind Validierung, Versand, Versandstatus und Wiederholung in der Live-Demo nicht verfügbar.
-- Die vorläufige Mechaniker-ID muss vor Produktivbetrieb durch eine authentifizierte Identität ersetzt werden.
-- WERBAS bleibt im MVP führendes System. Eine direkte WERBAS-Anbindung, zentrale Büro-Inbox und zentrale Fachspeicherung gehören weiterhin nicht zum MVP.
-
-## Wichtiger Hinweis
-
-Die aktuelle Implementierung bildet die verfügbaren Formularangaben technisch ab. Sie ersetzt keine bestätigten Werkstatt-, Hersteller- oder Rechtsvorgaben. Erst nach der fachlichen Abstimmung dürfen daraus verbindliche Pflichtfeldprüfungen und Arbeitsanweisungen abgeleitet werden.
+Die Anwendung ist technisch vorbereitet, ersetzt aber noch keine abgestimmten Arbeitsanweisungen oder rechtlichen Vorgaben.
