@@ -8,6 +8,7 @@ from app.models.extraction import StructuredExtractionResult
 from app.services.extraction import normalize_and_validate_extraction_response
 from app.services.extraction_normalization import (
     normalize_extraction_payload,
+    normalize_license_plate,
     normalize_mileage_km,
     normalize_quantity,
     normalize_structured_extraction_result,
@@ -165,6 +166,7 @@ def test_normalization_converts_supported_values_to_existing_typed_fields() -> N
         ("225/45 ZR17", "225/45 R17"),
         ("225 durch 45 auf 17", "225/45 R17"),
         ("225 slash 45 R 17", "225/45 R17"),
+        ("225, 45, 17.", "225/45 R17"),
         ("zweihundertfünfundzwanzig fünfundvierzig siebzehn", "225/45 R17"),
     ],
 )
@@ -180,8 +182,14 @@ def test_tire_size_variants_have_one_canonical_representation(
 
 def test_spoken_numeric_values_are_stored_as_numbers_without_defaults() -> None:
     assert normalize_mileage_km("73 tausend 400 Kilometer") == 73400
-    assert normalize_quantity("vier Reifen") == 4
-    assert normalize_tread_depth_mm("vier komma fünf Millimeter") == 4.5
+    assert normalize_quantity("also vier Reifen") == 4
+    assert normalize_tread_depth_mm("äh vier komma null fünf Millimeter.") == 4.05
+
+
+def test_spoken_plate_digits_are_normalized_only_with_clear_letter_groups() -> None:
+    assert normalize_license_plate("CW AB eins zwo drei.") == "CW-AB 123"
+    assert normalize_license_plate("CW AB 123.") == "CW-AB 123"
+    assert normalize_license_plate("C W A B eins zwei drei") is None
 
 
 @pytest.mark.parametrize(
@@ -190,6 +198,7 @@ def test_spoken_numeric_values_are_stored_as_numbers_without_defaults() -> None:
         ("vorne links", "front_left"),
         ("linke Vorderachse", "front_left"),
         ("Vorderachse rechts", "front_right"),
+        ("ähm Vorderachse, links", "front_left"),
         ("hinten links", "rear_left"),
         ("rechte Hinterachse", "rear_right"),
         ("Vorderachse", "front"),

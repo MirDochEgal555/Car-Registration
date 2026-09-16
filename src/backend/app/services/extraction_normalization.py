@@ -120,6 +120,7 @@ _NUMBER_WORDS = {
     "null": 0,
     "ein": 1,
     "eins": 1,
+    "zwo": 2,
     "eine": 1,
     "einen": 1,
     "einem": 1,
@@ -169,6 +170,12 @@ _HALF_NUMBER_WORDS = {
     "neuneinhalb": 9.5,
     "zehneinhalb": 10.5,
 }
+_SPOKEN_FILLER_WORDS = frozenset({"äh", "ähm", "also", "halt", "mal", "so"})
+_SPOKEN_DIGIT_WORDS = {
+    word: str(number)
+    for word, number in _NUMBER_WORDS.items()
+    if 0 <= number <= 9
+}
 
 
 @dataclass(frozen=True)
@@ -191,7 +198,10 @@ def normalize_license_plate(value: object) -> str | None:
 
     if not isinstance(value, str):
         return None
-    candidate = _collapse_whitespace(value).upper()
+    candidate = _collapse_whitespace(
+        _strip_terminal_sentence_punctuation(value)
+    ).upper()
+    candidate = _normalize_spoken_plate_digits(candidate)
     for pattern in _LICENSE_PLATE_PATTERNS:
         match = pattern.fullmatch(candidate)
         if match:
@@ -211,7 +221,9 @@ def normalize_mileage_km(value: object) -> int | None:
         return int(value) if math.isfinite(value) and value.is_integer() else None
     if not isinstance(value, str):
         return None
-    match = _MILEAGE_RE.fullmatch(_collapse_whitespace(value))
+    match = _MILEAGE_RE.fullmatch(
+        _strip_terminal_sentence_punctuation(_strip_spoken_fillers(value))
+    )
     if match:
         return int(match.group(1).replace(".", "").replace(" ", ""))
     return _parse_spoken_mileage(value)
@@ -238,10 +250,12 @@ def parse_tire_size(value: object) -> TireSize | None:
 
     if not isinstance(value, str):
         return None
-    prepared = _TIRE_SIZE_CONNECTOR_RE.sub(" ", value.casefold())
+    prepared = _strip_spoken_fillers(value).casefold()
+    prepared = _TIRE_SIZE_CONNECTOR_RE.sub(" ", prepared)
     prepared = _TIRE_SIZE_R_RE.sub(" ", prepared)
     prepared = _TIRE_SIZE_ATTACHED_R_RE.sub(" ", prepared)
-    prepared = re.sub(r"[/x×]", " ", prepared)
+    prepared = re.sub(r"[/x×,;]", " ", prepared)
+    prepared = re.sub(r"[.!?]+$", "", prepared.strip())
     parts = [part for part in _SPACE_RE.split(prepared.strip()) if part]
     if len(parts) != 3:
         return None
@@ -278,7 +292,9 @@ def normalize_quantity(value: object) -> int | None:
     """Turn one explicit digit or German cardinal word into an integer."""
 
     if isinstance(value, str):
-        text = _collapse_whitespace(value).casefold()
+        text = _strip_terminal_sentence_punctuation(
+            _strip_spoken_fillers(value)
+        ).casefold()
         for suffix in (" reifen", " stück"):
             if text.endswith(suffix):
                 value = text[: -len(suffix)]
@@ -296,7 +312,9 @@ def normalize_tread_depth_mm(value: object) -> float | None:
         return number if math.isfinite(number) else None
     if not isinstance(value, str):
         return None
-    compact = _collapse_whitespace(value).casefold()
+    compact = _strip_terminal_sentence_punctuation(
+        _strip_spoken_fillers(value)
+    ).casefold()
     if compact in _HALF_NUMBER_WORDS:
         return _HALF_NUMBER_WORDS[compact]
     match = _TREAD_RE.fullmatch(compact)
@@ -545,7 +563,62 @@ def _collapse_whitespace(value: str) -> str:
 
 
 def _canonical_words(value: str) -> str:
-    return re.sub(r"[\s_-]+", " ", value.casefold()).strip()
+    normalized = re.sub(r"[.,;:!?]", " ", value.casefold())
+    words = re.sub(r"[\s_-]+", " ", normalized).split()
+    return " ".join(word for word in words if word not in _SPOKEN_FILLER_WORDS)
+
+
+def _strip_spoken_fillers(value: str) -> str:
+    """Remove only non-semantic hesitation words from a spoken value.
+
+    This helper is intentionally used only for numeric and positional
+    representations.  It must not be used for free-text models, notes or
+    licence plates, where the same words can be part of the actual value.
+    """
+
+    words = _collapse_whitespace(value).split()
+    return " ".join(
+        word
+        for word in words
+        if word.casefold().strip(".,;:!?") not in _SPOKEN_FILLER_WORDS
+    )
+
+
+def _strip_terminal_sentence_punctuation(value: str) -> str:
+    """Remove terminal sentence punctuation, never numeric decimal separators."""
+
+    return re.sub(r"[.!?;:]+$", "", value).strip()
+
+
+def _normalize_spoken_plate_digits(value: str) -> str:
+    """Join an explicitly spoken final plate number without choosing letters.
+
+    ``CW AB eins zwei drei`` is losslessly equivalent to ``CW AB 123``.  The
+    district and letter groups must already be separate, so forms such as
+    ``C W A B eins zwei drei`` remain unresolved rather than being segmented
+    speculatively into a German licence plate.
+    """
+
+    parts = value.split()
+    if len(parts) < 4:
+        return value
+    digits = _spoken_digit_sequence(parts[2:])
+    if digits is None:
+        return value
+    return " ".join((*parts[:2], digits))
+
+
+def _spoken_digit_sequence(parts: list[str]) -> str | None:
+    digits: list[str] = []
+    for part in parts:
+        token = part.casefold().strip(".,;:!?")
+        if token.isdigit():
+            digits.append(token)
+        elif token in _SPOKEN_DIGIT_WORDS:
+            digits.append(_SPOKEN_DIGIT_WORDS[token])
+        else:
+            return None
+    return "".join(digits) if digits else None
 
 
 def _parse_spoken_integer(value: object) -> int | None:
@@ -557,7 +630,9 @@ def _parse_spoken_integer(value: object) -> int | None:
         return int(value) if math.isfinite(value) and value.is_integer() else None
     if not isinstance(value, str):
         return None
-    compact = _collapse_whitespace(value).casefold()
+    compact = _strip_terminal_sentence_punctuation(
+        _strip_spoken_fillers(value)
+    ).casefold()
     if re.fullmatch(r"[+-]?\d+", compact):
         return int(compact)
     return _parse_german_number_word(compact.replace(" ", ""))
@@ -566,7 +641,9 @@ def _parse_spoken_integer(value: object) -> int | None:
 def _parse_spoken_mileage(value: str) -> int | None:
     """Parse an explicit ``<number> tausend <number>`` kilometre expression."""
 
-    text = _collapse_whitespace(value).casefold()
+    text = _strip_terminal_sentence_punctuation(
+        _strip_spoken_fillers(value)
+    ).casefold()
     text = re.sub(r"\s*(?:km|kilometer)$", "", text).strip()
     parts = text.split()
     if parts.count("tausend") != 1:
@@ -584,15 +661,30 @@ def _parse_spoken_mileage(value: str) -> int | None:
 def _parse_spoken_decimal(value: str) -> float | None:
     """Parse one explicit German ``x komma y`` millimetre reading."""
 
-    text = re.sub(r"\s*(?:mm|millimeter)$", "", value).strip()
+    text = re.sub(
+        r"\s*(?:mm|millimeter)$", "", _strip_spoken_fillers(value)
+    ).strip()
     parts = text.split(" komma ")
     if len(parts) != 2:
         return None
     whole = _parse_spoken_integer(parts[0])
-    fraction = _parse_spoken_integer(parts[1])
-    if whole is None or fraction is None or fraction < 0:
+    fraction = _parse_spoken_decimal_fraction(parts[1])
+    if whole is None or fraction is None:
         return None
     return float(f"{whole}.{fraction}")
+
+
+def _parse_spoken_decimal_fraction(value: str) -> str | None:
+    """Return spoken decimal digits while preserving explicitly spoken zeros."""
+
+    parts = value.split()
+    if parts and all(part in _SPOKEN_DIGIT_WORDS or part.isdigit() for part in parts):
+        return "".join(
+            _SPOKEN_DIGIT_WORDS.get(part, part)
+            for part in parts
+        )
+    number = _parse_spoken_integer(value)
+    return str(number) if number is not None and number >= 0 else None
 
 
 def _parse_german_number_word(value: str) -> int | None:

@@ -583,6 +583,102 @@ Es dürfen keine `installed`- oder `removed`-Reifensätze aus diesem Einlagerung
 
 Kunde, Protokolldatum, Mechaniker und Kundenunterschrift werden über den Vorgang beziehungsweise die Oberfläche erfasst. Sie dürfen in diesem Sprachtest nicht erfunden werden. Nicht genannte Wechselarbeiten – hier Wuchten Alu und manuelle Radwäsche – bleiben leer und erhalten keinen Wert von `0`, `2` oder `4` durch Annahme.
 
+## Test 24 – Füllwort und Selbstkorrektur je Achse
+
+### Eingabe
+
+> „Äh, vorne vier Millimeter, hinten drei – äh nein, hinten auch vier.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "tread_front_mm": 4,
+  "tread_rear_mm": 4
+}
+```
+
+Das Füllwort darf keinen Feldstatus verändern. Die ausdrückliche spätere
+Korrektur gilt nur für die Hinterachse; der Wert der Vorderachse bleibt 4 mm.
+
+## Test 25 – Hersteller genannt, Modell ausdrücklich unbekannt
+
+### Eingabe
+
+> „Michelin, Modell weiß ich gerade nicht.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "manufacturer": "Michelin",
+  "model": null,
+  "field_status": {
+    "model": "missing"
+  }
+}
+```
+
+Die Marke ist ausdrücklich genannt. Die Aussage enthält keine Modellbezeichnung
+und darf deshalb weder ein Modell erzeugen noch den Status ohne Widerspruch als
+`uncertain` setzen.
+
+## Test 26 – Reifengröße mit gesprochenen Pausen
+
+### Eingabe
+
+> „Die Größe ist 225, 45, 17.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "width_mm": 225,
+  "aspect_ratio": 45,
+  "rim_diameter_inch": 17
+}
+```
+
+Die internen drei Größenfelder bilden zusammen die normalisierte Darstellung
+`225/45 R17`; ein Wert darf nicht ergänzt werden, falls eine der drei
+Komponenten fehlt oder unklar ist.
+
+## Test 27 – Kennzeichen mit gesprochenen Ziffern
+
+### Eingabe
+
+> „Also, Kennzeichen CW AB eins zwei drei.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "license_plate": "CW-AB 123"
+}
+```
+
+Die bereits klar getrennten Buchstabengruppen und die Ziffernfolge dürfen nur
+formatiert werden. Einzelne ungruppierte Buchstaben dürfen nicht zu einem
+Kennzeichenkürzel geraten werden.
+
+## Test 28 – Unterschiedliche Profiltiefen an Vorder- und Hinterachse
+
+### Eingabe
+
+> „An der Vorderachse sind's äh fünf Komma fünf, an der Hinterachse vier.“
+
+### Erwartete Ausgabe
+
+```json
+{
+  "tread_front_mm": 5.5,
+  "tread_rear_mm": 4
+}
+```
+
+Die Werte gehören jeweils zur genannten Achse und dürfen weder gemittelt noch
+auf einzelne Räder übertragen werden.
+
 ## Testanforderungen
 
 Die Extraktion gilt für den MVP als ausreichend robust, wenn sie:

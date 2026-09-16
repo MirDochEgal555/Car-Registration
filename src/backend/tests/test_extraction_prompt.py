@@ -42,6 +42,27 @@ def test_prompt_forbids_inference_and_backend_validation() -> None:
     assert "Plausibilitäts" in GERMAN_WORKSHOP_EXTRACTION_PROMPT
 
 
+def test_prompt_covers_filler_words_spoken_values_and_scoped_corrections() -> None:
+    """Natural workshop speech must be resolved without extending its facts."""
+
+    for term in (
+        "Füllwörter",
+        "gesprochene Zahlenwörter",
+        "Dezimalzahlen",
+        "CW AB eins zwei drei",
+        "225, 45, 17",
+        "Vorderachse",
+        "Hinterachse",
+        "mehreren in einer Aussage genannten Reifen",
+        "Modell weiß ich",
+        "äh nein, hinten auch vier",
+    ):
+        assert term in GERMAN_WORKSHOP_EXTRACTION_PROMPT
+
+    assert "nicht gemittelt oder angeglichen" in GERMAN_WORKSHOP_EXTRACTION_PROMPT
+    assert "`model` fehlend" in GERMAN_WORKSHOP_EXTRACTION_PROMPT
+
+
 def test_prompt_keeps_transcript_verbatim_and_delimited() -> None:
     """Caller-supplied workshop text is data, not an instruction replacement."""
 

@@ -223,5 +223,51 @@
       "visual_inspections": [{"tire_set_role": "installed", "component": "rim", "result": "ok", "position": "all"}, {"tire_set_role": "installed", "component": "tire", "result": "ok", "position": "all"}, {"tire_set_role": "removed", "component": "rim", "result": "not_ok", "position": "rear_right", "notes": "Kratzer"}, {"tire_set_role": "removed", "component": "tire", "result": "ok", "position": "all"}],
       "tire_change_details": {"wheel_change_performed": true, "balancing_steel_count": 2, "machine_wash_count": 4, "whm_mode": "Komfort", "next_customer_service": "05/2027", "next_oil_service": "06/2027", "air_pressure_front_bar": 2.4, "air_pressure_rear_bar": 2.3, "wheel_lock_present": true, "wheel_bolt_configuration": "different", "hu_due_month": "2027-03", "suspension_visual_result": "ok", "brake_visual_result": "not_ok", "hub_cleaned": true, "rdks_type": "active", "rdks_programmed": true, "speed_limiter_set": true, "speed_limiter_sticker_applied": true, "wheel_bolt_torque_nm": 120, "whatsapp_contact_allowed": true, "brake_disc_measurements": [{"position": "front_right", "thickness_mm": 19.5}]}
     }
+  },
+  {
+    "id": "24-fuellwort-selbstkorrektur-je-achse",
+    "input": "Äh, vorne vier Millimeter, hinten drei – äh nein, hinten auch vier.",
+    "draft": {
+      "service_type": "tire_change",
+      "tire_sets": [{"role": "installed", "tire_set": {}}],
+      "tire_inspections": [{"tire_set_role": "installed", "tread_front_mm": 4, "tread_rear_mm": 4}],
+      "tire_change_details": {"wheel_change_performed": true}
+    }
+  },
+  {
+    "id": "25-hersteller-modell-ausdruecklich-unbekannt",
+    "input": "Michelin, Modell weiß ich gerade nicht.",
+    "draft": {
+      "service_type": "tire_storage",
+      "tire_sets": [{"role": "stored", "tire_set": {"manufacturer": "Michelin"}}],
+      "field_status": {"tire_sets.0.tire_set.model": "missing"}
+    },
+    "expected_field_status": {"tire_sets.0.tire_set.model": "missing"}
+  },
+  {
+    "id": "26-reifengroesse-gesprochene-pausen",
+    "input": "Die Größe ist 225, 45, 17.",
+    "draft": {
+      "service_type": "tire_storage",
+      "tire_sets": [{"role": "stored", "tire_set": {"width_mm": 225, "aspect_ratio": 45, "rim_diameter_inch": 17}}]
+    }
+  },
+  {
+    "id": "27-kennzeichen-gesprochene-ziffern",
+    "input": "Also, Kennzeichen CW AB eins zwei drei.",
+    "draft": {
+      "service_type": "tire_storage",
+      "vehicle": {"license_plate": "CW-AB 123"}
+    }
+  },
+  {
+    "id": "28-unterschiedliche-profiltiefen-vorder-hinterachse",
+    "input": "An der Vorderachse sind's äh fünf Komma fünf, an der Hinterachse vier.",
+    "draft": {
+      "service_type": "tire_change",
+      "tire_sets": [{"role": "installed", "tire_set": {}}],
+      "tire_inspections": [{"tire_set_role": "installed", "tread_front_mm": 5.5, "tread_rear_mm": 4}],
+      "tire_change_details": {"wheel_change_performed": true}
+    }
   }
 ]

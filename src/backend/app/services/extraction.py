@@ -63,14 +63,36 @@ Statusregeln:
 Korrekturen und Widersprüche:
 - Eine klar als Korrektur markierte spätere Angabe für dasselbe Feld ersetzt
   die frühere Angabe. Signale sind zum Beispiel „nein“, „nee“, „doch“,
-  „korrigiere“ oder „ich meine“. Beispiel: „Hinten drei Millimeter, nein,
-  vier Millimeter“ ergibt für hinten 4.0 mm mit Status `valid`.
+  „korrigiere“ oder „ich meine“ – auch nach Füllwörtern wie „äh“ oder „ähm“.
+  Die Korrektur darf die Position wiederholen oder sich eindeutig auf die
+  unmittelbar davor genannte Position beziehen. Beispiel: „Vorne vier
+  Millimeter, hinten drei – äh nein, hinten auch vier“ ergibt vorne 4.0 mm
+  und hinten 4.0 mm, jeweils mit Status `valid`.
 - Sind mehrere Angaben für dasselbe Feld nicht eindeutig als Korrektur
   erkennbar, löse den Widerspruch nicht stillschweigend auf. Setze nur das
   betroffene Feld auf `null` und `uncertain`, und setze `review_required` auf
   `true`.
 - Eine Unsicherheit in einem Feld darf nicht durch Informationen aus einem
   anderen Feld oder einer anderen Reifenposition aufgelöst werden.
+
+Natürliche Werkstattsprache:
+- Ignoriere reine Füllwörter und Umgangssprache wie „äh“, „ähm“, „also“,
+  „halt“ oder „mal“, sofern die verbleibende Angabe eindeutig ist. Sie sind
+  keine Korrektur und kein eigener Wert.
+- Normalisiere eindeutig gesprochene Zahlenwörter, etwa „vier“ oder
+  „zweihundertfünfundzwanzig“, und Dezimalzahlen wie „vier Komma fünf“ oder
+  „sechseinhalb“ verlustfrei in Zahlen. Eine gesprochene Ziffernfolge im
+  bereits eindeutig gegliederten Kennzeichen, etwa „CW AB eins zwei drei“,
+  darf zu `CW-AB 123` werden. Ordne einzelne Buchstaben nie selbst zu einem
+  Kennzeichenkürzel um und ergänze keine Ziffern.
+- Eine vollständige Reifengröße kann auch mit gesprochenen Pausen oder
+  Satzzeichen vorliegen, beispielsweise „225, 45, 17“. Normalisiere sie nur
+  dann zu Breite, Querschnitt und Felgendurchmesser, wenn genau diese drei
+  Komponenten eindeutig genannt sind.
+- Verstehe `vorne` und `Vorderachse` als dieselbe explizit genannte Vorder-
+  achse sowie `hinten` und `Hinterachse` als dieselbe Hinterachse. `links`
+  oder `rechts` allein genügt weiterhin nicht; zusammen mit einer expliziten
+  Achse bezeichnen sie genau ein Einzelrad.
 
 Extrahiere insbesondere diese Informationen, aber ausschließlich bei expliziter
 Nennung:
@@ -91,7 +113,11 @@ Nennung:
   expliziten Aliase `Conti` zu `Continental`; die genannten Marken Michelin,
   Goodyear, Bridgestone, Pirelli und Hankook bleiben erhalten. Ein Reifenmodell
   oder -profil wird nur übernommen, wenn es ausdrücklich genannt ist; leite es
-  nie aus Hersteller oder Reifenart ab.
+  nie aus Hersteller oder Reifenart ab. Hersteller und Modell können in einer
+  Aussage gemeinsam genannt sein. Sagt jemand etwa „Michelin, Modell weiß ich
+  gerade nicht“, ist `manufacturer: "Michelin"` gültig und `model` fehlend;
+  bei einer unverständlichen oder widersprüchlichen Modellnennung ist `model`
+  dagegen `uncertain`.
 - Die Anzahl wird nur bei ausdrücklich genannter Menge ausgegeben. Aus einer
   Reifenart, einer Position oder einem Reifensatz darf nicht auf vier Reifen
   geschlossen werden.
@@ -99,7 +125,10 @@ Nennung:
   `tire_inspections` in `tread_front_mm` oder `tread_rear_mm`; Einzelradwerte
   in das passende `tread_*_mm`-Feld. Bei Einlagerungsangaben gehört eine
   einzeln genannte Profiltiefe in den zugehörigen Eintrag von `tires`.
-  Übertrage keinen Achs- oder Einzelradwert auf andere Positionen.
+  Übertrage keinen Achs- oder Einzelradwert auf andere Positionen. Erfasse bei
+  mehreren in einer Aussage genannten Reifen jeden ausdrücklich zugeordneten
+  Einzelradwert getrennt; unterschiedliche Vorder- und Hinterachswerte bleiben
+  getrennt und werden nicht gemittelt oder angeglichen.
 - Positionen und Achsen müssen explizit sein: `front_left`, `front_right`,
   `rear_left`, `rear_right`, `front` oder `rear`. Verwende keine geschätzte
   Position und keinen geschätzten Reifensatz-Rollenwert.
