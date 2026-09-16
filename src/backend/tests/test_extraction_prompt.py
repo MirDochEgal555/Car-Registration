@@ -1,0 +1,68 @@
+"""Tests for the Phase 7 German workshop-extraction prompt contract."""
+
+from __future__ import annotations
+
+from app.models.extraction import structured_extraction_json_schema
+from app.services.extraction import (
+    GERMAN_WORKSHOP_EXTRACTION_PROMPT,
+    STRUCTURED_EXTRACTION_SCHEMA_NAME,
+    build_german_workshop_extraction_prompt,
+    structured_extraction_response_format,
+)
+
+
+def test_prompt_covers_the_required_workshop_extraction_topics() -> None:
+    """Protect core extraction rules against accidental prompt shortening."""
+
+    for term in (
+        "Kennzeichen",
+        "Kilometerstände",
+        "Reifenart",
+        "Reifengrößen",
+        "Hersteller",
+        "Modell",
+        "Anzahl",
+        "Profiltiefen",
+        "Positionen",
+        "Reifenzustände",
+        "Servicehinweise",
+        "Korrektur",
+        "Widerspruch",
+        "uncertain",
+    ):
+        assert term in GERMAN_WORKSHOP_EXTRACTION_PROMPT
+
+
+def test_prompt_forbids_inference_and_backend_validation() -> None:
+    """Extraction must not absorb the later validation responsibility."""
+
+    assert "Ergänze niemals" in GERMAN_WORKSHOP_EXTRACTION_PROMPT
+    assert "rate nicht" in GERMAN_WORKSHOP_EXTRACTION_PROMPT
+    assert "Backend-Validierung" in GERMAN_WORKSHOP_EXTRACTION_PROMPT
+    assert "Plausibilitäts" in GERMAN_WORKSHOP_EXTRACTION_PROMPT
+
+
+def test_prompt_keeps_transcript_verbatim_and_delimited() -> None:
+    """Caller-supplied workshop text is data, not an instruction replacement."""
+
+    transcript = "Hinten drei Millimeter, nein, vier Millimeter."
+
+    prompt = build_german_workshop_extraction_prompt(transcript)
+
+    assert prompt.startswith(GERMAN_WORKSHOP_EXTRACTION_PROMPT)
+    assert "--- BEGINN DES TRANSKRIPTS (NUR DATEN) ---" in prompt
+    assert transcript in prompt
+    assert prompt.endswith("--- ENDE DES TRANSKRIPTS ---")
+
+
+def test_response_format_reuses_the_central_strict_schema() -> None:
+    """The prompt must not drift from the Step-1 Structured-Output contract."""
+
+    response_format = structured_extraction_response_format()
+
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"] == {
+        "name": STRUCTURED_EXTRACTION_SCHEMA_NAME,
+        "strict": True,
+        "schema": structured_extraction_json_schema(),
+    }
