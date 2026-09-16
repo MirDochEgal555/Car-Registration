@@ -4,7 +4,7 @@
 
 ## Kurz gesagt
 
-Die digitale Erfassung für Reifenwechsel und Reifeneinlagerung ist umgesetzt. Mitarbeitende können Vorgänge erfassen, Angaben prüfen und sie nach Bestätigung an das Büro weitergeben. Auch Spracheingabe ist vorbereitet.
+Die digitale Erfassung für Reifenwechsel und Reifeneinlagerung ist umgesetzt. Mitarbeitende können Vorgänge erfassen, Angaben prüfen und sie nach Bestätigung an das Büro weitergeben. Die Spracheingabe mit angezeigtem Transkript ist technisch umgesetzt.
 
 Eine Demo der Oberfläche ist online. Die vollständige Nutzung mit Prüfung, E-Mail-Versand und Versandstatus benötigt noch eine eingerichtete Betriebsumgebung.
 
@@ -14,8 +14,8 @@ Eine Demo der Oberfläche ist online. Die vollständige Nutzung mit Prüfung, E-
 - Festlegen, welche Angaben in welchem Fall notwendig sind.
 - E-Mail-Versand, sichere Speicherung und Zugriffsrechte für den echten Betrieb einrichten und testen.
 - Die Online-Demo mit dem benötigten Hintergrunddienst verbinden.
-- Spracheingabe im Werkstattalltag auf Smartphone und Tablet testen.
-- KI-Verarbeitung ergänzen, damit gesprochene Angaben als Vorschläge in die passenden Felder übernommen werden können.
+- Die Spracheingabe im Werkstattalltag auf Smartphone und Tablet prüfen und freigeben.
+- Als späteren Ausbau eine KI-Verarbeitung ergänzen, damit gesprochene Angaben als Vorschläge in die passenden Felder übernommen werden können.
 
 ## Nächster Schritt
 
