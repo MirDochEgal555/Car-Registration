@@ -7,9 +7,14 @@ be silently changed before mechanic review.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
-from app.models.extraction import structured_extraction_json_schema
+from app.models.extraction import (
+    StructuredExtractionResult,
+    structured_extraction_json_schema,
+)
+from app.services.extraction_normalization import normalize_extraction_payload
 
 
 STRUCTURED_EXTRACTION_SCHEMA_NAME = "german_workshop_extraction"
@@ -156,9 +161,25 @@ def structured_extraction_response_format() -> dict[str, Any]:
     }
 
 
+def normalize_and_validate_extraction_response(
+    payload: Mapping[str, Any],
+) -> StructuredExtractionResult:
+    """Apply the central post-AI normalization before strict model validation.
+
+    This is the hand-off used by an eventual LLM adapter.  Keeping it next to
+    the response schema ensures callers cannot accidentally validate a raw AI
+    response on one path and normalize it on another.
+    """
+
+    return StructuredExtractionResult.model_validate(
+        normalize_extraction_payload(payload)
+    )
+
+
 __all__ = [
     "GERMAN_WORKSHOP_EXTRACTION_PROMPT",
     "STRUCTURED_EXTRACTION_SCHEMA_NAME",
     "build_german_workshop_extraction_prompt",
+    "normalize_and_validate_extraction_response",
     "structured_extraction_response_format",
 ]

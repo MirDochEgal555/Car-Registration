@@ -10,6 +10,42 @@ Grundregel:
 
 Es werden keine Werte geraten.
 
+## Technische Normalisierung nach der KI-Extraktion
+
+Die zentrale Schicht
+`app.services.extraction_normalization.normalize_extraction_payload` läuft auf
+der strukturierten KI-Antwort, bevor sie gegen das interne
+`StructuredExtractionResult`-Modell geprüft oder in einen Entwurf übernommen
+wird. Sie arbeitet ausschließlich deterministisch und nutzt keine externen
+Fahrzeug-, Reifen- oder Herstellerdatenbanken.
+
+- Nur Felder mit Status `valid` werden normalisiert. `missing`, `uncertain`
+  und `invalid` bleiben unverändert; insbesondere kann kein fehlendes Feld
+  dadurch `valid` werden.
+- Nicht eindeutig normalisierbare Zahlen-, Reifenart- oder Positionswerte
+  werden zu `uncertain` mit `null`. Ein nicht eindeutig strukturiertes
+  Kennzeichen bleibt als `invalid` mit seinem ursprünglichen Text erhalten.
+  In beiden Fällen wird `review_required` neu aus allen Feldstatus abgeleitet.
+- Kennzeichen werden nur bei klar erkennbaren drei Bestandteilen zu
+  `KREIS-BUCHSTABEN ZAHL` formatiert, etwa `cw ab123` zu `CW-AB 123`. Es findet
+  keine Ortsnamen- oder Kennzeichenkorrektur statt.
+- Kilometerstände werden aus Ziffern mit deutschen Tausendertrennzeichen und
+  optionalem `km`/`Kilometer` zu `mileage_km: int`; Profiltiefen aus Ziffern
+  mit Dezimalkomma/-punkt und optionalem `mm`/`Millimeter` zu
+  `tread_depth_mm: float`.
+- Reifengrößen werden vollständig als `Breite/Querschnitt RZoll` erkannt,
+  etwa `225 45 17`, `225/45 R17` oder `225 durch 45 auf 17`. Intern bleiben
+  sie unverändert als die drei vorhandenen numerischen Felder `width_mm`,
+  `aspect_ratio` und `rim_diameter_inch` gespeichert. Die Schicht füllt dabei
+  keine als fehlend markierte Komponente auf.
+- Reifenarten werden auf `winter`, `summer`, `all_season` oder `unknown`
+  abgebildet. Für Hersteller gilt ausschließlich die dokumentierte Aliasregel
+  `Conti` → `Continental`; Modelltexte werden lediglich getrimmt und nie aus
+  dem Hersteller abgeleitet oder mit ihm zusammengeführt.
+- Eindeutige Ortsangaben wie `vorne links`, `Vorderachse rechts` oder
+  `hinten` werden auf `front_left`, `front_right` bzw. `rear` abgebildet.
+  `links` oder `rechts` ohne Achse bleiben unklar und werden nicht geraten.
+
 ## Ausgabe-Konventionen
 
 Der beim Start ausgewählte Protokolltyp wird als `service_type` in die Extraktion übernommen. Er ist maßgeblich und darf nicht allein aufgrund der gesprochenen Inhalte geändert werden. Erlaubt sind `tire_change` für ein Reifenwechselprotokoll und `tire_storage` für ein Reifeneinlagerungsprotokoll.
