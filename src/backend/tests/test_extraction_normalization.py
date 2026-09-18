@@ -247,6 +247,23 @@ def test_marked_invalid_values_are_never_reinterpreted_as_valid() -> None:
     assert normalized["review_required"] is True
 
 
+def test_missing_or_uncertain_model_placeholders_are_cleared_before_validation() -> None:
+    payload = _payload()
+    tire = payload["tire_sets"]["value"][0]["tire_set"]["tires"]["value"][0]  # type: ignore[index]
+    tire["position"] = _field("front_left", "missing")
+    payload["tire_inspections"] = _field([], "missing")
+    payload["visual_inspections"] = _field([], "uncertain")
+
+    normalized = normalize_extraction_payload(payload)
+    result = StructuredExtractionResult.model_validate(normalized)
+
+    normalized_tire = normalized["tire_sets"]["value"][0]["tire_set"]["tires"]["value"][0]  # type: ignore[index]
+    assert normalized_tire["position"] == _field(None, "missing")
+    assert normalized["tire_inspections"] == _field(None, "missing")
+    assert normalized["visual_inspections"] == _field(None, "uncertain")
+    assert result.review_required is True
+
+
 def test_typed_normalization_returns_a_new_schema_valid_result() -> None:
     raw = _payload()
     raw["vehicle"]["license_plate"] = _field("cw-ab 123")  # type: ignore[index]

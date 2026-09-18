@@ -99,8 +99,14 @@ class OpenAIStructuredExtractionProvider:
                 "Die KI-Extraktion hat keine verwertbare strukturierte Antwort geliefert."
             ) from error
         except Exception as error:
+            # Keep the provider response out of the public API, but retain its
+            # diagnostic in the server log. A 400 can otherwise not be
+            # distinguished from an invalid Structured-Outputs schema, model
+            # access restriction, or a malformed request during deployment.
             logger.warning(
-                "OpenAI extraction request failed (%s).", type(error).__name__
+                "OpenAI extraction request failed (%s): %s",
+                type(error).__name__,
+                error,
             )
             if _is_openai_service_unavailable(error):
                 raise ExtractionProviderUnavailableError(

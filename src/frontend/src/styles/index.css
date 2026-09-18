@@ -488,6 +488,31 @@ h1 {
   line-height: 1.45;
 }
 
+.extraction-action {
+  display: grid;
+  gap: 0.875rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid #b9d6c2;
+  border-radius: 0.875rem;
+  background: #f0f8f2;
+}
+
+.extraction-action h2,
+.extraction-action p {
+  margin: 0;
+}
+
+.extraction-action h2 {
+  color: #17241f;
+  font-size: 1rem;
+}
+
+.extraction-action p {
+  color: #476052;
+  line-height: 1.45;
+}
+
 .audio-transcription--error {
   display: grid;
   gap: 0.85rem;

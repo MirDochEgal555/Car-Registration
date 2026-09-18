@@ -4,6 +4,8 @@ Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowi
 
 **Aktueller Stand: [Projektstatus](STATUS.md)**
 
+**Lokale Entwicklung und Tests: [Anleitung zum Starten](documentation/LOCAL_RUN.md)**
+
 ## Live-Demo für die Werkstatt
 
 Die aktuelle Frontend-Ansicht ist unter [mirdochegal555.github.io/Car-Registration](https://mirdochegal555.github.io/Car-Registration/) erreichbar. Sie wird bei jedem Push auf `main` automatisch über GitHub Pages aktualisiert.

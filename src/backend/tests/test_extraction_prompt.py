@@ -78,13 +78,23 @@ def test_prompt_keeps_transcript_verbatim_and_delimited() -> None:
 
 
 def test_response_format_reuses_the_central_strict_schema() -> None:
-    """The prompt must not drift from the Step-1 Structured-Output contract."""
+    """The OpenAI request uses the central schema without invalid ref metadata."""
 
     response_format = structured_extraction_response_format()
 
     assert response_format["type"] == "json_schema"
-    assert response_format["json_schema"] == {
-        "name": STRUCTURED_EXTRACTION_SCHEMA_NAME,
-        "strict": True,
-        "schema": structured_extraction_json_schema(),
-    }
+    assert response_format["json_schema"]["name"] == STRUCTURED_EXTRACTION_SCHEMA_NAME
+    assert response_format["json_schema"]["strict"] is True
+    assert response_format["json_schema"]["schema"] != structured_extraction_json_schema()
+
+    def assert_ref_objects_are_clean(value: object) -> None:
+        if isinstance(value, dict):
+            if "$ref" in value:
+                assert set(value) == {"$ref"}
+            for nested in value.values():
+                assert_ref_objects_are_clean(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                assert_ref_objects_are_clean(nested)
+
+    assert_ref_objects_are_clean(response_format["json_schema"]["schema"])

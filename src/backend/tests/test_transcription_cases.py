@@ -18,7 +18,6 @@ import pytest
 
 from app.services.transcription import (
     AudioRecording,
-    GERMAN_AUTOMOTIVE_KEYWORDS,
     GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT,
     OpenAITranscriptionProvider,
 )
@@ -138,7 +137,6 @@ def test_german_workshop_transcript_is_sent_with_context_and_preserved(
     request = client.audio.transcriptions.requests[0]
     assert request["language"] == "de"
     assert request["prompt"] == GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT
-    assert request["keywords"] == list(GERMAN_AUTOMOTIVE_KEYWORDS)
 
 
 @pytest.mark.parametrize(
@@ -201,15 +199,3 @@ def test_transcription_context_explicitly_names_german_workshop_entities() -> No
         "hinten rechts",
     ):
         assert term in GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT
-
-    assert {
-        "Kennzeichen",
-        "Kilometerstand",
-        "205/55 R16",
-        "225/40 R18",
-        "Michelin",
-        "Continental",
-        "Goodyear",
-        "Bridgestone",
-        "Hankook",
-    } <= set(GERMAN_AUTOMOTIVE_KEYWORDS)

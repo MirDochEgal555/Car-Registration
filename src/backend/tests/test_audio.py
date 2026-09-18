@@ -10,7 +10,6 @@ from app.main import app
 import app.services.transcription as transcription_service
 from app.services.transcription import (
     AudioRecording,
-    GERMAN_AUTOMOTIVE_KEYWORDS,
     GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT,
     OpenAITranscriptionProvider,
     TranscriptionProviderError,
@@ -215,7 +214,6 @@ def test_openai_provider_uses_german_workshop_context_without_extracting_fields(
             "model": "gpt-transcribe",
             "language": "de",
             "prompt": GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT,
-            "keywords": list(GERMAN_AUTOMOTIVE_KEYWORDS),
         }
     ]
 

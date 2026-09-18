@@ -350,6 +350,7 @@ def normalize_extraction_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     """
 
     normalized = deepcopy(dict(payload))
+    _clear_values_for_non_value_statuses(normalized)
     vehicle = _object(normalized.get("vehicle"))
     if vehicle is not None:
         _normalize_valid_field(
@@ -516,6 +517,31 @@ def _mark_uncertain(field: MutableMapping[str, Any] | None) -> None:
 
 def _field_is_valid(field: Mapping[str, Any]) -> bool:
     return field.get("field_status") in {FieldStatus.VALID, FieldStatus.VALID.value}
+
+
+def _clear_values_for_non_value_statuses(value: object) -> None:
+    """Make contradictory model wrappers safe before strict model parsing.
+
+    The extraction prompt requires ``null`` whenever a field is ``missing`` or
+    ``uncertain``. Models occasionally emit UI-shaped placeholders such as a
+    wheel position or an empty list alongside ``missing``. The status is the
+    authoritative signal, so discard that unsupported value rather than reject
+    an otherwise usable draft or promote it to a real observation.
+    """
+
+    if isinstance(value, MutableMapping):
+        if value.get("field_status") in {
+            FieldStatus.MISSING,
+            FieldStatus.MISSING.value,
+            FieldStatus.UNCERTAIN,
+            FieldStatus.UNCERTAIN.value,
+        }:
+            value["value"] = None
+        for nested in value.values():
+            _clear_values_for_non_value_statuses(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            _clear_values_for_non_value_statuses(nested)
 
 
 def _valid_list_value(field: object) -> list[Any]:

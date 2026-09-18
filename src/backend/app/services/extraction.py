@@ -7,6 +7,7 @@ be silently changed before mechanic review.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from collections.abc import Mapping
 from typing import Any
 
@@ -194,9 +195,30 @@ def structured_extraction_response_format() -> dict[str, Any]:
         "json_schema": {
             "name": STRUCTURED_EXTRACTION_SCHEMA_NAME,
             "strict": True,
-            "schema": structured_extraction_json_schema(),
+            "schema": _openai_strict_schema(structured_extraction_json_schema()),
         },
     }
+
+
+def _openai_strict_schema(schema: Mapping[str, Any]) -> dict[str, Any]:
+    """Remove Pydantic metadata that OpenAI forbids next to ``$ref``.
+
+    Pydantic emits useful field descriptions beside enum references. JSON
+    Schema permits that annotation, but OpenAI Strict Structured Outputs
+    requires a reference object to contain only ``$ref``. The internal schema
+    remains unmodified for local validation and documentation.
+    """
+
+    def sanitize(value: Any) -> Any:
+        if isinstance(value, dict):
+            if "$ref" in value:
+                return {"$ref": value["$ref"]}
+            return {key: sanitize(nested) for key, nested in value.items()}
+        if isinstance(value, list):
+            return [sanitize(item) for item in value]
+        return value
+
+    return sanitize(deepcopy(dict(schema)))
 
 
 def normalize_and_validate_extraction_response(

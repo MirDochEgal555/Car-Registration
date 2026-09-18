@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
@@ -23,6 +24,7 @@ from app.services.registration_validation import validate_registration
 
 
 router = APIRouter(prefix="/extractions", tags=["extractions"])
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -77,6 +79,11 @@ async def extract_registration_from_transcript(
     except (ExtractionMappingError, ValidationError, ValueError) as error:
         # A strict schema violation is a provider-response failure. Returning
         # no partial draft avoids hiding an untracked value or field status.
+        logger.warning(
+            "OpenAI extraction response could not be normalized (%s): %s",
+            type(error).__name__,
+            error,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Die KI-Extraktion hat keine verarbeitbare Antwort geliefert.",

@@ -36,48 +36,6 @@ GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT = (
     "vorne rechts, hinten links und hinten rechts."
 )
 
-GERMAN_AUTOMOTIVE_KEYWORDS = (
-    "Reifenwechsel",
-    "Reifeneinlagerung",
-    "Sommerreifen",
-    "Winterreifen",
-    "Ganzjahresreifen",
-    "Kennzeichen",
-    "Kilometerstand",
-    "Vorderachse",
-    "Hinterachse",
-    "vorne",
-    "hinten",
-    "links",
-    "rechts",
-    "Profiltiefe",
-    "205/55 R16",
-    "225/40 R18",
-    "Michelin",
-    "Continental",
-    "Goodyear",
-    "Bridgestone",
-    "Hankook",
-    "Pilot Sport 5",
-    "WinterContact TS 870",
-    "Vector 4Seasons Gen-3",
-    "Blizzak LM005",
-    "Ventus Prime 4",
-    "Alpin 6",
-    "Luftdruck",
-    "RDKS",
-    "Reifendruckkontrollsystem",
-    "Radschrauben",
-    "Drehmoment",
-    "Wuchtgewichte",
-    "Felgen",
-    "Bremsen",
-    "HU",
-    "AU",
-    "DOT",
-)
-
-
 @dataclass(frozen=True)
 class AudioRecording:
     """A validated in-memory browser recording for a transcription provider."""
@@ -142,12 +100,6 @@ class OpenAITranscriptionProvider:
             "language": "de",
             "prompt": GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT,
         }
-        # Keyword hints are a ``gpt-transcribe`` feature. The prompt and German
-        # language hint still provide workshop context if deployment overrides
-        # the model with another compatible transcription model.
-        if self._model == DEFAULT_OPENAI_TRANSCRIPTION_MODEL:
-            request["keywords"] = list(GERMAN_AUTOMOTIVE_KEYWORDS)
-
         client = self._client
         created_client = client is None
         try:

@@ -214,6 +214,29 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(screen.getByText(transcript)).toBeVisible()
   })
 
+  it('übernimmt manuell eingegebene Profiltiefen mit deutschem Dezimalkomma in die Übersicht', async () => {
+    const user = startNewProcess()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /neue erfassung/i }))
+    await user.click(screen.getByRole('button', { name: 'Einlagerung' }))
+
+    fireEvent.change(screen.getByPlaceholderText('z. B. 6,5'), {
+      target: { value: '6,5' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('z. B. 5,0'), {
+      target: { value: '5.0' },
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
+    )
+
+    const tireSummary = getSummarySection('Reifendaten')
+    expect(within(tireSummary).getByText('6,5 mm')).toBeVisible()
+    expect(within(tireSummary).getByText('5 mm')).toBeVisible()
+  })
+
   it('speichert das unveränderte Transkript mit dem Vorgang, ohne Formularwerte daraus abzuleiten', async () => {
     const transcript = '  Abweichendes Kennzeichen: CW ZZ 999.  \n'
     const fetchMock = vi.fn()

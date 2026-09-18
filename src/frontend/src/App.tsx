@@ -39,6 +39,8 @@ import {
   getAudioTranscriptionFailureKind,
   transcribeAudioRecording,
 } from './services/audioApi'
+import { extractRegistrationFromTranscript } from './services/extractionApi'
+import { mapExtractionToWorkshopProcess } from './services/extractionMapper'
 import { mapWorkshopProcessToRegistration } from './services/registrationMapper'
 import {
   clearWorkshopDraft,
@@ -70,6 +72,14 @@ type SubmissionState =
 
 const initialSubmissionState: SubmissionState = { kind: 'idle' }
 const initialAudioTranscriptionState: AudioTranscriptionState = { kind: 'idle' }
+
+type ExtractionState =
+  | { kind: 'idle' }
+  | { kind: 'processing' }
+  | { kind: 'completed' }
+  | { kind: 'error'; message: string }
+
+const initialExtractionState: ExtractionState = { kind: 'idle' }
 
 function getRestoredAudioTranscriptionState(
   process: WorkshopProcess | null | undefined,
@@ -150,6 +160,9 @@ function App() {
     useState<AudioTranscriptionState>(() =>
       getRestoredAudioTranscriptionState(restoredDraft?.process),
     )
+  const [extractionState, setExtractionState] = useState<ExtractionState>(
+    initialExtractionState,
+  )
   // State updates do not take effect until React renders again.  Keep a
   // synchronous guard as well, so two very fast taps cannot start two HTTP
   // requests before the button becomes disabled.
@@ -213,6 +226,7 @@ function App() {
     setBackendIssues([])
     setBackendFieldStatus({})
     setDeliveryResult(null)
+    setExtractionState(initialExtractionState)
     clearAudioTranscription()
     navigate('/erfassung')
   }
@@ -223,6 +237,7 @@ function App() {
     audioTranscriptionRequestIdRef.current += 1
     setRecordedAudio(null)
     setAudioTranscriptionState(initialAudioTranscriptionState)
+    setExtractionState(initialExtractionState)
     setWorkshopProcess((currentProcess) =>
       currentProcess
         ? { ...currentProcess, rawTranscript: undefined }
@@ -271,6 +286,47 @@ function App() {
     }
 
     void transcribeRecordedAudio(recordedAudio)
+  }
+
+  const extractTranscript = async () => {
+    if (
+      !workshopProcess ||
+      audioTranscriptionState.kind !== 'completed' ||
+      extractionState.kind === 'processing'
+    ) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Die KI übernimmt den Vorschlag in alle strukturierten Felder. Bereits manuell eingegebene Werte werden ersetzt und müssen anschließend geprüft werden. Fortfahren?',
+    )
+    if (!confirmed) {
+      return
+    }
+
+    setExtractionState({ kind: 'processing' })
+    try {
+      const validation = await extractRegistrationFromTranscript(
+        audioTranscriptionState.transcript,
+      )
+      setWorkshopProcess((currentProcess) =>
+        currentProcess
+          ? mapExtractionToWorkshopProcess(currentProcess, validation.registration)
+          : currentProcess,
+      )
+      setSubmissionState(initialSubmissionState)
+      setBackendIssues(validation.issues)
+      setBackendFieldStatus(validation.field_status ?? {})
+      setExtractionState({ kind: 'completed' })
+    } catch (error) {
+      setExtractionState({
+        kind: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Der KI-Vorschlag konnte nicht erstellt werden. Bitte erneut versuchen.',
+      })
+    }
   }
 
   if (route === 'start') {
@@ -387,17 +443,25 @@ function App() {
 
       return {
         ...currentProcess,
-        tireSets: currentProcess.tireSets.map((entry, index) =>
-          index === 0
-            ? {
-                ...entry,
-                tireSet: {
-                  ...entry.tireSet,
-                  ...changes,
+        tireSets:
+          currentProcess.tireSets.length === 0
+            ? [
+                {
+                  role: getInitialTireSetRole(currentProcess.serviceType),
+                  tireSet: changes,
                 },
-              }
-            : entry,
-        ),
+              ]
+            : currentProcess.tireSets.map((entry, index) =>
+                index === 0
+                  ? {
+                      ...entry,
+                      tireSet: {
+                        ...entry.tireSet,
+                        ...changes,
+                      },
+                    }
+                  : entry,
+              ),
       }
     })
   }
@@ -414,9 +478,17 @@ function App() {
 
       return {
         ...currentProcess,
-        tireInspections: currentProcess.tireInspections.map((inspection, index) =>
-          index === 0 ? { ...inspection, ...changes } : inspection,
-        ),
+        tireInspections:
+          currentProcess.tireInspections.length === 0
+            ? [
+                {
+                  tireSetRole: getInitialTireSetRole(currentProcess.serviceType),
+                  ...changes,
+                },
+              ]
+            : currentProcess.tireInspections.map((inspection, index) =>
+                index === 0 ? { ...inspection, ...changes } : inspection,
+              ),
       }
     })
   }
@@ -433,9 +505,18 @@ function App() {
 
       return {
         ...currentProcess,
-        conditions: currentProcess.conditions.map((condition, index) =>
-          index === 0 ? { ...condition, ...changes } : condition,
-        ),
+        conditions:
+          currentProcess.conditions.length === 0
+            ? [
+                {
+                  tireSetRole: getInitialTireSetRole(currentProcess.serviceType),
+                  position: 'all',
+                  ...changes,
+                },
+              ]
+            : currentProcess.conditions.map((condition, index) =>
+                index === 0 ? { ...condition, ...changes } : condition,
+              ),
       }
     })
   }
@@ -696,11 +777,50 @@ function App() {
           transcriptionState={audioTranscriptionState}
         />
 
+        {audioTranscriptionState.kind === 'completed' && (
+          <section
+            aria-live="polite"
+            className="extraction-action"
+            aria-labelledby="extraction-action-title"
+          >
+            <div>
+              <h2 id="extraction-action-title">KI-Vorschlag erstellen</h2>
+              <p>
+                Die Sprachnotiz wird in bearbeitbare Formularwerte übernommen.
+                Bitte alle vorgeschlagenen Werte anschließend prüfen.
+              </p>
+            </div>
+            <button
+              className="secondary-button"
+              disabled={extractionState.kind === 'processing'}
+              onClick={() => void extractTranscript()}
+              type="button"
+            >
+              {extractionState.kind === 'processing'
+                ? 'KI-Vorschlag wird erstellt …'
+                : 'Daten aus Sprachnotiz übernehmen'}
+            </button>
+            {extractionState.kind === 'completed' && (
+              <p className="field-message field-message--success" role="status">
+                KI-Vorschlag übernommen. Bitte die markierten Angaben prüfen.
+              </p>
+            )}
+            {extractionState.kind === 'error' && (
+              <FrontendErrorState
+                compact
+                kind="unexpected"
+                message={extractionState.message}
+                title="KI-Extraktion fehlgeschlagen"
+              />
+            )}
+          </section>
+        )}
+
         <p className="capture-workflow-hint" role="status">
           {audioTranscriptionState.kind === 'processing'
             ? 'Während die Sprachnotiz verarbeitet wird, bleiben alle Formularfelder bearbeitbar.'
             : audioTranscriptionState.kind === 'completed'
-              ? 'Das Transkript bleibt für die anschließende Prüfung sichtbar und ändert keine Formularwerte.'
+              ? 'Du kannst aus dem Transkript einen KI-Vorschlag erstellen und anschließend alle Werte prüfen.'
               : audioTranscriptionState.kind === 'error'
                 ? 'Du kannst die strukturierten Angaben weiter manuell erfassen oder die Transkription erneut versuchen.'
                 : 'Du kannst die Daten direkt erfassen, auch wenn keine Sprachnotiz benötigt wird.'}
@@ -896,22 +1016,15 @@ function App() {
               <label htmlFor="tread-front">
                 <span>Vorne</span>
                 <div className="input-with-unit">
-                  <input
+                  <DecimalMillimeterInput
                     aria-invalid={
                       getValidationIssue('Profiltiefe vorne') ? true : undefined
                     }
                     id="tread-front"
-                    inputMode="decimal"
-                    max="20"
-                    min="0"
-                    onChange={(event) =>
-                      updateTireInspection({
-                        treadFrontMm: numberOrUndefined(event.target.value),
-                      })
-                    }
                     placeholder="z. B. 6,5"
-                    step="0.1"
-                    type="number"
+                    onValueChange={(treadFrontMm) =>
+                      updateTireInspection({ treadFrontMm })
+                    }
                     value={tireInspection?.treadFrontMm ?? ''}
                   />
                   <span aria-hidden="true">mm</span>
@@ -920,22 +1033,15 @@ function App() {
               <label htmlFor="tread-rear">
                 <span>Hinten</span>
                 <div className="input-with-unit">
-                  <input
+                  <DecimalMillimeterInput
                     aria-invalid={
                       getValidationIssue('Profiltiefe hinten') ? true : undefined
                     }
                     id="tread-rear"
-                    inputMode="decimal"
-                    max="20"
-                    min="0"
-                    onChange={(event) =>
-                      updateTireInspection({
-                        treadRearMm: numberOrUndefined(event.target.value),
-                      })
-                    }
                     placeholder="z. B. 5,0"
-                    step="0.1"
-                    type="number"
+                    onValueChange={(treadRearMm) =>
+                      updateTireInspection({ treadRearMm })
+                    }
                     value={tireInspection?.treadRearMm ?? ''}
                   />
                   <span aria-hidden="true">mm</span>
@@ -1056,6 +1162,62 @@ function App() {
     </main>
     </FrontendErrorBoundary>
   )
+}
+
+type DecimalMillimeterInputProps = {
+  'aria-invalid'?: boolean
+  id: string
+  onValueChange: (value: number | undefined) => void
+  placeholder?: string
+  value: number | ''
+}
+
+/** Keep a German decimal comma editable while storing a number in the draft. */
+function DecimalMillimeterInput({
+  value,
+  onValueChange,
+  ...inputProps
+}: DecimalMillimeterInputProps) {
+  const [rawValue, setRawValue] = useState(() => formatMillimeterInput(value))
+
+  useEffect(() => {
+    setRawValue(formatMillimeterInput(value))
+  }, [value])
+
+  return (
+    <input
+      {...inputProps}
+      autoComplete="off"
+      inputMode="decimal"
+      onChange={(event) => {
+        const nextValue = event.target.value
+        setRawValue(nextValue)
+        const parsed = parseMillimeterInput(nextValue)
+        if (parsed !== null) {
+          onValueChange(parsed)
+        }
+      }}
+      pattern="[0-9]*[,.]?[0-9]*"
+      type="text"
+      value={rawValue}
+    />
+  )
+}
+
+function parseMillimeterInput(value: string): number | undefined | null {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return undefined
+  }
+  if (!/^\d+(?:[,.]\d+)?$/.test(trimmed)) {
+    return null
+  }
+  const parsed = Number(trimmed.replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function formatMillimeterInput(value: number | ''): string {
+  return value === '' ? '' : value.toLocaleString('de-DE')
 }
 
 type DeliveryProgressNoticeProps = {
@@ -1605,7 +1767,7 @@ function ProcessOverviewPage({
                   </label>
                   <label className="summary-editor__field" htmlFor="overview-tread-front">
                     <span>Profil vorne (mm)</span>
-                    <input
+                    <DecimalMillimeterInput
                       aria-invalid={
                         confirmationIssues.some(
                           (issue) => issue.field === 'Profiltiefe vorne',
@@ -1614,22 +1776,15 @@ function ProcessOverviewPage({
                           : undefined
                       }
                       id="overview-tread-front"
-                      inputMode="decimal"
-                      max="20"
-                      min="0"
-                      onChange={(event) =>
-                        onUpdateTireInspection({
-                          treadFrontMm: numberOrUndefined(event.target.value),
-                        })
+                      onValueChange={(treadFrontMm) =>
+                        onUpdateTireInspection({ treadFrontMm })
                       }
-                      step="0.1"
-                      type="number"
                       value={tireInspection?.treadFrontMm ?? ''}
                     />
                   </label>
                   <label className="summary-editor__field" htmlFor="overview-tread-rear">
                     <span>Profil hinten (mm)</span>
-                    <input
+                    <DecimalMillimeterInput
                       aria-invalid={
                         confirmationIssues.some(
                           (issue) => issue.field === 'Profiltiefe hinten',
@@ -1638,16 +1793,9 @@ function ProcessOverviewPage({
                           : undefined
                       }
                       id="overview-tread-rear"
-                      inputMode="decimal"
-                      max="20"
-                      min="0"
-                      onChange={(event) =>
-                        onUpdateTireInspection({
-                          treadRearMm: numberOrUndefined(event.target.value),
-                        })
+                      onValueChange={(treadRearMm) =>
+                        onUpdateTireInspection({ treadRearMm })
                       }
-                      step="0.1"
-                      type="number"
                       value={tireInspection?.treadRearMm ?? ''}
                     />
                   </label>
