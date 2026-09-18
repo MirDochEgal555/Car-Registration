@@ -14,9 +14,9 @@ export type WorkshopProcess = {
   /**
    * Wortlaut der letzten erfolgreich transkribierten Sprachnotiz.
    *
-   * Der Text ist ein unverändertes Audit-/Prüfartefakt. Er darf die manuell
-   * gepflegten strukturierten Angaben erst dann beeinflussen, wenn eine
-   * separate Extraktion ausdrücklich eingeführt wird.
+   * Der Text ist ein unverändertes Audit-/Prüfartefakt. Die automatische
+   * Extraktion verwendet ihn nur für einen prüfbaren Vorschlag und ersetzt
+   * keine manuell gepflegten strukturierten Angaben.
    */
   rawTranscript?: string
   /**

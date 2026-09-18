@@ -26,17 +26,20 @@ const tireConditions = new Set<TireConditionType>([
 ])
 
 /**
- * Apply one backend-generated draft to the editable workshop model.
- * The browser-owned ID and original transcript stay stable for idempotent
- * delivery and review; every structured value comes from the explicit
- * extraction action.
+ * Merge one backend-generated draft into the editable workshop model.
+ *
+ * A mechanic can continue typing while transcription and extraction run.  An
+ * extraction is therefore a suggestion: it fills blank browser fields but
+ * never silently replaces a value already entered by a person.  The selected
+ * service type is browser-owned for the same reason; a spoken phrase must not
+ * change the process that the mechanic explicitly started.
  */
 export function mapExtractionToWorkshopProcess(
   currentProcess: WorkshopProcess,
   draft: ApiRegistrationDraft,
 ): WorkshopProcess {
-  const defaultRole = draft.service_type === 'tire_storage' ? 'stored' : 'installed'
-  const tireSets = draft.tire_sets.map(({ role, tire_set }) => ({
+  const defaultRole = getDefaultRole(currentProcess.serviceType)
+  const extractedTireSets = (draft.tire_sets ?? []).map(({ role, tire_set }) => ({
     role,
     tireSet: {
       tireType: asTireType(tire_set.tire_type),
@@ -49,12 +52,12 @@ export function mapExtractionToWorkshopProcess(
       notes: tire_set.notes,
     },
   }))
-  const tireInspections = draft.tire_inspections.map((inspection) => ({
+  const extractedTireInspections = (draft.tire_inspections ?? []).map((inspection) => ({
     tireSetRole: inspection.tire_set_role,
     treadFrontMm: inspection.tread_front_mm,
     treadRearMm: inspection.tread_rear_mm,
   }))
-  const conditions = draft.conditions.map((condition) => ({
+  const extractedConditions = (draft.conditions ?? []).map((condition) => ({
     tireSetRole: condition.tire_set_role,
     condition: asTireCondition(condition.condition),
     position: condition.position,
@@ -63,27 +66,101 @@ export function mapExtractionToWorkshopProcess(
   return {
     id: currentProcess.id,
     status: 'draft',
-    serviceType: draft.service_type,
-    licensePlate: draft.vehicle.license_plate,
+    serviceType: currentProcess.serviceType,
+    licensePlate: currentProcess.licensePlate || draft.vehicle.license_plate,
     rawTranscript: currentProcess.rawTranscript ?? draft.raw_transcript,
     // The UI always exposes one editable row. An empty extraction means
     // “nothing heard”, never “do not allow manual entry”.
-    tireSets: tireSets.length > 0 ? tireSets : [{ role: defaultRole, tireSet: {} }],
+    tireSets: mergeTireSets(
+      currentProcess.tireSets,
+      extractedTireSets,
+      defaultRole,
+    ),
     tireInspections:
-      tireInspections.length > 0 ? tireInspections : [{ tireSetRole: defaultRole }],
+      mergeTireInspections(
+        currentProcess.tireInspections,
+        extractedTireInspections,
+        defaultRole,
+      ),
     conditions:
-      conditions.length > 0
-        ? conditions
-        : [{ tireSetRole: defaultRole, position: 'all' }],
-    ...(draft.service_type === 'tire_change'
+      mergeConditions(currentProcess.conditions, extractedConditions, defaultRole),
+    ...(currentProcess.serviceType === 'tire_change'
       ? {
           tireChangeDetails: {
-            wheelChangePerformed:
+            wheelChangePerformed: chooseManualValue(
+              currentProcess.tireChangeDetails?.wheelChangePerformed,
               draft.tire_change_details?.wheel_change_performed,
+            ),
           },
         }
       : {}),
   }
+}
+
+function getDefaultRole(serviceType: WorkshopProcess['serviceType']) {
+  return serviceType === 'tire_storage' ? 'stored' : 'installed'
+}
+
+function mergeTireSets(
+  current: WorkshopProcess['tireSets'],
+  extracted: WorkshopProcess['tireSets'],
+  defaultRole: WorkshopProcess['tireSets'][number]['role'],
+): WorkshopProcess['tireSets'] {
+  const currentFirst = current[0]
+  const extractedFirst = extracted[0]
+  const first = {
+    role: currentFirst?.role ?? defaultRole,
+    tireSet: {
+      tireType: chooseManualValue(currentFirst?.tireSet.tireType, extractedFirst?.tireSet.tireType),
+      widthMm: chooseManualValue(currentFirst?.tireSet.widthMm, extractedFirst?.tireSet.widthMm),
+      aspectRatio: chooseManualValue(currentFirst?.tireSet.aspectRatio, extractedFirst?.tireSet.aspectRatio),
+      rimDiameterInch: chooseManualValue(currentFirst?.tireSet.rimDiameterInch, extractedFirst?.tireSet.rimDiameterInch),
+      manufacturer: chooseManualValue(currentFirst?.tireSet.manufacturer, extractedFirst?.tireSet.manufacturer),
+      model: chooseManualValue(currentFirst?.tireSet.model, extractedFirst?.tireSet.model),
+      quantity: chooseManualValue(currentFirst?.tireSet.quantity, extractedFirst?.tireSet.quantity),
+      notes: chooseManualValue(currentFirst?.tireSet.notes, extractedFirst?.tireSet.notes),
+    },
+  }
+
+  return [first, ...extracted.slice(1)]
+}
+
+function mergeTireInspections(
+  current: WorkshopProcess['tireInspections'],
+  extracted: WorkshopProcess['tireInspections'],
+  defaultRole: WorkshopProcess['tireInspections'][number]['tireSetRole'],
+): WorkshopProcess['tireInspections'] {
+  const currentFirst = current[0]
+  const extractedFirst = extracted[0]
+  return [
+    {
+      tireSetRole: currentFirst?.tireSetRole ?? defaultRole,
+      treadFrontMm: chooseManualValue(currentFirst?.treadFrontMm, extractedFirst?.treadFrontMm),
+      treadRearMm: chooseManualValue(currentFirst?.treadRearMm, extractedFirst?.treadRearMm),
+    },
+    ...extracted.slice(1),
+  ]
+}
+
+function mergeConditions(
+  current: WorkshopProcess['conditions'],
+  extracted: WorkshopProcess['conditions'],
+  defaultRole: WorkshopProcess['conditions'][number]['tireSetRole'],
+): WorkshopProcess['conditions'] {
+  const currentFirst = current[0]
+  const extractedFirst = extracted[0]
+  return [
+    {
+      tireSetRole: currentFirst?.tireSetRole ?? defaultRole,
+      condition: chooseManualValue(currentFirst?.condition, extractedFirst?.condition),
+      position: 'all',
+    },
+    ...extracted.slice(1),
+  ]
+}
+
+function chooseManualValue<T>(manualValue: T | undefined, extractedValue: T | undefined) {
+  return manualValue ?? extractedValue
 }
 
 function asTireType(value: string | undefined): TireType | undefined {

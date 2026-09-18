@@ -237,10 +237,11 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(within(tireSummary).getByText('5 mm')).toBeVisible()
   })
 
-  it('speichert das unveränderte Transkript mit dem Vorgang, ohne Formularwerte daraus abzuleiten', async () => {
+  it('erstellt nach dem Transkript automatisch einen KI-Vorschlag und behält manuelle Werte bei', async () => {
     const transcript = '  Abweichendes Kennzeichen: CW ZZ 999.  \n'
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response({ status: 'completed', transcript }))
+      .mockResolvedValueOnce(response(validRegistration('CW-AB 123')))
       .mockResolvedValueOnce(response(validRegistration('CW-AB 123')))
       .mockResolvedValueOnce(response(emailSent()))
     vi.stubGlobal('fetch', fetchMock)
@@ -258,6 +259,9 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(
       await screen.findByRole('heading', { name: 'Gesprochene Notiz' }),
     ).toBeVisible()
+    expect(
+      await screen.findByText(/KI-Vorschlag übernommen/i),
+    ).toBeVisible()
 
     await user.click(
       screen.getByRole('button', { name: /aktuellen vorgang ansehen/i }),
@@ -270,10 +274,10 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
       await screen.findByRole('heading', { name: 'Alles erledigt.' }),
     ).toBeVisible()
     const validationPayload = JSON.parse(
-      String((fetchMock.mock.calls[1]?.[1] as RequestInit).body),
+      String((fetchMock.mock.calls[2]?.[1] as RequestInit).body),
     )
     const sendPayload = JSON.parse(
-      String((fetchMock.mock.calls[2]?.[1] as RequestInit).body),
+      String((fetchMock.mock.calls[3]?.[1] as RequestInit).body),
     )
     expect(validationPayload).toMatchObject({
       raw_transcript: transcript,
@@ -306,6 +310,7 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
           transcript: 'Räder nachziehen.',
         }),
       )
+      .mockResolvedValueOnce(response(validRegistration('')))
     vi.stubGlobal('fetch', fetchMock)
     installAudioRecording()
     const user = startNewProcess()
@@ -329,7 +334,7 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     )
 
     expect(await screen.findByText('Räder nachziehen.')).toBeVisible()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('erhält Formulardaten bei einem Audio-Upload-Fehler und lässt dieselbe Aufnahme erneut senden', async () => {
@@ -341,6 +346,7 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
           transcript: 'Profiltiefe vorne geprüft.',
         }),
       )
+      .mockResolvedValueOnce(response(validRegistration('CW-AB 456')))
     vi.stubGlobal('fetch', fetchMock)
     installAudioRecording()
     const user = startNewProcess()
@@ -371,7 +377,7 @@ describe('Mechaniker → FastAPI → E-Mail-Workflow', () => {
     expect(await screen.findByText('Profiltiefe vorne geprüft.')).toBeVisible()
     expect(screen.getByLabelText(/Kennzeichen/)).toHaveValue('CW-AB 456')
     expect(screen.getByLabelText(/Hersteller/)).toHaveValue('Michelin')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('mappt einen Reifenwechsel, prüft ihn und übergibt ihn an die Büro-E-Mail', async () => {

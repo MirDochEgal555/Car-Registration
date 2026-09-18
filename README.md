@@ -1,6 +1,6 @@
 # Fahrzeug- & Reifenerfassung für CarTech
 
-Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowie zwei Werkstattprotokollen: **Reifenwechsel** und **Reifeneinlagerung**. Das Backend stellt dafür die vollständige Pipeline **Transkript → KI‑Structured‑Output → Normalisierung → Validierung → `RegistrationDraft`** über `POST /api/v1/extractions` bereit. Die bestehende Mechanikeroberfläche kann Entwürfe weiterhin manuell prüfen und versenden; ihre automatische Anbindung an diesen neuen Endpunkt ist ein separater nächster Schritt.
+Voice-first-MVP für die Werkstatt **CarTech** zur Erfassung von Fahrzeugen sowie zwei Werkstattprotokollen: **Reifenwechsel** und **Reifeneinlagerung**. Das Backend stellt dafür die vollständige Pipeline **Transkript → KI‑Structured‑Output → Normalisierung → Validierung → `RegistrationDraft`** über `POST /api/v1/extractions` bereit. Nach einer Sprachnotiz übernimmt die Mechanikeroberfläche den Entwurf automatisch als prüfbaren Vorschlag; manuell eingegebene Werte bleiben dabei erhalten.
 
 **Aktueller Stand: [Projektstatus](STATUS.md)**
 

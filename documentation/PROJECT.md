@@ -39,8 +39,9 @@ Die KI darf ausschließlich explizit genannte oder eindeutig normalisierbare Wer
 Die technische Verarbeitung ist über `POST /api/v1/extractions` verfügbar:
 Das Backend sendet das unveränderte Transkript an eine strikte KI-Ausgabe,
 normalisiert und validiert sie und gibt den vorhandenen `RegistrationDraft` mit
-`field_status` und `review_required` zurück. Die bestehende Mechanikeroberfläche
-bindet diesen API-Schritt noch nicht automatisch ein.
+`field_status` und `review_required` zurück. Die Mechanikeroberfläche bindet
+diesen API-Schritt nach einer Transkription automatisch als prüfbaren Vorschlag
+ein und behält bereits manuell eingegebene Werte bei.
 
 ## Rollen und Verantwortlichkeiten
 

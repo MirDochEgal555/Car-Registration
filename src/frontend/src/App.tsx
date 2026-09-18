@@ -168,6 +168,7 @@ function App() {
   // requests before the button becomes disabled.
   const submissionLockRef = useRef(false)
   const audioTranscriptionRequestIdRef = useRef(0)
+  const extractionRequestIdRef = useRef(0)
 
   useEffect(() => {
     const updateRoute = () => setRoute(getRoute())
@@ -235,6 +236,7 @@ function App() {
     // Responses for an older recording must not appear after it was removed or
     // after a mechanic starts another vehicle process.
     audioTranscriptionRequestIdRef.current += 1
+    extractionRequestIdRef.current += 1
     setRecordedAudio(null)
     setAudioTranscriptionState(initialAudioTranscriptionState)
     setExtractionState(initialExtractionState)
@@ -243,6 +245,47 @@ function App() {
         ? { ...currentProcess, rawTranscript: undefined }
         : currentProcess,
     )
+  }
+
+  const extractTranscript = async (transcript: string, transcriptionRequestId: number) => {
+    if (!workshopProcess || transcriptionRequestId !== audioTranscriptionRequestIdRef.current) {
+      return
+    }
+
+    const extractionRequestId = extractionRequestIdRef.current + 1
+    extractionRequestIdRef.current = extractionRequestId
+    setExtractionState({ kind: 'processing' })
+    try {
+      const validation = await extractRegistrationFromTranscript(transcript)
+      if (
+        extractionRequestId !== extractionRequestIdRef.current ||
+        transcriptionRequestId !== audioTranscriptionRequestIdRef.current
+      ) {
+        return
+      }
+      setWorkshopProcess((currentProcess) =>
+        currentProcess
+          ? mapExtractionToWorkshopProcess(currentProcess, validation.registration)
+          : currentProcess,
+      )
+      setSubmissionState(initialSubmissionState)
+      setBackendIssues(validation.issues)
+      setBackendFieldStatus(validation.field_status ?? {})
+      setExtractionState({ kind: 'completed' })
+    } catch (error) {
+      if (
+        extractionRequestId === extractionRequestIdRef.current &&
+        transcriptionRequestId === audioTranscriptionRequestIdRef.current
+      ) {
+        setExtractionState({
+          kind: 'error',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Der KI-Vorschlag konnte nicht erstellt werden. Bitte erneut versuchen.',
+        })
+      }
+    }
   }
 
   const transcribeRecordedAudio = async (audio: Blob) => {
@@ -260,6 +303,10 @@ function App() {
             ? { ...currentProcess, rawTranscript: transcript }
             : currentProcess,
         )
+        // The next step is deliberately automatic: speaking produces a
+        // reviewable draft without asking the mechanic to find another action.
+        // The mapper only fills blank fields, so typing during this request is safe.
+        void extractTranscript(transcript, requestId)
       }
     } catch (error) {
       if (audioTranscriptionRequestIdRef.current === requestId) {
@@ -286,47 +333,6 @@ function App() {
     }
 
     void transcribeRecordedAudio(recordedAudio)
-  }
-
-  const extractTranscript = async () => {
-    if (
-      !workshopProcess ||
-      audioTranscriptionState.kind !== 'completed' ||
-      extractionState.kind === 'processing'
-    ) {
-      return
-    }
-
-    const confirmed = window.confirm(
-      'Die KI übernimmt den Vorschlag in alle strukturierten Felder. Bereits manuell eingegebene Werte werden ersetzt und müssen anschließend geprüft werden. Fortfahren?',
-    )
-    if (!confirmed) {
-      return
-    }
-
-    setExtractionState({ kind: 'processing' })
-    try {
-      const validation = await extractRegistrationFromTranscript(
-        audioTranscriptionState.transcript,
-      )
-      setWorkshopProcess((currentProcess) =>
-        currentProcess
-          ? mapExtractionToWorkshopProcess(currentProcess, validation.registration)
-          : currentProcess,
-      )
-      setSubmissionState(initialSubmissionState)
-      setBackendIssues(validation.issues)
-      setBackendFieldStatus(validation.field_status ?? {})
-      setExtractionState({ kind: 'completed' })
-    } catch (error) {
-      setExtractionState({
-        kind: 'error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Der KI-Vorschlag konnte nicht erstellt werden. Bitte erneut versuchen.',
-      })
-    }
   }
 
   if (route === 'start') {
@@ -784,34 +790,47 @@ function App() {
             aria-labelledby="extraction-action-title"
           >
             <div>
-              <h2 id="extraction-action-title">KI-Vorschlag erstellen</h2>
+              <h2 id="extraction-action-title">KI-Vorschlag</h2>
               <p>
-                Die Sprachnotiz wird in bearbeitbare Formularwerte übernommen.
-                Bitte alle vorgeschlagenen Werte anschließend prüfen.
+                {extractionState.kind === 'processing'
+                  ? 'Die Sprachnotiz wird automatisch in bearbeitbare Formularwerte übertragen.'
+                  : 'Die vorgeschlagenen Formularwerte sind bearbeitbar. Bitte alle Angaben prüfen.'}
               </p>
             </div>
-            <button
-              className="secondary-button"
-              disabled={extractionState.kind === 'processing'}
-              onClick={() => void extractTranscript()}
-              type="button"
-            >
-              {extractionState.kind === 'processing'
-                ? 'KI-Vorschlag wird erstellt …'
-                : 'Daten aus Sprachnotiz übernehmen'}
-            </button>
+            {extractionState.kind === 'processing' && (
+              <p className="field-message" role="status">
+                KI-Vorschlag wird erstellt …
+              </p>
+            )}
             {extractionState.kind === 'completed' && (
               <p className="field-message field-message--success" role="status">
-                KI-Vorschlag übernommen. Bitte die markierten Angaben prüfen.
+                KI-Vorschlag übernommen. Bereits eingegebene Werte wurden beibehalten.
+                Bitte die markierten Angaben prüfen.
               </p>
             )}
             {extractionState.kind === 'error' && (
-              <FrontendErrorState
-                compact
-                kind="unexpected"
-                message={extractionState.message}
-                title="KI-Extraktion fehlgeschlagen"
-              />
+              <>
+                <FrontendErrorState
+                  compact
+                  kind="unexpected"
+                  message={extractionState.message}
+                  title="KI-Extraktion fehlgeschlagen"
+                />
+                <button
+                  className="secondary-button"
+                  onClick={() => {
+                    if (audioTranscriptionState.kind === 'completed') {
+                      void extractTranscript(
+                        audioTranscriptionState.transcript,
+                        audioTranscriptionRequestIdRef.current,
+                      )
+                    }
+                  }}
+                  type="button"
+                >
+                  KI-Vorschlag erneut erstellen
+                </button>
+              </>
             )}
           </section>
         )}
@@ -820,7 +839,9 @@ function App() {
           {audioTranscriptionState.kind === 'processing'
             ? 'Während die Sprachnotiz verarbeitet wird, bleiben alle Formularfelder bearbeitbar.'
             : audioTranscriptionState.kind === 'completed'
-              ? 'Du kannst aus dem Transkript einen KI-Vorschlag erstellen und anschließend alle Werte prüfen.'
+              ? extractionState.kind === 'processing'
+                ? 'Der KI-Vorschlag wird erstellt. Du kannst Felder währenddessen weiter ausfüllen.'
+                : 'Der KI-Vorschlag ist erstellt. Bitte alle Werte prüfen und bei Bedarf korrigieren.'
               : audioTranscriptionState.kind === 'error'
                 ? 'Du kannst die strukturierten Angaben weiter manuell erfassen oder die Transkription erneut versuchen.'
                 : 'Du kannst die Daten direkt erfassen, auch wenn keine Sprachnotiz benötigt wird.'}

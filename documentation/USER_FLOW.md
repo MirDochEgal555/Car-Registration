@@ -49,7 +49,7 @@ Nach erfolgreichem E-Mail-Versand: email_sent
 Bei Versandfehler: email_failed
 ```
 
-Der lokale Entwurf bleibt von der Erfassung bis zur erfolgreichen E-Mail-Übergabe im Status `draft`; die Versandzustände werden durch die serverseitige Outbox geführt. Die Backend-Route `POST /api/v1/extractions` kann ein Originaltranskript als geprüften Entwurf mit Feldstatus erzeugen. Die bestehende Oberfläche löst diese Route noch nicht automatisch aus, daher bleibt die manuelle Erfassung vollständig nutzbar. Der Mechaniker kann die strukturierten Angaben während Erfassung und Prüfung jederzeit ändern. Plausibilitätsfehler werden separat durch Feldstatus und `review_required` gekennzeichnet und als Prüfhinweis in der E-Mail ausgegeben. Korrekturen nimmt das Büro anschließend in WERBAS vor.
+Der lokale Entwurf bleibt von der Erfassung bis zur erfolgreichen E-Mail-Übergabe im Status `draft`; die Versandzustände werden durch die serverseitige Outbox geführt. Nach erfolgreicher Transkription ruft die Oberfläche `POST /api/v1/extractions` automatisch auf und übernimmt den geprüften Entwurf mit Feldstatus als Vorschlag. Bereits manuell eingegebene Werte bleiben erhalten; der Mechaniker kann alle strukturierten Angaben während Erfassung und Prüfung jederzeit ändern. Plausibilitätsfehler werden separat durch Feldstatus und `review_required` gekennzeichnet und als Prüfhinweis in der E-Mail ausgegeben. Korrekturen nimmt das Büro anschließend in WERBAS vor.
 
 ## Flow 1: Neue Erfassung
 
@@ -79,7 +79,7 @@ Das System:
 1. nimmt Audio auf,
 2. führt Speech-to-Text durch,
 3. zeigt das unveränderte Originaltranskript an,
-4. kann dieses über `POST /api/v1/extractions` in einen geprüften `RegistrationDraft` mit Feldstatus überführen und
+4. überführt dieses automatisch über `POST /api/v1/extractions` in einen geprüften `RegistrationDraft` mit Feldstatus und
 5. hält die vorhandenen strukturierten Felder für die manuelle Erfassung und Korrektur bereit.
 
 Währenddessen zeigt die App:
@@ -88,7 +88,7 @@ Währenddessen zeigt die App:
 Daten werden verarbeitet …
 ```
 
-Die Formularwerte bleiben während der Transkription bearbeitbar. Die bestehende Oberfläche wertet das Transkript noch nicht automatisch aus. Bei einer späteren Anbindung darf ein KI-Entwurf nur als prüfbarer Vorschlag übernommen werden; er darf keine bereits manuell bestätigten Werte stillschweigend überschreiben.
+Die Formularwerte bleiben während Transkription und Extraktion bearbeitbar. Der KI-Entwurf wird automatisch als prüfbarer Vorschlag übernommen und darf keine bereits manuell eingegebenen Werte stillschweigend überschreiben.
 
 ### Schritt 4 – Mechanikerprüfung
 
@@ -136,9 +136,9 @@ Eine neue Sprachaufnahme erzeugt ein neues Originaltranskript. Das Backend kann
 dieses über `POST /api/v1/extractions` als neuen strukturierten Entwurf mit
 Feldstatus verarbeiten. Ein vollständig leerer Text wird mit `422` abgewiesen;
 ein nicht leerer, aber unbrauchbarer Text bleibt mit `notes: null`, Status
-`uncertain` und `review_required: true` sichtbar. Die bestehende Oberfläche
-ruft den Endpunkt noch nicht automatisch auf; bis zu ihrer Anbindung bleibt die
-direkte Bearbeitung der Felder unverändert verfügbar.
+`uncertain` und `review_required: true` sichtbar. Die Oberfläche ruft den
+Endpunkt nach jeder erfolgreichen Transkription automatisch auf; die direkte
+Bearbeitung der Felder bleibt unverändert verfügbar.
 
 ### Schritt 6 – Mechanikerbestätigung und Absenden
 

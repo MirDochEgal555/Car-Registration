@@ -59,7 +59,7 @@ Fahrzeug-, Reifen- oder Herstellerdatenbanken.
 
 ## Ausgabe-Konventionen
 
-Im finalen `RegistrationDraft` sind `tire_change` für ein Reifenwechselprotokoll und `tire_storage` für ein Reifeneinlagerungsprotokoll erlaubt. Der aktuelle Extraktionsendpunkt erhält nur ein Transkript und ergänzt keinen Protokolltyp; ein fehlender Typ bleibt deshalb `missing`. Die vorhandene Mechanikeroberfläche verwaltet ihre Auswahl weiterhin separat und ist noch nicht automatisch mit dem Extraktionsendpunkt verbunden.
+Im finalen `RegistrationDraft` sind `tire_change` für ein Reifenwechselprotokoll und `tire_storage` für ein Reifeneinlagerungsprotokoll erlaubt. Der aktuelle Extraktionsendpunkt erhält nur ein Transkript und ergänzt keinen Protokolltyp; ein fehlender Typ bleibt deshalb `missing`. Die Mechanikeroberfläche verwaltet die zuvor gewählte Vorgangsart separat, übernimmt die Extraktion automatisch als Vorschlag und lässt diese Auswahl dadurch unverändert.
 
 Bei einem einzelnen beschriebenen Reifensatz können Reifenwerte flach im Extraktionsergebnis stehen. Werden mehrere Reifensätze erwähnt, verwendet die Extraktion immer `tire_sets`; jeder Eintrag enthält eine `role` und ein `tire_set`-Objekt. Bei der Speicherung werden diese Daten auf `TireSet` und `ServiceTireSet` aus dem [Datenmodell](DATA_MODEL.md) abgebildet. Die zulässigen Rollen hängen vom Protokolltyp ab: `installed` und `removed` bei `tire_change`, `stored` bei `tire_storage`.
 
