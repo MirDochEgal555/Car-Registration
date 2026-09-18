@@ -79,9 +79,8 @@ class DeliveryStore:
         ID and makes a successfully handled request idempotent.
         """
 
-        # The raw transcript is retained with the immutable registration for
-        # later office review/debugging. Email rendering explicitly excludes
-        # it, so it remains an audit value rather than structured handoff data.
+        # The raw transcript is retained verbatim with the immutable
+        # registration and included in the office email as a comparison value.
         payload = _serialize_registration(registration)
         now = _utc_now()
         try:

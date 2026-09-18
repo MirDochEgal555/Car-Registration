@@ -660,4 +660,5 @@ Das Originaltranskript bleibt im finalen Entwurf erhalten. Die API liefert den
 normalisierten und validierten Entwurf samt Feldstatus; eine separate rohe
 KI-Antwort wird im MVP nicht zusätzlich persistiert. Nach Mechanikerbestätigung
 wird das unveränderte Rohtranskript zusammen mit dem finalen Entwurf in der
-Versand-Outbox aufbewahrt und nicht in die E-Mail gerendert.
+Versand-Outbox aufbewahrt und als separates Originaltranskript in die
+Büro-E-Mail übernommen.

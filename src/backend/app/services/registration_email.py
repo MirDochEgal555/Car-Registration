@@ -252,7 +252,7 @@ def build_registration_email_document(
 
     data = validation.registration.model_dump(
         mode="python",
-        exclude={"id", "field_status", "raw_transcript", "mechanic_confirmed"},
+        exclude={"id", "field_status", "mechanic_confirmed"},
     )
     vehicle = data.get("vehicle", {})
     vehicle_fields: list[EmailField] = []
@@ -274,16 +274,24 @@ def build_registration_email_document(
         )
         if field is not None
     )
+    sections = [
+        EmailSection("Vorgang", workflow_fields),
+        EmailSection("Fahrzeugdaten", tuple(vehicle_fields)),
+        EmailSection("Reifendaten", _build_tire_fields(data)),
+        EmailSection("Notizen & Service", _build_notes_and_service_fields(data)),
+    ]
+    # Keep the speech-to-text result verbatim and visually separate it from
+    # the mechanic-approved structured fields, so the office can compare both.
+    if (raw_transcript := data.get("raw_transcript")) is not None:
+        sections.append(
+            EmailSection("Originaltranskript", (EmailField("Transkript", raw_transcript),))
+        )
+
     return RegistrationEmailDocument(
         service_name=service_name,
         license_plate=license_plate,
         submitted_at=submitted_at,
-        sections=(
-            EmailSection("Vorgang", workflow_fields),
-            EmailSection("Fahrzeugdaten", tuple(vehicle_fields)),
-            EmailSection("Reifendaten", _build_tire_fields(data)),
-            EmailSection("Notizen & Service", _build_notes_and_service_fields(data)),
-        ),
+        sections=tuple(sections),
         review_required=validation.review_required,
         review_entries=tuple(_review_entries(validation)),
     )
@@ -600,7 +608,7 @@ def _render_html_field(field: EmailField, depth: int = 0) -> str:
         "color:#526176;font-size:14px;line-height:1.4;border-top:1px solid #e6edf5;\">"
         f"{escape(field.label)}</td>"
         "<td style=\"padding:9px 14px;vertical-align:top;color:#172033;font-size:14px;"
-        f"line-height:1.4;border-top:1px solid #e6edf5;\">{escape(field.value)}</td>"
+        f"line-height:1.4;border-top:1px solid #e6edf5;white-space:pre-wrap;\">{escape(field.value)}</td>"
         "</tr>"
     )
 

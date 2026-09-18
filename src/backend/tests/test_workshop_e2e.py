@@ -13,6 +13,7 @@ import json
 from copy import deepcopy
 from dataclasses import replace
 from datetime import date
+from html import escape
 from pathlib import Path
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -160,7 +161,10 @@ def test_realistic_workshop_record_reaches_office_via_outbox(
     assert all(value in email.body for value in expected_mail_values)
     assert email.html_body is not None
     assert all(value in email.html_body for value in expected_mail_values)
-    assert str(case["input"]) not in email.body
+    assert "Originaltranskript" in email.body
+    assert str(case["input"]) in email.body
+    assert "Originaltranskript" in email.html_body
+    assert escape(str(case["input"])) in email.html_body
 
     persisted = store.get(UUID(str(payload["id"])))
     assert persisted is not None

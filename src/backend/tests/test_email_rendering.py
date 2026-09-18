@@ -58,6 +58,30 @@ def test_registration_email_renders_text_and_html_from_the_same_document() -> No
     assert "Bitte <prüfen> & Rückmeldung geben" not in email.html_body
 
 
+def test_registration_email_includes_the_verbatim_original_transcript() -> None:
+    transcript = "  Bitte <prüfen> & Rückmeldung geben.\nZweite Zeile.  "
+    draft = RegistrationDraft.model_validate(
+        {
+            "service_type": "tire_storage",
+            "mechanic_id": "c2feb07e-4854-4ef8-9e8a-14d8468df624",
+            "raw_transcript": transcript,
+        }
+    )
+
+    email = render_registration_email(
+        validate_registration(draft),
+        "office@example.com",
+        datetime(2026, 8, 20, 10, 42, tzinfo=timezone.utc),
+    )
+
+    assert email.html_body is not None
+    assert "Originaltranskript" in email.body
+    assert transcript in email.body
+    assert "Originaltranskript" in email.html_body
+    assert "Bitte &lt;prüfen&gt; &amp; Rückmeldung geben.\nZweite Zeile." in email.html_body
+    assert "white-space:pre-wrap" in email.html_body
+
+
 def test_registration_email_groups_complete_tire_change_data() -> None:
     draft = RegistrationDraft.model_validate(
         {
