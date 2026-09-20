@@ -15,7 +15,11 @@ services:
     build:
       context: .
       target: web
+      args:
+        VITE_APP_AUTH_ENABLED: "true"
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       CARTECH_DOMAIN: ${CARTECH_DOMAIN:?Set CARTECH_DOMAIN in .env}
     depends_on:
@@ -31,4 +35,3 @@ volumes:
   delivery-data:
   caddy-data:
   caddy-config:
-

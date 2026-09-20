@@ -47,6 +47,14 @@ textarea:focus-visible {
   min-height: 100vh;
 }
 
+.login-view { display: grid; min-height: 100vh; place-items: center; padding: 1rem; }
+.login-card { display: grid; width: min(100%, 27rem); gap: 1rem; padding: 2rem; border-radius: 1.25rem; background: #fff; box-shadow: 0 1rem 3rem rgba(18, 39, 26, 0.15); }
+.login-card h1 { font-size: clamp(2.25rem, 9vw, 3.5rem); }
+.login-card label { display: grid; gap: .4rem; color: #243e2c; font-weight: 750; }
+.login-card input { width: 100%; padding: .8rem; border: 1px solid #8ba293; border-radius: .65rem; }
+.login-card .primary-action { padding: 1rem 1.2rem; background: #1a6e40; color: #fff; text-align: center; }
+.login-card__error { margin: 0; color: #a80d22; font-weight: 700; }
+
 .workshop-view {
   display: flex;
   width: min(100%, 64rem);

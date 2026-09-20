@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.exception_handlers import (
     http_exception_handler,
     request_validation_exception_handler,
@@ -16,6 +17,7 @@ from starlette.requests import Request
 from app.api.v1.router import api_router
 from app.api.v1.routes.audio import audio_error_response
 from app.core.config import settings
+from app.core.auth import read_session
 from app.services.delivery_store import DeliveryStore, DeliveryStoreError
 
 
@@ -56,6 +58,30 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type", "Accept"],
     )
+
+    @application.middleware("http")
+    async def require_workshop_session(request: Request, call_next):
+        """Require the signed app session for all business API endpoints."""
+
+        public_paths = {
+            f"{settings.api_v1_prefix}/health",
+            f"{settings.api_v1_prefix}/auth/session",
+            f"{settings.api_v1_prefix}/auth/login",
+            f"{settings.api_v1_prefix}/auth/logout",
+        }
+        if (
+            not settings.app_auth_enabled
+            or request.method == "OPTIONS"
+            or not request.url.path.startswith(settings.api_v1_prefix)
+            or request.url.path in public_paths
+        ):
+            return await call_next(request)
+        username = read_session(
+            request.cookies.get("cartech_session"), settings.app_auth_session_secret or ""
+        )
+        if username != settings.app_auth_username:
+            return JSONResponse(status_code=401, content={"detail": "Anmeldung erforderlich."})
+        return await call_next(request)
     application.include_router(api_router, prefix=settings.api_v1_prefix)
 
     @application.exception_handler(RequestValidationError)

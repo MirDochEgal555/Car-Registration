@@ -8,6 +8,7 @@ import {
   type AudioTranscriptionState,
 } from './components/AudioRecorder'
 import { MechanicStartPage } from './pages/MechanicStartPage'
+import { AppLogin } from './components/AppLogin'
 import {
   type ServiceProtocolId,
   type ServiceProtocol,
@@ -134,7 +135,7 @@ function getRoute(): Route {
   }
 }
 
-function App() {
+function WorkshopApp() {
   const restoredDraftRef = useRef(loadWorkshopDraft())
   const restoredDraft = restoredDraftRef.current
   const [route, setRoute] = useState<Route>(getRoute)
@@ -2169,4 +2170,8 @@ function AppHeader({ onHome }: AppHeaderProps) {
   )
 }
 
-export default App
+export default function App() {
+  // Local development deliberately keeps this off; the Docker production build enables it.
+  if (import.meta.env.VITE_APP_AUTH_ENABLED !== 'true') return <WorkshopApp />
+  return <AppLogin><WorkshopApp /></AppLogin>
+}

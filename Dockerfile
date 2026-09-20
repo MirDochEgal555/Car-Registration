@@ -1,6 +1,8 @@
 # Build the static mechanic PWA first. It uses relative API paths, so Caddy can
 # serve both the frontend and API from one HTTPS origin.
 FROM node:22-alpine AS frontend-build
+ARG VITE_APP_AUTH_ENABLED=false
+ENV VITE_APP_AUTH_ENABLED=$VITE_APP_AUTH_ENABLED
 WORKDIR /build/frontend
 COPY src/frontend/package*.json ./
 RUN npm ci
@@ -26,4 +28,3 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-
 FROM caddy:2-alpine AS web
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=frontend-build /build/frontend/dist /srv
-

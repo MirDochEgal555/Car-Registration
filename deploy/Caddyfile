@@ -1,5 +1,17 @@
 {$CARTECH_DOMAIN} {
     encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-Frame-Options "DENY"
+    }
+
+    # A separate access barrier before the application login. This is a bcrypt
+    # hash generated with `caddy hash-password`, never a plain password.
+    basic_auth {
+        {$CARTECH_BASIC_AUTH_USERNAME} {$CARTECH_BASIC_AUTH_PASSWORD_HASH}
+    }
 
     @api path /api/*
     reverse_proxy @api api:8000
@@ -8,4 +20,3 @@
     try_files {path} /index.html
     file_server
 }
-
