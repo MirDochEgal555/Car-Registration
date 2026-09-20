@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
@@ -36,6 +37,7 @@ from app.services.registration_validation import normalize_license_plate, valida
 
 
 router = APIRouter(prefix="/registrations", tags=["registrations"])
+logger = logging.getLogger(__name__)
 
 
 def get_delivery_store() -> DeliveryStore:
@@ -238,6 +240,11 @@ def _attempt_delivery(
         )
         email_sender.send(email)
     except EmailConfigurationError as error:
+        logger.warning(
+            "Email delivery configuration failed for registration %s: %s",
+            claimed_delivery.registration_id,
+            error,
+        )
         return _raise_saved_delivery_failure(
             claimed_delivery,
             delivery_store,
@@ -245,6 +252,14 @@ def _attempt_delivery(
             error_message=str(error),
         )
     except EmailDeliveryError as error:
+        # The public response stays generic, but the chained SMTP/OSError
+        # exception is vital when diagnosing provider, DNS, TLS, or login
+        # problems on the VPS.  Do not log the email contents or credentials.
+        logger.warning(
+            "Email delivery failed for registration %s",
+            claimed_delivery.registration_id,
+            exc_info=True,
+        )
         return _raise_saved_delivery_failure(
             claimed_delivery,
             delivery_store,
@@ -254,6 +269,10 @@ def _attempt_delivery(
     except Exception:
         # Never leave a record in an opaque "sending" state if rendering or an
         # adapter implementation unexpectedly fails.
+        logger.exception(
+            "Unexpected email delivery failure for registration %s",
+            claimed_delivery.registration_id,
+        )
         return _raise_saved_delivery_failure(
             claimed_delivery,
             delivery_store,
