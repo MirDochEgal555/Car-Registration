@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: .
+      target: backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - delivery-data:/var/lib/cartech
+    expose:
+      - "8000"
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    environment:
+      CARTECH_DOMAIN: ${CARTECH_DOMAIN:?Set CARTECH_DOMAIN in .env}
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  delivery-data:
+  caddy-data:
+  caddy-config:
+
