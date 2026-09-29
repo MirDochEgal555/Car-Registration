@@ -41,38 +41,55 @@ nano .env
 docker compose up -d --build
 ```
 
-In `.env` mindestens Domain, OpenAI-Key sowie SMTP- und Test-E-Mail-Adresse
-setzen. `CARTECH_CORS_ORIGINS` muss dieselbe HTTPS-Domain enthalten.
+In `.env` mindestens Domain, den Pfad zum öffentlichen Client-CA-Zertifikat,
+OpenAI-Key sowie SMTP- und Test-E-Mail-Adresse setzen. `CARTECH_CORS_ORIGINS`
+muss dieselbe HTTPS-Domain enthalten.
 
 ## Zugangsschutz vor dem Livegang
 
-Die Testversion hat drei voneinander unabhängige Schichten:
+Die Anwendung verwendet mTLS als einzigen Zugangsschutz: Caddy erstellt und
+erneuert das öffentliche HTTPS-Zertifikat automatisch und akzeptiert danach
+nur Geräte, die ein gültiges, von der privaten CarTech-Client-CA signiertes
+Client-Zertifikat vorlegen. Es gibt weder Caddy Basic Auth noch einen
+Anwendungs-Login.
 
-1. Caddy erstellt und erneuert das HTTPS-Zertifikat automatisch.
-2. Caddy Basic Auth erscheint im Browser, bevor irgendeine Seite oder API
-   erreichbar ist.
-3. Danach verlangt die Anwendung einen eigenen Werkstatt-Login. Die Session
-   liegt nur als `Secure`, `HttpOnly`, `SameSite=Strict` Cookie vor.
+Erzeuge die Client-CA und die einzelnen Gerätezertifikate auf einem sicheren
+Admin-Rechner, nicht auf dem VPS. Die CA muss separat gesichert werden; ihr
+privater Schlüssel darf weder auf den VPS noch ins Repository gelangen. Kopiere
+nur das öffentliche CA-Zertifikat nach
+`/home/deploy/cartech/secrets/client-ca.pem` und setze diesen Pfad als
+`CARTECH_CLIENT_CA_PATH` in `.env`.
 
-Die mit `deploy/.env.example` erzeugte `.env` enthält für beide Passwörter nur
-Platzhalter. Vor `docker compose up` unbedingt eindeutige, lange Passwörter
-vergeben, die beiden Hashes wie in der Datei kommentiert erzeugen und einen
-zufälligen `CARTECH_APP_AUTH_SESSION_SECRET` setzen. Basic-Auth- und
-App-Passwort müssen verschieden sein. Die `.env` bleibt ausschließlich auf dem
-VPS und wird weder committed noch versendet.
+Beispiel mit OpenSSL (für jedes Gerät ein eigenes Zertifikat erstellen):
+
+```bash
+openssl genrsa -out cartech-client-ca.key 4096
+openssl req -x509 -new -key cartech-client-ca.key -sha256 -days 1825 -out cartech-client-ca.pem -subj '/CN=CarTech Device CA'
+openssl genrsa -out tablet-01.key 2048
+openssl req -new -key tablet-01.key -out tablet-01.csr -subj '/CN=CarTech Tablet 01'
+openssl x509 -req -in tablet-01.csr -CA cartech-client-ca.pem -CAkey cartech-client-ca.key -CAcreateserial -out tablet-01.crt -days 365 -sha256
+openssl pkcs12 -export -out tablet-01.p12 -inkey tablet-01.key -in tablet-01.crt -certfile cartech-client-ca.pem -name 'CarTech Tablet 01'
+```
+
+Das erzeugte `.p12` nur über einen sicheren Weg auf dem vorgesehenen Gerät
+installieren und danach die lokale Kopie entfernen. Wegen der Verwaltung von
+Client-Zertifikaten schützt die `.p12`-Datei beim Export mit einem einmaligen
+lokalen Kennwort; dieses ist kein Anmeldekennwort der Anwendung. Bei Verlust
+eines Geräts die Client-CA rotieren, alle verbleibenden Geräte neu ausstellen
+und den VPS mit dem neuen öffentlichen CA-Zertifikat aktualisieren.
 
 Caddy beschafft das TLS-Zertifikat automatisch, sobald der DNS-Eintrag auf den
 Server zeigt und Port 80/443 erreichbar sind. Prüfen:
 
 ```bash
 docker compose ps
-curl -u werkstatt-gate:DEIN_BASIC_AUTH_PASSWORT -fsS https://cartech.deine-domain.de/api/v1/health
+curl --cert tablet-01.crt --key tablet-01.key --cacert cartech-client-ca.pem -fsS https://cartech.deine-domain.de/api/v1/health
 docker compose logs --tail=100
 ```
 
-Der Browser muss zuerst nach Basic Auth fragen und danach die CarTech-
-Anmeldemaske zeigen. Ohne App-Session liefern Geschäftsendpunkte wie
-`/api/v1/registrations/validate` den Status `401`.
+Ohne Client-Zertifikat darf der TLS-Handshake nicht erfolgreich sein. Mit einem
+gültigen Client-Zertifikat muss die Anwendung direkt ohne Browser- oder
+Anwendungs-Passwort erreichbar sein.
 
 ## Aktualisieren und sichern
 
@@ -89,9 +106,9 @@ docker compose exec -T api sh -c 'cp /var/lib/cartech/cartech-deliveries.sqlite3
 ```
 
 Zusätzlich in Hetzner wöchentliche Backups aktivieren. Die Outbox kann
-Transkripte und damit personenbezogene Daten enthalten: Zugangsdaten nicht
-teilen, SSH auf bekannte IPs beschränken und Testdaten nach Ende des Piloten
-löschen.
+Transkripte und damit personenbezogene Daten enthalten: Client-Zertifikate und
+die Client-CA sicher verwahren, SSH auf bekannte IPs beschränken und Testdaten
+nach Ende des Piloten löschen.
 
 ## Testübergabe
 

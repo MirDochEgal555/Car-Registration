@@ -1,4 +1,13 @@
 {$CARTECH_DOMAIN} {
+    # mTLS is the sole access control: every client must present a certificate
+    # signed by the private CarTech client CA mounted at this path.
+    tls {
+        client_auth {
+            mode require_and_verify
+            trust_pool file /etc/caddy/client-ca.pem
+        }
+    }
+
     encode zstd gzip
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -7,16 +16,15 @@
         X-Frame-Options "DENY"
     }
 
-    # A separate access barrier before the application login. This is a bcrypt
-    # hash generated with `caddy hash-password`, never a plain password.
-    basic_auth {
-        {$CARTECH_BASIC_AUTH_USERNAME} {$CARTECH_BASIC_AUTH_PASSWORD_HASH}
+    # `try_files` is normally ordered before `reverse_proxy` by Caddy's
+    # directive sorter. Keep these handlers in this explicit order so API
+    # paths cannot be rewritten to the SPA's index.html first.
+    route {
+        @api path /api/*
+        reverse_proxy @api api:8000
+
+        root * /srv
+        try_files {path} /index.html
+        file_server
     }
-
-    @api path /api/*
-    reverse_proxy @api api:8000
-
-    root * /srv
-    try_files {path} /index.html
-    file_server
 }

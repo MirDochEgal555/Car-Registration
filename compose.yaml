@@ -16,7 +16,7 @@ services:
       context: .
       target: web
       args:
-        VITE_APP_AUTH_ENABLED: "true"
+        VITE_APP_AUTH_ENABLED: "false"
     restart: unless-stopped
     env_file:
       - .env
@@ -30,6 +30,9 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
+      # Public certificate of the private CA that signs permitted client devices.
+      # Keep the CA private key off the VPS.
+      - ${CARTECH_CLIENT_CA_PATH:?Set CARTECH_CLIENT_CA_PATH in .env}:/etc/caddy/client-ca.pem:ro
 
 volumes:
   delivery-data:
