@@ -25,7 +25,7 @@ export function MechanicStartPage({
         <p className="workshop-view__eyebrow">Mechanikeransicht</p>
         <h1 id="page-title">Bereit für die Werkstatt.</h1>
         <p className="workshop-view__intro">
-          Starte einen neuen Vorgang mit wenigen Berührungen.
+          Starte die Aufnahme und erfasse anschließend das Kennzeichen.
         </p>
 
         {hasDraft && onResume && (
@@ -51,14 +51,14 @@ export function MechanicStartPage({
           type="button"
         >
           {hasDraft ? (
-            'Neue Erfassung beginnen'
+            'Neue Aufnahme beginnen'
           ) : (
             <>
               <span className="primary-action__icon" aria-hidden="true">
-                +
+                ●
               </span>
-              <span>Neue Erfassung</span>
-              <span className="primary-action__hint">Vorgang auswählen</span>
+              <span>Aufnahme starten</span>
+              <span className="primary-action__hint">Transkript und Kennzeichen erfassen</span>
             </>
           )}
         </button>

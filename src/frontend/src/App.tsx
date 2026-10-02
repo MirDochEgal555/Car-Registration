@@ -48,16 +48,13 @@ import {
   loadWorkshopDraft,
   saveWorkshopDraft,
 } from './services/workshopDraftStorage'
-import {
-  getLicensePlateValidationError,
-  normalizeLicensePlate,
-} from './utils/licensePlate'
+import { getLicensePlateValidationError } from './utils/licensePlate'
 import {
   getWorkshopProcessValidationIssues,
   type WorkshopProcessValidationIssue,
 } from './utils/workshopProcessValidation'
 
-type Route = 'start' | 'selection' | 'capture' | 'overview' | 'success'
+type Route = 'start' | 'capture' | 'overview' | 'success'
 
 type SubmissionState =
   | { kind: 'idle' }
@@ -123,7 +120,7 @@ function getDeliveryErrorMessage(
 function getRoute(): Route {
   switch (window.location.hash) {
     case '#/neu':
-      return 'selection'
+      return 'capture'
     case '#/erfassung':
       return 'capture'
     case '#/uebersicht':
@@ -131,7 +128,7 @@ function getRoute(): Route {
     case '#/bestaetigt':
       return 'success'
     default:
-      return 'start'
+      return 'capture'
   }
 }
 
@@ -140,7 +137,17 @@ function WorkshopApp() {
   const restoredDraft = restoredDraftRef.current
   const [route, setRoute] = useState<Route>(getRoute)
   const [workshopProcess, setWorkshopProcess] = useState<WorkshopProcess | null>(
-    restoredDraft?.process ?? null,
+    restoredDraft?.process ?? {
+      id: createRegistrationId(),
+      // The API contract still needs this technical value, but it is no
+      // longer a mechanic-facing choice in the compact recording flow.
+      serviceType: 'tire_storage',
+      status: 'draft',
+      licensePlate: '',
+      tireSets: [],
+      tireInspections: [],
+      conditions: [],
+    },
   )
   const [submissionState, setSubmissionState] =
     useState<SubmissionState>(() =>
@@ -197,7 +204,11 @@ function WorkshopApp() {
     window.location.hash = path
   }
 
-  const startWorkshopProcess = (serviceType: ServiceProtocolId) => {
+  const startWorkshopProcess = () => {
+    // The mechanic only records a note and license plate. The existing API
+    // still requires a protocol type, so storage is used as an internal
+    // default without exposing a choice in the interface.
+    const serviceType: ServiceProtocolId = 'tire_storage'
     const tireSetRole = getInitialTireSetRole(serviceType)
 
     setWorkshopProcess({
@@ -205,24 +216,9 @@ function WorkshopApp() {
       serviceType,
       status: 'draft',
       licensePlate: '',
-      tireSets: [
-        {
-          role: tireSetRole,
-          tireSet: {},
-        },
-      ],
-      tireInspections: [
-        {
-          tireSetRole,
-        },
-      ],
-      conditions: [
-        {
-          tireSetRole,
-          position: 'all',
-        },
-      ],
-      ...(serviceType === 'tire_change' ? { tireChangeDetails: {} } : {}),
+      tireSets: [],
+      tireInspections: [],
+      conditions: [],
     })
     setSubmissionState(initialSubmissionState)
     setBackendIssues([])
@@ -307,7 +303,8 @@ function WorkshopApp() {
         // The next step is deliberately automatic: speaking produces a
         // reviewable draft without asking the mechanic to find another action.
         // The mapper only fills blank fields, so typing during this request is safe.
-        void extractTranscript(transcript, requestId)
+        // The transcript is the deliverable. There are no structured fields
+        // to derive from it in this compact workflow.
       }
     } catch (error) {
       if (audioTranscriptionRequestIdRef.current === requestId) {
@@ -348,53 +345,8 @@ function WorkshopApp() {
               : '/erfassung',
           )
         }
-        onStart={() => navigate('/neu')}
+        onStart={startWorkshopProcess}
       />
-    )
-  }
-
-  if (route === 'selection') {
-    return (
-      <main className="workshop-view">
-        <AppHeader onHome={() => navigate('/')} />
-        <section
-          className="workshop-view__content workshop-view__content--selection"
-          aria-labelledby="page-title"
-        >
-          <p className="workshop-view__eyebrow">Neue Erfassung</p>
-          <h1 id="page-title">Was wird gemacht?</h1>
-          <p className="workshop-view__intro">
-            Wähle den passenden Vorgang.
-          </p>
-
-          <div className="service-selection" aria-label="Vorgang auswählen">
-            {serviceProtocols.map((protocol) => (
-              <button
-                className="service-selection__button"
-                key={protocol.id}
-                onClick={() => startWorkshopProcess(protocol.id)}
-                type="button"
-              >
-                <span className="service-selection__icon" aria-hidden="true">
-                  {protocol.icon}
-                </span>
-                <span>{protocol.title}</span>
-                <span className="service-selection__arrow" aria-hidden="true">
-                  →
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <button
-            className="text-button"
-            onClick={() => navigate('/')}
-            type="button"
-          >
-            Zurück zur Startansicht
-          </button>
-        </section>
-      </main>
     )
   }
 
@@ -407,7 +359,7 @@ function WorkshopApp() {
     !workshopProcess ||
     !protocol
   ) {
-    return <MechanicStartPage onStart={() => navigate('/neu')} />
+    return <MechanicStartPage onStart={startWorkshopProcess} />
   }
 
   const licensePlateValidationError = getLicensePlateValidationError(
@@ -433,9 +385,20 @@ function WorkshopApp() {
 
       return {
         ...currentProcess,
-        licensePlate: normalizeLicensePlate(value),
+        licensePlate: value,
       }
     })
+  }
+
+  const updateTranscript = (transcript: string) => {
+    if (isSubmissionInProgress()) {
+      return
+    }
+    clearSubmissionFeedback()
+    setAudioTranscriptionState({ kind: 'completed', transcript })
+    setWorkshopProcess((currentProcess) =>
+      currentProcess ? { ...currentProcess, rawTranscript: transcript } : currentProcess,
+    )
   }
 
   const updateTireSet = (changes: Partial<TireSetDraft>) => {
@@ -709,7 +672,7 @@ function WorkshopApp() {
     return (
       <ProcessConfirmedPage
         onHome={() => navigate('/')}
-        onStartNewProcess={() => navigate('/neu')}
+        onStartNewProcess={startWorkshopProcess}
         process={workshopProcess}
         protocol={protocol}
         delivery={deliveryResult}
@@ -723,7 +686,7 @@ function WorkshopApp() {
         onHome={() => navigate('/')}
         onResume={() => navigate('/erfassung')}
       >
-        <ProcessOverviewPage
+        <CompactOverviewPage
           confirmationIssues={confirmationIssues}
           licensePlateError={licensePlateError}
           onConfirm={confirmWorkshopProcess}
@@ -731,17 +694,8 @@ function WorkshopApp() {
           onEditCapture={() => navigate('/erfassung')}
           onHome={() => navigate('/')}
           onUpdateLicensePlate={updateLicensePlate}
-          onUpdateTireCondition={updateTireCondition}
-          onUpdateTireInspection={updateTireInspection}
-          onUpdateTireSet={updateTireSet}
-          onUpdateWheelChangePerformed={updateWheelChangePerformed}
           process={workshopProcess}
-          protocol={protocol}
           rawTranscript={workshopProcess.rawTranscript}
-          tireCondition={tireCondition}
-          tireInspection={tireInspection}
-          tireSet={tireSet}
-          backendFieldStatus={backendFieldStatus}
           backendIssues={backendIssues}
           submissionState={submissionState}
         />
@@ -760,20 +714,11 @@ function WorkshopApp() {
         className="workshop-view__content workshop-view__content--capture"
         aria-labelledby="page-title"
       >
-        <p className="workshop-view__eyebrow">Neue Erfassung</p>
-        <div className="selection-confirmation" aria-hidden="true">
-          {protocol.icon}
-        </div>
-        <h1 id="page-title">Reifendaten erfassen</h1>
+        <p className="workshop-view__eyebrow">Neue Aufnahme</p>
+        <h1 id="page-title">Notiz aufnehmen</h1>
         <p className="workshop-view__intro">
-          Nimm eine Sprachnotiz auf und prüfe das Transkript. Alle strukturierten
-          Angaben kannst du jederzeit manuell ergänzen oder korrigieren.
+          Nimm eine Sprachnotiz auf, prüfe das Transkript und erfasse das Kennzeichen.
         </p>
-
-        <div className="capture-context" aria-label="Gewählter Vorgang">
-          <span aria-hidden="true">{protocol.icon}</span>
-          {protocol.title}
-        </div>
 
         <AudioRecorder
           audioBlob={recordedAudio}
@@ -781,71 +726,18 @@ function WorkshopApp() {
           onAudioRemoved={clearAudioTranscription}
           onRecordingStarted={clearAudioTranscription}
           onRetryTranscription={retryAudioTranscription}
+          onTranscriptChanged={updateTranscript}
           transcriptionState={audioTranscriptionState}
         />
 
-        {audioTranscriptionState.kind === 'completed' && (
-          <section
-            aria-live="polite"
-            className="extraction-action"
-            aria-labelledby="extraction-action-title"
-          >
-            <div>
-              <h2 id="extraction-action-title">KI-Vorschlag</h2>
-              <p>
-                {extractionState.kind === 'processing'
-                  ? 'Die Sprachnotiz wird automatisch in bearbeitbare Formularwerte übertragen.'
-                  : 'Die vorgeschlagenen Formularwerte sind bearbeitbar. Bitte alle Angaben prüfen.'}
-              </p>
-            </div>
-            {extractionState.kind === 'processing' && (
-              <p className="field-message" role="status">
-                KI-Vorschlag wird erstellt …
-              </p>
-            )}
-            {extractionState.kind === 'completed' && (
-              <p className="field-message field-message--success" role="status">
-                KI-Vorschlag übernommen. Bereits eingegebene Werte wurden beibehalten.
-                Bitte die markierten Angaben prüfen.
-              </p>
-            )}
-            {extractionState.kind === 'error' && (
-              <>
-                <FrontendErrorState
-                  compact
-                  kind="unexpected"
-                  message={extractionState.message}
-                  title="KI-Extraktion fehlgeschlagen"
-                />
-                <button
-                  className="secondary-button"
-                  onClick={() => {
-                    if (audioTranscriptionState.kind === 'completed') {
-                      void extractTranscript(
-                        audioTranscriptionState.transcript,
-                        audioTranscriptionRequestIdRef.current,
-                      )
-                    }
-                  }}
-                  type="button"
-                >
-                  KI-Vorschlag erneut erstellen
-                </button>
-              </>
-            )}
-          </section>
-        )}
-
         <p className="capture-workflow-hint" role="status">
           {audioTranscriptionState.kind === 'processing'
-            ? 'Während die Sprachnotiz verarbeitet wird, bleiben alle Formularfelder bearbeitbar.'
+            ? 'Die Sprachnotiz wird verarbeitet.'
             : audioTranscriptionState.kind === 'completed'
-              ? extractionState.kind === 'processing'
-                ? 'Der KI-Vorschlag wird erstellt. Du kannst Felder währenddessen weiter ausfüllen.'
-                : 'Der KI-Vorschlag ist erstellt. Bitte alle Werte prüfen und bei Bedarf korrigieren.'
+              ? 'Das Transkript ist gespeichert. Bitte das Kennzeichen prüfen.'
               : audioTranscriptionState.kind === 'error'
-                ? 'Du kannst die strukturierten Angaben weiter manuell erfassen oder die Transkription erneut versuchen.'
-                : 'Du kannst die Daten direkt erfassen, auch wenn keine Sprachnotiz benötigt wird.'}
+                ? 'Du kannst die Transkription erneut versuchen.'
+                : 'Starte die Aufnahme, sobald du bereit bist.'}
         </p>
 
         <label className="license-plate-field" htmlFor="license-plate">
@@ -859,7 +751,7 @@ function WorkshopApp() {
                 : 'license-plate-hint'
             }
             aria-invalid={licensePlateError ? true : undefined}
-            autoCapitalize="characters"
+            autoCapitalize="none"
             autoComplete="off"
             className="license-plate-field__input"
             id="license-plate"
@@ -871,7 +763,7 @@ function WorkshopApp() {
             value={workshopProcess.licensePlate}
           />
           <span className="license-plate-field__hint" id="license-plate-hint">
-            Leerzeichen und Bindestriche werden automatisch vereinheitlicht.
+            Freitext – beim Tippen bleiben Format und Leerzeichen unverändert.
           </span>
         </label>
 
@@ -888,6 +780,7 @@ function WorkshopApp() {
           </p>
         )}
 
+        {/*
         <section className="tire-capture" aria-labelledby="tire-data-title">
           <div className="tire-capture__heading">
             <div>
@@ -1147,9 +1040,9 @@ function WorkshopApp() {
               )}
             </fieldset>
           )}
-        </section>
+        </section> */}
 
-        {tireValidationIssues.length > 0 && (
+        {/* {tireValidationIssues.length > 0 && (
           <FrontendErrorState
             compact
             kind="invalid"
@@ -1163,23 +1056,16 @@ function WorkshopApp() {
               ))}
             </ul>
           </FrontendErrorState>
-        )}
-
-        <p className="field-message field-message--saved" role="status">
-          Reifendaten werden direkt im lokalen Vorgang gespeichert.
-        </p>
+        )} */}
 
         <button
           className="secondary-button overview-action"
           onClick={() => navigate('/uebersicht')}
           type="button"
         >
-          Aktuellen Vorgang ansehen
+          Aufnahme prüfen
         </button>
 
-        <button className="text-button" onClick={() => navigate('/neu')} type="button">
-          Andere Erfassung wählen
-        </button>
       </section>
     </main>
     </FrontendErrorBoundary>
@@ -1267,6 +1153,86 @@ function DeliveryProgressNotice({ stage }: DeliveryProgressNoticeProps) {
         </p>
       </div>
     </section>
+  )
+}
+
+type CompactOverviewPageProps = {
+  backendIssues: ApiValidationIssue[]
+  confirmationIssues: WorkshopProcessValidationIssue[]
+  licensePlateError: string | null
+  onConfirm: () => void
+  onRetryDelivery: () => void
+  onEditCapture: () => void
+  onHome: () => void
+  onUpdateLicensePlate: (value: string) => void
+  process: WorkshopProcess
+  rawTranscript?: string
+  submissionState: SubmissionState
+}
+
+function CompactOverviewPage({
+  backendIssues, confirmationIssues, licensePlateError, onConfirm,
+  onRetryDelivery, onEditCapture, onHome, onUpdateLicensePlate,
+  process, rawTranscript, submissionState,
+}: CompactOverviewPageProps) {
+  const isSubmitting = submissionState.kind === 'validating' || submissionState.kind === 'sending'
+  const hasTranscript = Boolean(rawTranscript?.trim())
+  const canConfirm = hasTranscript && confirmationIssues.length === 0 && !isSubmitting
+
+  return (
+    <main className="workshop-view">
+      <AppHeader onHome={onHome} />
+      <section className="workshop-view__content workshop-view__content--overview" aria-labelledby="page-title">
+        <p className="workshop-view__eyebrow">Aufnahme prüfen</p>
+        <h1 id="page-title">Fast geschafft.</h1>
+        <p className="workshop-view__intro">Prüfe Transkript und Kennzeichen, dann sende die Aufnahme an das Büro.</p>
+        {isSubmitting && <DeliveryProgressNotice stage={submissionState.kind} />}
+        {submissionState.kind === 'error' && (
+          <FrontendErrorState kind={submissionState.phase === 'delivery' ? 'unexpected' : 'confirmation'} message={submissionState.message}>
+            {submissionState.retryable && <button className="secondary-button" onClick={onRetryDelivery} type="button">Erneut senden</button>}
+          </FrontendErrorState>
+        )}
+        {backendIssues.length > 0 && (
+          <FrontendErrorState compact kind="confirmation" message="Das Backend hat Angaben markiert.">
+            <ul className="frontend-error-state__list">
+              {backendIssues.map((issue) => <li key={`${issue.field}-${issue.code}`}><strong>{backendIssueFieldLabel(issue.field)}:</strong> {issue.message}</li>)}
+            </ul>
+          </FrontendErrorState>
+        )}
+        <div className="summary-stack">
+          <section className="summary-card summary-card--transcript" aria-labelledby="summary-transcript-title">
+            <div className="summary-card__heading">
+              <div>
+                <p className="summary-card__label">Sprachnotiz</p>
+                <h2 id="summary-transcript-title">Transkript</h2>
+              </div>
+            </div>
+            {hasTranscript ? <p className="summary-card__transcript">{rawTranscript}</p> : <FrontendErrorState compact kind="required" message="Bitte nimm zuerst eine Sprachnotiz auf." />}
+          </section>
+          <section className="summary-card" aria-labelledby="summary-plate-title">
+            <div className="summary-card__heading">
+              <div>
+                <p className="summary-card__label">Fahrzeug</p>
+                <h2 id="summary-plate-title">Kennzeichen</h2>
+              </div>
+            </div>
+            <div className="compact-overview__plate-field">
+              <label className="summary-editor__field" htmlFor="overview-license-plate">
+                <span className="visually-hidden">Kennzeichen</span>
+                <input aria-invalid={licensePlateError ? true : undefined} autoCapitalize="none" autoComplete="off" id="overview-license-plate" onChange={(event) => onUpdateLicensePlate(event.target.value)} placeholder="z. B. CW-AB 123" spellCheck={false} type="text" value={process.licensePlate} />
+              </label>
+            </div>
+            {licensePlateError && <FrontendErrorState compact kind={process.licensePlate ? 'invalid' : 'required'} message={licensePlateError} />}
+          </section>
+        </div>
+        <button className="primary-action confirmation-action" disabled={!canConfirm} onClick={onConfirm} type="button">
+          <span className="primary-action__icon" aria-hidden="true">✓</span>
+          <span>{isSubmitting ? 'Wird gesendet …' : 'Aufnahme senden'}</span>
+          <span className="primary-action__hint">{hasTranscript && confirmationIssues.length === 0 ? 'Transkript und Kennzeichen an das Büro senden' : 'Bitte Transkript und Kennzeichen ergänzen'}</span>
+        </button>
+        <button className="secondary-button overview-action" disabled={isSubmitting} onClick={onEditCapture} type="button">Aufnahme bearbeiten</button>
+      </section>
+    </main>
   )
 }
 
@@ -1960,7 +1926,7 @@ function ProcessConfirmedPage({
         <p className="workshop-view__eyebrow">E-Mail erfolgreich versendet</p>
         <h1 id="page-title">Alles erledigt.</h1>
         <p className="workshop-view__intro">
-          {protocol.title} für {process.licensePlate} wurde an das Büro versendet.
+          Die Aufnahme für {process.licensePlate} wurde an das Büro versendet.
         </p>
         <p className="confirmation-success__notice">
           {delivery?.recipient
@@ -1972,8 +1938,8 @@ function ProcessConfirmedPage({
         </p>
         <button className="primary-action confirmation-action" onClick={onStartNewProcess} type="button">
           <span className="primary-action__icon" aria-hidden="true">+</span>
-          <span>Neuen Vorgang erfassen</span>
-          <span className="primary-action__hint">Zur Auswahl der Vorgangsart</span>
+          <span>Neue Aufnahme starten</span>
+          <span className="primary-action__hint">Transkript und Kennzeichen erfassen</span>
         </button>
       </section>
     </main>

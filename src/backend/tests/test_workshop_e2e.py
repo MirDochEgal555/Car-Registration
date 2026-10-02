@@ -108,15 +108,11 @@ def test_documented_workshop_case_survives_validation_unchanged(
 
 
 @pytest.mark.parametrize(
-    "case_id, expected_mail_values",
-    [
-        ("20-einlagerung-einzelreifen", ("Reifeneinlagerung", "Dezent", "Riss in der Seitenwand")),
-        ("23-vollstaendiges-reifenwechselprotokoll", ("Reifenwechsel", "WinterContact TS 870", "Kratzer", "120 Nm")),
-    ],
+    "case_id",
+    ["20-einlagerung-einzelreifen", "23-vollstaendiges-reifenwechselprotokoll"],
 )
 def test_realistic_workshop_record_reaches_office_via_outbox(
     case_id: str,
-    expected_mail_values: tuple[str, ...],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -158,12 +154,12 @@ def test_realistic_workshop_record_reaches_office_via_outbox(
 
     assert len(sender.messages) == 1
     email = sender.messages[0]
-    assert all(value in email.body for value in expected_mail_values)
-    assert email.html_body is not None
-    assert all(value in email.html_body for value in expected_mail_values)
-    assert "Originaltranskript" in email.body
+    assert email.subject.startswith(f"CarTech · {validation_response.json()['registration']['vehicle']['license_plate']} · ")
     assert str(case["input"]) in email.body
-    assert "Originaltranskript" in email.html_body
+    plate = validation_response.json()["registration"]["vehicle"]["license_plate"]
+    assert f"Kennzeichen: {plate}" in email.body
+    assert email.html_body is not None
+    assert f"Kennzeichen: <strong>{plate}</strong>" in email.html_body
     assert escape(str(case["input"])) in email.html_body
 
     persisted = store.get(UUID(str(payload["id"])))

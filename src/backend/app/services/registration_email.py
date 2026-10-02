@@ -17,7 +17,6 @@ from typing import Any
 from app.models.enums import FieldStatus, ServiceType
 from app.models.registration import ValidationResponse
 from app.services.email import OutgoingEmail
-from app.services.registration_validation import normalize_license_plate
 
 
 _LABELS = {
@@ -215,23 +214,20 @@ def render_registration_email(
 ) -> OutgoingEmail:
     """Render a complete multipart-ready office email from one document."""
 
-    registration = validation.registration
-    service_name = _SERVICE_NAMES.get(registration.service_type, "Werkstattprotokoll")
-    plate = registration.vehicle.license_plate
-    if plate:
-        plate = normalize_license_plate(plate)
-    subject_parts = [f"CarTech {service_name}"]
+    # The office receives only the spoken note. Protocol and vehicle metadata
+    # remain out of this lean recording email.
+    plate = validation.registration.vehicle.license_plate
+    registration_date = validation.registration.service_date or submitted_at.date()
+    subject_parts = ["CarTech"]
     if plate:
         subject_parts.append(plate)
-    if registration.service_date:
-        subject_parts.append(str(registration.service_date))
+    subject_parts.append(registration_date.strftime("%d.%m.%Y"))
     subject = " · ".join(subject_parts)
-    timestamp = submitted_at.astimezone().strftime("%d.%m.%Y, %H:%M %Z")
     document = build_registration_email_document(
         validation,
-        service_name=service_name,
+        service_name="Transkript",
         license_plate=plate,
-        submitted_at=timestamp,
+        submitted_at="",
     )
     return OutgoingEmail(
         recipient=recipient,
@@ -250,75 +246,34 @@ def build_registration_email_document(
 ) -> RegistrationEmailDocument:
     """Create the one semantic mail document used for both alternatives."""
 
-    data = validation.registration.model_dump(
-        mode="python",
-        exclude={"id", "field_status", "mechanic_confirmed"},
-    )
-    vehicle = data.get("vehicle", {})
-    vehicle_fields: list[EmailField] = []
+    raw_transcript = validation.registration.raw_transcript or ""
+    sections = []
     if license_plate:
-        vehicle_fields.append(EmailField(_LABELS["license_plate"], license_plate))
-    vehicle_fields.extend(
-        field
-        for key, value in vehicle.items()
-        if key != "license_plate"
-        if (field := _to_email_field(key, value)) is not None
-    )
-    workflow_fields = tuple(
-        field
-        for field in (
-            _to_email_field("service_type", data.get("service_type")),
-            _to_email_field("service_date", data.get("service_date")),
-            EmailField("Zeitstempel", submitted_at),
-            _to_email_field("mechanic_id", data.get("mechanic_id")),
-        )
-        if field is not None
-    )
-    sections = [
-        EmailSection("Vorgang", workflow_fields),
-        EmailSection("Fahrzeugdaten", tuple(vehicle_fields)),
-        EmailSection("Reifendaten", _build_tire_fields(data)),
-        EmailSection("Notizen & Service", _build_notes_and_service_fields(data)),
-    ]
-    # Keep the speech-to-text result verbatim and visually separate it from
-    # the mechanic-approved structured fields, so the office can compare both.
-    if (raw_transcript := data.get("raw_transcript")) is not None:
-        sections.append(
-            EmailSection("Originaltranskript", (EmailField("Transkript", raw_transcript),))
-        )
+        sections.append(EmailSection("Kennzeichen", (EmailField("Kennzeichen", license_plate),)))
+    sections.append(EmailSection("Transkript", (EmailField("Transkript", raw_transcript),)))
 
     return RegistrationEmailDocument(
         service_name=service_name,
         license_plate=license_plate,
         submitted_at=submitted_at,
         sections=tuple(sections),
-        review_required=validation.review_required,
-        review_entries=tuple(_review_entries(validation)),
+        review_required=False,
+        review_entries=(),
     )
 
 
 def render_registration_email_text(document: RegistrationEmailDocument) -> str:
     """Render the shared document for text-only mail clients."""
 
-    lines = ["CarTech Werkstattprotokoll", ""]
-    for index, section in enumerate(document.sections):
-        lines.extend([section.label, "-" * len(section.label)])
+    lines: list[str] = []
+    for section in document.sections:
         for field in section.fields:
-            _append_text_field(lines, field)
-        if index < len(document.sections) - 1:
+            if field.label == "Transkript":
+                lines.append(field.value or "")
+            else:
+                _append_text_field(lines, field)
+        if section.label == "Kennzeichen":
             lines.append("")
-    lines.extend(
-        [
-            "",
-            "Prüfhinweise",
-            "-------------",
-            f"Prüfung erforderlich (review_required): {_display(document.review_required)}",
-        ]
-    )
-    if document.review_entries:
-        lines.extend(f"- {entry}" for entry in document.review_entries)
-    else:
-        lines.append("- Keine Prüfhinweise.")
     return "\n".join(lines)
 
 
@@ -332,12 +287,6 @@ def render_registration_email_html(document: RegistrationEmailDocument) -> str:
         if document.license_plate
         else ""
     )
-    review_rows = (
-        "".join(f"<li>{escape(entry)}</li>" for entry in document.review_entries)
-        if document.review_entries
-        else "<li>Keine Prüfhinweise.</li>"
-    )
-    review_style = "#9a3412" if document.review_entries else "#166534"
     return f"""<!doctype html>
 <html lang="de">
   <head>
@@ -355,13 +304,7 @@ def render_registration_email_html(document: RegistrationEmailDocument) -> str:
             {plate_html}
           </td></tr>
           {sections_html}
-          <tr><td style="padding:4px 28px 8px;font-size:19px;font-weight:700;">Prüfhinweise</td></tr>
-          <tr><td style="padding:0 28px 28px;">
-            <div style="padding:12px 16px;border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:{review_style};font-size:14px;line-height:1.5;">
-              <div style="margin:0 0 8px;"><strong>Prüfung erforderlich (review_required):</strong> {_display(document.review_required)}</div>
-              <ul style="margin:0;padding-left:20px;">{review_rows}</ul>
-            </div>
-          </td></tr>
+          <tr><td style="height:16px;"></td></tr>
         </table>
       </td></tr>
     </table>

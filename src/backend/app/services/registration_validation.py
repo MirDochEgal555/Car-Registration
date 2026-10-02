@@ -55,6 +55,8 @@ def validate_registration(draft: RegistrationDraft) -> ValidationResponse:
 
     draft = draft.model_copy(deep=True)
     if draft.vehicle.license_plate:
+        # Keep the established canonical representation for storage and email.
+        # Unlike before, no format rule rejects free-text input.
         draft.vehicle.license_plate = normalize_license_plate(draft.vehicle.license_plate)
     field_status = dict(draft.field_status)
     issues: list[ValidationIssue] = []
@@ -109,14 +111,6 @@ def validate_registration(draft: RegistrationDraft) -> ValidationResponse:
             "Das Kennzeichen fehlt.",
             FieldStatus.MISSING,
         )
-    elif not _LICENSE_PLATE_PATTERN.fullmatch(normalize_license_plate(plate)):
-        add_issue(
-            "vehicle.license_plate",
-            "invalid_format",
-            "Das Kennzeichen hat kein plausibles Format.",
-            FieldStatus.INVALID,
-        )
-
     if draft.vehicle.mileage_km is not None and draft.vehicle.mileage_km < 0:
         add_issue(
             "vehicle.mileage_km",

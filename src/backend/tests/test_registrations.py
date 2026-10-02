@@ -164,8 +164,8 @@ def test_send_delivers_rendered_email(monkeypatch: object, tmp_path: Path) -> No
     assert response.json()["status"] == "email_sent"
     assert response.json()["recipient"] == "office@example.com"
     assert len(sender.messages) == 1
+    assert sender.messages[0].subject.startswith("CarTech · CW-AB 123 · ")
     assert "Kennzeichen: CW-AB 123" in sender.messages[0].body
-    assert "tire_sets.0.tire_set" not in sender.messages[0].body
     assert sender.messages[0].html_body is not None
     assert "Kennzeichen: <strong>CW-AB 123</strong>" in sender.messages[0].html_body
 
@@ -226,7 +226,7 @@ def test_failed_delivery_is_saved_and_retryable(
     assert retry_response.json()["status"] == "email_sent"
     assert retry_response.json()["attempt_count"] == 2
     assert len(successful_sender.messages) == 1
-    assert "Notizen: Status Unsicher (uncertain)" in successful_sender.messages[0].body
+    assert "CW AB 123, vier Winterreifen." in successful_sender.messages[0].body
 
 
 def test_successful_send_is_idempotent_for_the_registration_id(

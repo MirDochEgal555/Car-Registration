@@ -31,6 +31,7 @@ type AudioRecorderProps = {
   onAudioRemoved: () => void
   onRecordingStarted?: () => void
   onRetryTranscription: () => void
+  onTranscriptChanged?: (transcript: string) => void
   transcriptionState: AudioTranscriptionState
 }
 
@@ -121,6 +122,7 @@ export function AudioRecorder({
   onAudioRemoved,
   onRecordingStarted,
   onRetryTranscription,
+  onTranscriptChanged,
   transcriptionState,
 }: AudioRecorderProps) {
   const [recorderState, setRecorderState] = useState<RecorderState>(
@@ -358,15 +360,15 @@ export function AudioRecorder({
     >
       <div className="audio-recorder__heading">
         <div>
-          <p className="audio-recorder__eyebrow">Optional</p>
+          <p className="audio-recorder__eyebrow">Schritt 1 von 2</p>
           <h2 id="audio-recording-title">Sprachnotiz</h2>
         </div>
         {isRecording && <span className="audio-recorder__live-indicator">Läuft</span>}
       </div>
 
       <p className="audio-recorder__description">
-        Sprich Besonderheiten direkt am Fahrzeug ein. Nach dem Stoppen wird die
-        Aufnahme sicher zur Transkription hochgeladen.
+        Sprich deine Notiz ein. Nach dem Stoppen wird die Aufnahme zur
+        Transkription hochgeladen.
       </p>
 
       {isRecording && (
@@ -415,12 +417,17 @@ export function AudioRecorder({
         >
           <p className="audio-transcription__eyebrow">Transkript</p>
           <h3 id="audio-transcript-title">Gesprochene Notiz</h3>
-          <p className="audio-transcription__text">
-            {transcriptionState.transcript}
-          </p>
+          <label className="audio-transcription__editor" htmlFor="audio-transcript">
+            <span className="visually-hidden">Transkript bearbeiten</span>
+            <textarea
+              id="audio-transcript"
+              onChange={(event) => onTranscriptChanged?.(event.target.value)}
+              rows={5}
+              value={transcriptionState.transcript}
+            />
+          </label>
           <p className="audio-transcription__hint">
-            Das Transkript bleibt im Vorgang und ändert keine manuell erfassten
-            Fahrzeug- oder Reifendaten.
+            Du kannst das Transkript korrigieren. Gesendet wird deine bearbeitete Fassung.
           </p>
         </section>
       )}

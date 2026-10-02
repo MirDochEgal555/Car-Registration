@@ -1,7 +1,4 @@
-import type {
-  TireSetRole,
-  WorkshopProcess,
-} from '../types/workshopProcess'
+import type { WorkshopProcess } from '../types/workshopProcess'
 import type { FrontendErrorKind } from '../types/frontendError'
 import { getLicensePlateValidationError } from './licensePlate'
 
@@ -34,19 +31,10 @@ export function getWorkshopProcessValidationIssues(
     })
   }
 
-  const expectedTireSetRole: TireSetRole =
-    process.serviceType === 'tire_storage' ? 'stored' : 'installed'
   const tireSetEntry = process.tireSets[0]
+  if (!tireSetEntry) return issues
 
-  if (!tireSetEntry) {
-    issues.push({
-      field: 'Reifensatz',
-      kind: 'invalid',
-      message: 'Zum gewählten Vorgang fehlt ein Reifensatz.',
-      section: 'tires',
-    })
-    return issues
-  }
+  const expectedTireSetRole = process.serviceType === 'tire_storage' ? 'stored' : 'installed'
 
   if (tireSetEntry.role !== expectedTireSetRole) {
     issues.push({
