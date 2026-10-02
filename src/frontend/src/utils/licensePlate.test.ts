@@ -12,11 +12,8 @@ describe('Kennzeichen-Verarbeitung', () => {
     expect(getLicensePlateValidationError(licensePlate)).toBeNull()
   })
 
-  it('fordert nur eine nicht-leere Eingabe', () => {
-    expect(getLicensePlateValidationError('')).toMatchObject({
-      kind: 'required',
-      message: 'Kennzeichen eingeben.',
-    })
+  it('akzeptiert auch ein leeres Kennzeichen', () => {
+    expect(getLicensePlateValidationError('')).toBeNull()
     expect(getLicensePlateValidationError('NOT-A PLATE')).toBeNull()
   })
 })

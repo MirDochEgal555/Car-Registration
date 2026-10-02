@@ -93,7 +93,6 @@ def test_validate_reports_missing_handoff_fields_without_claiming_review() -> No
         "service_type",
         "service_date",
         "mechanic_id",
-        "vehicle.license_plate",
     }
 
 
@@ -168,6 +167,36 @@ def test_send_delivers_rendered_email(monkeypatch: object, tmp_path: Path) -> No
     assert "Kennzeichen: CW-AB 123" in sender.messages[0].body
     assert sender.messages[0].html_body is not None
     assert "Kennzeichen: <strong>CW-AB 123</strong>" in sender.messages[0].html_body
+
+
+def test_send_allows_a_blank_license_plate_and_leaves_it_blank_in_the_email(
+    monkeypatch: object, tmp_path: Path
+) -> None:
+    from app.api.v1.routes import registrations
+
+    sender = RecordingEmailSender()
+    delivery_store = _delivery_store(tmp_path)
+    monkeypatch.setattr(
+        registrations,
+        "settings",
+        replace(registrations.settings, office_email="office@example.com"),
+    )
+    app.dependency_overrides[get_email_sender] = lambda: sender
+    app.dependency_overrides[registrations.get_delivery_store] = lambda: delivery_store
+    try:
+        response = TestClient(app).post(
+            "/api/v1/registrations/send",
+            json=_valid_tire_storage_draft(
+                mechanic_confirmed=True,
+                vehicle={"license_plate": "", "mileage_km": 73400},
+            ),
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Kennzeichen: \n" in sender.messages[0].body
+    assert "Kennzeichen: <strong></strong>" in sender.messages[0].html_body
 
 
 def test_failed_delivery_is_saved_and_retryable(

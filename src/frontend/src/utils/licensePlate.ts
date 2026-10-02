@@ -17,14 +17,7 @@ export function getLicensePlateError(value: string): string | null {
 }
 
 export function getLicensePlateValidationError(
-  value: string,
+  _value: string,
 ): LicensePlateValidationError | null {
-  if (!value.trim()) {
-    return {
-      kind: 'required',
-      message: 'Kennzeichen eingeben.',
-    }
-  }
-
   return null
 }

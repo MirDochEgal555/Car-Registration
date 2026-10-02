@@ -1,6 +1,5 @@
 import type { WorkshopProcess } from '../types/workshopProcess'
 import type { FrontendErrorKind } from '../types/frontendError'
-import { getLicensePlateValidationError } from './licensePlate'
 
 export type WorkshopProcessValidationIssue = {
   field: string
@@ -12,25 +11,14 @@ export type WorkshopProcessValidationIssue = {
 /**
  * Validiert die Werte, die die manuelle Erfassung aktuell verwaltet.
  *
- * Das Kennzeichen ist für beide Vorgangstypen Pflicht. Die übrigen
- * Reifenangaben sind in der bestehenden Erfassung optional; sobald sie
- * eingegeben wurden, dürfen sie jedoch nicht unplausibel sein.
+ * Die Reifenangaben sind in der bestehenden Erfassung optional; sobald sie
+ * eingegeben wurden, dürfen sie jedoch nicht unplausibel sein. Ein Kennzeichen
+ * kann ebenfalls leer bleiben.
  */
 export function getWorkshopProcessValidationIssues(
   process: WorkshopProcess,
 ): WorkshopProcessValidationIssue[] {
   const issues: WorkshopProcessValidationIssue[] = []
-  const licensePlateError = getLicensePlateValidationError(process.licensePlate)
-
-  if (licensePlateError) {
-    issues.push({
-      field: 'Kennzeichen',
-      kind: licensePlateError.kind,
-      message: licensePlateError.message,
-      section: 'plate',
-    })
-  }
-
   const tireSetEntry = process.tireSets[0]
   if (!tireSetEntry) return issues
 

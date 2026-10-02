@@ -35,6 +35,13 @@ describe('Vorgangsvalidierung', () => {
     expect(getWorkshopProcessValidationIssues(createProcess())).toEqual([])
   })
 
+  it('akzeptiert einen Entwurf ohne Kennzeichen', () => {
+    const process = createProcess()
+    process.licensePlate = ''
+
+    expect(getWorkshopProcessValidationIssues(process)).toEqual([])
+  })
+
   it('meldet unplausible Reifenwerte und eine falsche Satzrolle', () => {
     const process = createProcess()
     process.tireSets[0] = {

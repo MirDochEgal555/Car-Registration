@@ -69,7 +69,8 @@ HTTP 422; unavailable or unusable provider responses return HTTP 503 or 502
 without a partial draft.
 
 The only required values for handoff to WERBAS are `service_type`,
-`service_date`, `mechanic_id`, and `vehicle.license_plate`. Existing
+`service_date`, and `mechanic_id`; `vehicle.license_plate` is optional and is
+left blank in the office email when absent. Existing
 `field_status` values from extraction are preserved; `uncertain` and `invalid`
 set `review_required` but do not block sending on their own. The outbox is an
 audit/retry mechanism, not a general office inbox or WERBAS replacement. It

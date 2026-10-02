@@ -123,13 +123,13 @@ Reifenmodell: Alpin 6 [unsicher]
 Fehlende Pflichtinformationen werden hervorgehoben:
 
 ```text
-Kennzeichen fehlt
+Service-Datum fehlt
 ```
 
 Der Mechaniker kann fehlende Angaben direkt im Formular oder in der Review-Ansicht ergänzen:
 
 ```text
-Kennzeichen: CW-AB 123
+Service-Datum: 02.10.2026
 ```
 
 Eine neue Sprachaufnahme erzeugt ein neues Originaltranskript. Das Backend kann

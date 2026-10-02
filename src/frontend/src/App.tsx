@@ -717,7 +717,7 @@ function WorkshopApp() {
         <p className="workshop-view__eyebrow">Neue Aufnahme</p>
         <h1 id="page-title">Notiz aufnehmen</h1>
         <p className="workshop-view__intro">
-          Nimm eine Sprachnotiz auf, prüfe das Transkript und erfasse das Kennzeichen.
+          Nimm eine Sprachnotiz auf, prüfe das Transkript und erfasse bei Bedarf das Kennzeichen.
         </p>
 
         <AudioRecorder
@@ -734,7 +734,7 @@ function WorkshopApp() {
           {audioTranscriptionState.kind === 'processing'
             ? 'Die Sprachnotiz wird verarbeitet.'
             : audioTranscriptionState.kind === 'completed'
-              ? 'Das Transkript ist gespeichert. Bitte das Kennzeichen prüfen.'
+              ? 'Das Transkript ist gespeichert. Du kannst das Kennzeichen ergänzen.'
               : audioTranscriptionState.kind === 'error'
                 ? 'Du kannst die Transkription erneut versuchen.'
                 : 'Starte die Aufnahme, sobald du bereit bist.'}
@@ -742,7 +742,7 @@ function WorkshopApp() {
 
         <label className="license-plate-field" htmlFor="license-plate">
           <span className="license-plate-field__label">
-            Kennzeichen <span className="field-status field-status--required">Pflicht</span>
+            Kennzeichen <span className="field-status">Optional</span>
           </span>
           <input
             aria-describedby={
@@ -776,7 +776,7 @@ function WorkshopApp() {
           />
         ) : (
           <p className="field-message field-message--success" role="status">
-            Kennzeichen ist im Vorgang gespeichert.
+            Kennzeichen ist optional und kann leer bleiben.
           </p>
         )}
 
@@ -1185,7 +1185,7 @@ function CompactOverviewPage({
       <section className="workshop-view__content workshop-view__content--overview" aria-labelledby="page-title">
         <p className="workshop-view__eyebrow">Aufnahme prüfen</p>
         <h1 id="page-title">Fast geschafft.</h1>
-        <p className="workshop-view__intro">Prüfe Transkript und Kennzeichen, dann sende die Aufnahme an das Büro.</p>
+        <p className="workshop-view__intro">Prüfe das Transkript und ergänze bei Bedarf das Kennzeichen, dann sende die Aufnahme an das Büro.</p>
         {isSubmitting && <DeliveryProgressNotice stage={submissionState.kind} />}
         {submissionState.kind === 'error' && (
           <FrontendErrorState kind={submissionState.phase === 'delivery' ? 'unexpected' : 'confirmation'} message={submissionState.message}>
@@ -1228,7 +1228,7 @@ function CompactOverviewPage({
         <button className="primary-action confirmation-action" disabled={!canConfirm} onClick={onConfirm} type="button">
           <span className="primary-action__icon" aria-hidden="true">✓</span>
           <span>{isSubmitting ? 'Wird gesendet …' : 'Aufnahme senden'}</span>
-          <span className="primary-action__hint">{hasTranscript && confirmationIssues.length === 0 ? 'Transkript und Kennzeichen an das Büro senden' : 'Bitte Transkript und Kennzeichen ergänzen'}</span>
+          <span className="primary-action__hint">{hasTranscript && confirmationIssues.length === 0 ? 'Transkript an das Büro senden' : 'Bitte Transkript ergänzen'}</span>
         </button>
         <button className="secondary-button overview-action" disabled={isSubmitting} onClick={onEditCapture} type="button">Aufnahme bearbeiten</button>
       </section>
@@ -1513,7 +1513,7 @@ function ProcessOverviewPage({
                   />
                 ) : (
                   <p className="summary-editor__message" id="overview-license-plate-hint">
-                    Kennzeichen ist im Vorgang gespeichert.
+                    Kennzeichen ist optional und kann leer bleiben.
                   </p>
                 )}
                 <button className="summary-editor__done" type="submit">
@@ -1926,7 +1926,7 @@ function ProcessConfirmedPage({
         <p className="workshop-view__eyebrow">E-Mail erfolgreich versendet</p>
         <h1 id="page-title">Alles erledigt.</h1>
         <p className="workshop-view__intro">
-          Die Aufnahme für {process.licensePlate} wurde an das Büro versendet.
+          Die Aufnahme{process.licensePlate ? ` für ${process.licensePlate}` : ''} wurde an das Büro versendet.
         </p>
         <p className="confirmation-success__notice">
           {delivery?.recipient

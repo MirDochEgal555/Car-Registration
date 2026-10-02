@@ -103,14 +103,6 @@ def validate_registration(draft: RegistrationDraft) -> ValidationResponse:
             FieldStatus.MISSING,
         )
 
-    plate = draft.vehicle.license_plate
-    if not plate:
-        add_issue(
-            "vehicle.license_plate",
-            "required",
-            "Das Kennzeichen fehlt.",
-            FieldStatus.MISSING,
-        )
     if draft.vehicle.mileage_km is not None and draft.vehicle.mileage_km < 0:
         add_issue(
             "vehicle.mileage_km",

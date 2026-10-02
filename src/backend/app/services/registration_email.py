@@ -247,10 +247,10 @@ def build_registration_email_document(
     """Create the one semantic mail document used for both alternatives."""
 
     raw_transcript = validation.registration.raw_transcript or ""
-    sections = []
-    if license_plate:
-        sections.append(EmailSection("Kennzeichen", (EmailField("Kennzeichen", license_plate),)))
-    sections.append(EmailSection("Transkript", (EmailField("Transkript", raw_transcript),)))
+    sections = [
+        EmailSection("Kennzeichen", (EmailField("Kennzeichen", license_plate or ""),)),
+        EmailSection("Transkript", (EmailField("Transkript", raw_transcript),)),
+    ]
 
     return RegistrationEmailDocument(
         service_name=service_name,
@@ -283,9 +283,7 @@ def render_registration_email_html(document: RegistrationEmailDocument) -> str:
     sections_html = "".join(_render_html_section(section) for section in document.sections)
     plate_html = (
         '<div style="margin-top:6px;font-size:16px;line-height:1.4;">'
-        f"Kennzeichen: <strong>{escape(document.license_plate)}</strong></div>"
-        if document.license_plate
-        else ""
+        f"Kennzeichen: <strong>{escape(document.license_plate or '')}</strong></div>"
     )
     return f"""<!doctype html>
 <html lang="de">
