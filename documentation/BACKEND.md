@@ -55,7 +55,9 @@ unterstützte Dateien sowie fehlgeschlagene Transkriptionen liefern
 `status: "failed"`, `transcript: null` und einen einheitlichen Fehlerkörper mit
 `error.code` und `error.message`. Der Adapter übergibt die Sprache `de` sowie
 deutschen Kfz-Werkstatt-Kontext und Fachbegriffe. Die Antwort bleibt bewusst
-ein Rohtranskript; die Fahrzeug- oder Vorgangsextraktion läuft anschließend
+ein unstrukturierter Transkripttext; lediglich getrennt erkannte Dezimalwerte
+mit einer einzelnen Nachkommastelle wie `6 5` werden für die Anzeige als `6,5`
+vereinheitlicht. Die Fahrzeug- oder Vorgangsextraktion läuft anschließend
 explizit über `POST /extractions`.
 
 ## API und Ablauf

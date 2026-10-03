@@ -218,6 +218,52 @@ def test_openai_provider_uses_german_workshop_context_without_extracting_fields(
     ]
 
 
+def test_openai_provider_renders_split_number_readings_as_decimals() -> None:
+    client = FakeOpenAIClient()
+
+    async def create_split_reading(**_request: object):
+        return type(
+            "Transcription", (), {"text": "Profil vorne links 6 5 mm, hinten 5 0."}
+        )()
+
+    client.transcriptions.create = create_split_reading
+    provider = OpenAITranscriptionProvider(api_key="not-a-real-secret", client=client)
+
+    transcript = asyncio.run(
+        provider.transcribe(
+            AudioRecording(
+                content=b"recorded workshop audio",
+                media_type="audio/webm",
+                filename="workshop-note.webm",
+            )
+        )
+    )
+
+    assert transcript == "Profil vorne links 6,5 mm, hinten 5,0."
+
+
+def test_split_decimal_normalisation_does_not_touch_multi_digit_number_pairs() -> None:
+    client = FakeOpenAIClient()
+
+    async def create_number_pairs(**_request: object):
+        return type(
+            "Transcription",
+            (),
+            {"text": "Reifengröße 205 55 R16, Kilometerstand 6 500."},
+        )()
+
+    client.transcriptions.create = create_number_pairs
+    provider = OpenAITranscriptionProvider(api_key="not-a-real-secret", client=client)
+
+    transcript = asyncio.run(
+        provider.transcribe(
+            AudioRecording(b"audio", "audio/webm", "workshop-note.webm")
+        )
+    )
+
+    assert transcript == "Reifengröße 205 55 R16, Kilometerstand 6 500."
+
+
 def test_get_transcription_provider_uses_the_configured_openai_adapter(
     monkeypatch,
 ) -> None:

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import inspect
 import logging
 from pathlib import Path
+import re
 from typing import Any, Protocol
 
 from app.core.config import settings
@@ -33,7 +34,17 @@ GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT = (
     "Sommerreifen, Winterreifen, Ganzjahresreifen, Felge, Profiltiefe, Luftdruck, "
     "RDKS, Bremsen, Radschrauben, Drehmoment, Wuchtgewichte, HU, AU, "
     "Vorderachse, Hinterachse, vorne, hinten, links, rechts, vorne links, "
-    "vorne rechts, hinten links und hinten rechts."
+    "vorne rechts, hinten links und hinten rechts. Bei zwei getrennt gesprochenen "
+    "Zahlengruppen, deren zweite Gruppe genau eine Ziffer hat, verwende ein "
+    "Dezimalkomma, zum Beispiel 6,5 statt 6 5."
+)
+
+
+# A space-separated number followed by exactly one digit is how STT commonly
+# writes a mechanic's decimal reading ("sechs fünf").  Multi-digit groups such
+# as tyre sizes (205 55) and mileages (6 500) intentionally do not match.
+_SPLIT_DECIMAL_PATTERN = re.compile(
+    r"(?<![\d.,])(\d+)\s+(\d)(?!\d)"
 )
 
 @dataclass(frozen=True)
@@ -128,9 +139,7 @@ class OpenAITranscriptionProvider:
             raise TranscriptionProviderError(
                 "Der Sprachtranskriptionsdienst hat keinen Text zurückgegeben."
             )
-        # Whitespace still establishes whether speech was returned, but the
-        # stored transcript itself must remain byte-for-byte provider output.
-        return transcript
+        return normalise_split_decimals(transcript)
 
     def _create_client(self) -> Any:
         """Create the async SDK lazily so an unconfigured app can still start."""
@@ -155,6 +164,19 @@ def _transcription_filename(recording: AudioRecording) -> str:
     if not filename.lower().endswith(".webm"):
         filename = f"{filename}.webm"
     return filename
+
+
+def normalise_split_decimals(transcript: str) -> str:
+    """Render separately recognised one-digit decimal fractions with a comma.
+
+    For example, ``6 5`` becomes ``6,5``.  The pattern deliberately excludes
+    multi-digit second groups, preserving values such as ``205 55`` and
+    ``6 500``.
+    """
+
+    return _SPLIT_DECIMAL_PATTERN.sub(
+        lambda match: f"{match.group(1)},{match.group(2)}", transcript
+    )
 
 
 def _is_openai_service_unavailable(error: Exception) -> bool:
