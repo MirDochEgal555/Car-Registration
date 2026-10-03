@@ -197,5 +197,6 @@ def test_transcription_context_explicitly_names_german_workshop_entities() -> No
         "vorne rechts",
         "hinten links",
         "hinten rechts",
+        "arabische Ziffern",
     ):
         assert term in GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT

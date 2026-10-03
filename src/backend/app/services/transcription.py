@@ -34,9 +34,10 @@ GERMAN_AUTOMOTIVE_TRANSCRIPTION_PROMPT = (
     "Sommerreifen, Winterreifen, Ganzjahresreifen, Felge, Profiltiefe, Luftdruck, "
     "RDKS, Bremsen, Radschrauben, Drehmoment, Wuchtgewichte, HU, AU, "
     "Vorderachse, Hinterachse, vorne, hinten, links, rechts, vorne links, "
-    "vorne rechts, hinten links und hinten rechts. Bei zwei getrennt gesprochenen "
-    "Zahlengruppen, deren zweite Gruppe genau eine Ziffer hat, verwende ein "
-    "Dezimalkomma, zum Beispiel 6,5 statt 6 5."
+    "vorne rechts, hinten links und hinten rechts. Schreibe alle Zahlen als "
+    "arabische Ziffern, niemals als ausgeschriebene Zahlwörter. Bei getrennt "
+    "gesprochenen Zahlengruppen, deren zweite Gruppe genau eine Ziffer hat, "
+    "verwende ein Dezimalkomma, zum Beispiel 6,5 statt 6 5."
 )
 
 
