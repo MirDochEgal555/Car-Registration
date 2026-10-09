@@ -29,8 +29,8 @@ export default defineConfig({
         start_url: basePath,
         scope: basePath,
         display: 'standalone',
-        theme_color: '#17241f',
-        background_color: '#f4f7f4',
+        theme_color: '#063574',
+        background_color: '#f4f7fb',
       },
       pwaAssets: {
         image: 'public/pwa-icon.svg',

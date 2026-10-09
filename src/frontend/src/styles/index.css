@@ -39,7 +39,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 4px solid #075bc2;
+  outline: 4px solid #063574;
   outline-offset: 3px;
 }
 
@@ -64,7 +64,7 @@ textarea:focus-visible {
 .login-card h1 { font-size: clamp(2.25rem, 9vw, 3.5rem); }
 .login-card label { display: grid; gap: .4rem; color: #243e2c; font-weight: 750; }
 .login-card input { width: 100%; padding: .8rem; border: 1px solid #8ba293; border-radius: .65rem; }
-.login-card .primary-action { padding: 1rem 1.2rem; background: #1a6e40; color: #fff; text-align: center; }
+.login-card .primary-action { padding: 1rem 1.2rem; background: #063574; color: #fff; text-align: center; }
 .login-card__error { margin: 0; color: #a80d22; font-weight: 700; }
 
 .workshop-view {
@@ -107,7 +107,7 @@ textarea:focus-visible {
   height: 2.4rem;
   place-items: center;
   border-radius: 0.75rem;
-  background: #1a6e40;
+  background: #063574;
   color: #ffffff;
   font-size: 1.2rem;
   letter-spacing: -0.08em;
@@ -132,7 +132,7 @@ textarea:focus-visible {
 
 .workshop-view__eyebrow {
   margin: 0 0 0.75rem;
-  color: #37704d;
+  color: #256bb1;
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -209,8 +209,8 @@ h1 {
   align-items: center;
   min-height: 7rem;
   padding: 1.2rem 1.25rem;
-  background: #125f35;
-  box-shadow: 0 0.65rem 1.5rem rgba(13, 64, 35, 0.22);
+  background: #063574;
+  box-shadow: 0 0.65rem 1.5rem rgba(6, 53, 116, 0.22);
   color: #ffffff;
   font-size: clamp(1.25rem, 4vw, 1.55rem);
 }
@@ -228,7 +228,7 @@ h1 {
 }
 
 .primary-action__hint {
-  color: #dff4e6;
+  color: #dcecff;
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -259,14 +259,14 @@ h1 {
   height: 3.3rem;
   place-items: center;
   border-radius: 1rem;
-  background: #e2f0e6;
-  color: #187041;
+  background: #e5f0ff;
+  color: #063574;
   font-size: 1.75rem;
   font-weight: 800;
 }
 
 .service-selection__arrow {
-  color: #275f3d;
+  color: #245b9a;
   font-size: 1.5rem;
   font-weight: 500;
 }
@@ -296,9 +296,9 @@ h1 {
 .secondary-button {
   min-height: 4.75rem;
   padding: 1rem 1.25rem;
-  border: 2px solid #abc3b2;
-  background: #e3efe6;
-  color: #123f27;
+  border: 2px solid #aac5e5;
+  background: #e5f0ff;
+  color: #163e6d;
   font-size: 1.1rem;
   text-align: center;
 }
@@ -310,8 +310,8 @@ h1 {
   margin-bottom: 1.25rem;
   padding: 0.6rem 0.85rem;
   border-radius: 999px;
-  background: #e2f0e6;
-  color: #134d2d;
+  background: #e5f0ff;
+  color: #174f8b;
   font-size: 0.95rem;
   font-weight: 800;
 }
@@ -579,8 +579,8 @@ h1 {
 }
 
 .audio-recorder__start {
-  background: #125f35;
-  box-shadow: 0 0.55rem 1.2rem rgba(13, 64, 35, 0.2);
+  background: #063574;
+  box-shadow: 0 0.55rem 1.2rem rgba(6, 53, 116, 0.2);
 }
 
 .audio-recorder__stop {
@@ -631,7 +631,7 @@ h1 {
 }
 
 .audio-recorder__button-hint {
-  color: #dff4e6;
+  color: #dcecff;
   font-size: 0.88rem;
   font-weight: 650;
 }
@@ -749,7 +749,7 @@ h1 {
 }
 
 .license-plate-field__input:focus {
-  border-color: #176b3d;
+  border-color: #063574;
   outline: 4px solid #a8d2ff;
   outline-offset: 2px;
 }
@@ -1181,7 +1181,7 @@ h1 {
 .summary-editor__field input:focus,
 .summary-editor__field select:focus,
 .summary-editor__field textarea:focus {
-  border-color: #176b3d;
+  border-color: #063574;
   outline: 4px solid #a8d2ff;
   outline-offset: 2px;
 }
@@ -1205,13 +1205,13 @@ h1 {
   min-height: 4.25rem;
   margin-top: 1rem;
   border-radius: 0.85rem;
-  background: #125f35;
+  background: #063574;
   color: #ffffff;
   font-size: 1.05rem;
 }
 
 .summary-editor__done:hover {
-  background: #125a32;
+  background: #042956;
 }
 
 .confirmation-success__icon {
@@ -1221,8 +1221,8 @@ h1 {
   margin-bottom: 1.5rem;
   place-items: center;
   border-radius: 50%;
-  background: #125f35;
-  box-shadow: 0 0.8rem 2rem rgba(20, 78, 45, 0.2);
+  background: #063574;
+  box-shadow: 0 0.8rem 2rem rgba(6, 53, 116, 0.2);
   color: #ffffff;
   font-size: 2.7rem;
   font-weight: 900;
@@ -1233,8 +1233,8 @@ h1 {
   margin-bottom: 1.75rem;
   padding: 0.95rem 1rem;
   border-radius: 0.85rem;
-  background: #e2f0e6;
-  color: #1a6138;
+  background: #e5f0ff;
+  color: #155aab;
   font-weight: 750;
   line-height: 1.4;
 }
@@ -1349,7 +1349,7 @@ h1 {
 .workshop-field textarea:focus,
 .tire-size-field input:focus,
 .tread-depth-field input:focus {
-  border-color: #176b3d;
+  border-color: #063574;
   outline: 4px solid #a8d2ff;
   outline-offset: 2px;
 }
